@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ExternalLink, Brain, Zap, Shield, Users } from 'lucide-react';
+import { ChevronRight, ExternalLink, Brain, Zap, Shield, Users, Menu, X } from 'lucide-react';
 import cereforge from '../assets/cereForge.png'
 
 // Define the Project interface
@@ -19,6 +19,7 @@ const LandingPage = () => {
     const [cardsSpread, setCardsSpread] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [email, setEmail] = useState<string>('');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
     // Auto-reset cards to stack when scrolling away from projects section
     useEffect(() => {
@@ -133,7 +134,8 @@ const LandingPage = () => {
             {/* Navigation Header */}
             <nav className="fixed top-4 w-full z-50 px-4">
                 <div className="max-w-7xl mx-auto">
-                    <div className="flex justify-center items-center h-16">
+                    {/* Desktop Navigation */}
+                    <div className="hidden sm:flex justify-center items-center h-16">
                         <div className="flex items-center space-x-4 sm:space-x-8 rounded-full px-4 sm:px-8 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
                             <a href="#home" className="text-white hover:text-orange-500 font-medium transition-colors text-sm sm:text-base">Home</a>
                             <a href="#about" className="text-white hover:text-orange-500 font-medium transition-colors text-sm sm:text-base">About</a>
@@ -147,11 +149,85 @@ const LandingPage = () => {
                             </a>
                         </div>
                     </div>
+
+                    {/* Mobile Navigation */}
+                    <div className="sm:hidden">
+                        <div className="flex justify-between items-center h-16 rounded-full px-6 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
+                            {/* Logo */}
+                            <div className="flex items-center space-x-2">
+                                <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
+                                <div className="relative inline-block">
+                                    {/* Sleek transparent blur background */}
+                                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
+                                    <span className="text-blue-900 relative z-10 px-3 py-1 font-bold text-lg">CERE</span>
+                                </div>
+                                <span className="text-white font-bold text-lg">FORGE</span>
+                            </div>
+
+                            {/* Hamburger Menu Button */}
+                            <button
+                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                className="text-white hover:text-orange-500 transition-colors p-2"
+                                aria-label="Toggle mobile menu"
+                            >
+                                {isMobileMenuOpen ? (
+                                    <X className="w-6 h-6" />
+                                ) : (
+                                    <Menu className="w-6 h-6" />
+                                )}
+                            </button>
+                        </div>
+
+                        {/* Mobile Menu Dropdown */}
+                        {isMobileMenuOpen && (
+                            <div className="absolute top-full left-4 right-4 mt-2 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/95 overflow-hidden animate-in slide-in-from-top duration-300">
+                                <div className="py-4">
+                                    <a 
+                                        href="#home" 
+                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Home
+                                    </a>
+                                    <a 
+                                        href="#about" 
+                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        About
+                                    </a>
+                                    <a 
+                                        href="#team" 
+                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Cereforge
+                                    </a>
+                                    <a 
+                                        href="#projects" 
+                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        Projects
+                                    </a>
+                                    <div className="px-6 py-3">
+                                        <a
+                                            href="/login"
+                                            className="block w-full text-center bg-blue-800 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-colors"
+                                            onClick={() => setIsMobileMenuOpen(false)}
+                                        >
+                                            Login
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </nav>
 
             {/* Hero Section */}
-            <section id="home" className="pt-24 min-h-screen flex items-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white relative overflow-hidden">
+            <section id="home" className="pt-24 pb-8 min-h-screen flex items-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/20"></div>
                 <div className="absolute inset-0" style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -161,21 +237,21 @@ const LandingPage = () => {
                     <div className="grid lg:grid-cols-2 gap-12 items-center">
                         <div>
                             <div className="flex items-center space-x-4 mb-6">
-                                <img src={cereforge} alt="Cereforge Logo" className="w-20 h-20 rounded-lg bg-white/10 p-2" />
+                                <img src={cereforge} alt="Cereforge Logo" className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white/10 p-2" />
                                 <div>
-                                    <h1 className="text-5xl font-bold relative">
+                                    <h1 className="text-3xl sm:text-4xl font-bold relative">
                                         <span className="relative inline-block">
                                             {/* Sleek transparent blur background */}
                                             <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
-                                            <span className="text-blue-900 relative z-10 px-4 py-1">CERE</span>
+                                            <span className="text-blue-900 relative z-10 px-2 sm:px-4 py-1 text-2xl sm:text-4xl">CERE</span>
                                         </span>
-                                        <span className="text-white">FORGE</span>
+                                        <span className="text-white text-2xl sm:text-4xl">FORGE</span>
                                     </h1>
-                                    <p className="text-blue-200 text-lg">Forging Intelligence into Innovation</p>
+                                    <p className="text-blue-200 text-sm sm:text-lg">Forging Intelligence into Innovation</p>
                                 </div>
                             </div>
 
-                            <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
+                            <h2 className="text-2xl sm:text-4xl lg:text-6xl font-bold mb-6 leading-tight">
                                 Turn Ideas Into <span className="text-orange-500">Innovation</span>
                             </h2>
 
@@ -427,11 +503,11 @@ const LandingPage = () => {
                             </div>
                         ) : (
                             // Project Details View - Takes over the entire section when a project is selected
-                            <div className="bg-white rounded-xl shadow-xl border p-8 min-h-[500px] animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 h-full">
+                            <div className="bg-white rounded-xl shadow-xl border p-4 sm:p-8 min-h-[500px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8 h-full">
                                     {/* Project Icon - Top Left */}
-                                    <div className="lg:col-span-1">
-                                        <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl animate-in zoom-in duration-300 delay-100">
+                                    <div className="lg:col-span-1 flex justify-center lg:justify-start">
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl animate-in zoom-in duration-300 delay-100">
                                             {selectedProject.name.charAt(0)}
                                         </div>
                                     </div>
@@ -440,22 +516,22 @@ const LandingPage = () => {
                                     <div className="lg:col-span-3">
                                         <div className="flex flex-col h-full animate-in slide-in-from-right duration-500 delay-200">
                                             {/* Header */}
-                                            <div className="mb-6">
-                                                <h3 className="text-3xl font-bold text-gray-900 mb-2">{selectedProject.name}</h3>
-                                                <p className="text-orange-600 font-medium text-lg">{selectedProject.phrase}</p>
+                                            <div className="mb-4 sm:mb-6 text-center lg:text-left">
+                                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">{selectedProject.name}</h3>
+                                                <p className="text-orange-600 font-medium text-base sm:text-lg">{selectedProject.phrase}</p>
                                             </div>
 
                                             {/* Description */}
-                                            <p className="text-gray-700 mb-6 leading-relaxed">{selectedProject.description}</p>
+                                            <p className="text-gray-700 mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base">{selectedProject.description}</p>
 
                                             {/* Technologies */}
-                                            <div className="mb-6">
-                                                <h4 className="font-semibold text-gray-900 mb-3">Technologies Used:</h4>
-                                                <div className="flex flex-wrap gap-2">
+                                            <div className="mb-4 sm:mb-6">
+                                                <h4 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">Technologies Used:</h4>
+                                                <div className="flex flex-wrap gap-1 sm:gap-2">
                                                     {selectedProject.tech.map((tech, index) => (
                                                         <span
                                                             key={tech}
-                                                            className="bg-blue-100 text-blue-800 px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:bg-blue-200 hover:scale-105"
+                                                            className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 hover:bg-blue-200 hover:scale-105"
                                                             style={{
                                                                 animationDelay: `${index * 50}ms`,
                                                                 animation: 'slideInUp 0.4s ease-out forwards'
@@ -468,31 +544,31 @@ const LandingPage = () => {
                                             </div>
 
                                             {/* Impact */}
-                                            <div className="mb-6">
-                                                <h4 className="font-semibold text-gray-900 mb-2">Impact:</h4>
-                                                <p className="text-orange-600 font-semibold text-lg">{selectedProject.impact}</p>
+                                            <div className="mb-4 sm:mb-6">
+                                                <h4 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Impact:</h4>
+                                                <p className="text-orange-600 font-semibold text-base sm:text-lg">{selectedProject.impact}</p>
                                             </div>
 
                                             {/* Results */}
-                                            <div className="mb-8">
-                                                <h4 className="font-semibold text-gray-900 mb-2">Results:</h4>
-                                                <p className="text-gray-700">{selectedProject.results}</p>
+                                            <div className="mb-6 sm:mb-8">
+                                                <h4 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Results:</h4>
+                                                <p className="text-gray-700 text-sm sm:text-base">{selectedProject.results}</p>
                                             </div>
 
-                                            {/* Buttons - Bottom Right */}
-                                            <div className="flex gap-4 justify-end mt-auto animate-in slide-in-from-bottom duration-500 delay-300">
+                                            {/* Buttons - Responsive Layout */}
+                                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center sm:justify-end mt-auto animate-in slide-in-from-bottom duration-500 delay-300">
                                                 <button
                                                     onClick={handleCloseProject}
-                                                    className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
+                                                    className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
                                                 >
                                                     Close
                                                 </button>
                                                 <button
                                                     onClick={() => window.open(selectedProject.liveUrl, '_blank')}
-                                                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 hover:shadow-lg"
+                                                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 hover:shadow-lg text-sm sm:text-base"
                                                 >
-                                                    <span>Visit {selectedProject.name}</span>
-                                                    <ExternalLink className="w-5 h-5" />
+                                                    <span>Visit Project</span>
+                                                    <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
                                                 </button>
                                             </div>
                                         </div>
