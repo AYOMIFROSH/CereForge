@@ -167,7 +167,7 @@ const LandingPage = () => {
                             {/* Hamburger Menu Button */}
                             <button
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="text-white hover:text-orange-500 transition-colors p-2"
+                                className="text-white hover:text-white-500 transition-colors p-2"
                                 aria-label="Toggle mobile menu"
                             >
                                 {isMobileMenuOpen ? (
