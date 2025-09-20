@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronRight, ExternalLink, Brain, Zap, Shield, Users } from 'lucide-react';
-import cereforge from '../assets/cereforge.png'
+import cereforge from '../assets/cereForge.png'
 
 // Define the Project interface
 interface Project {
