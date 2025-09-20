@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://cereforge.com/sitemap.xml
+Sitemap: https://cereforge.com/sitemap-images.xml
+
+# Crawl-delay (optional - helps prevent overwhelming server)
+Crawl-delay: 1
+
+# Block unnecessary paths if you have them
+# Disallow: /admin/
+# Disallow: /private/

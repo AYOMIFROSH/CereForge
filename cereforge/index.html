@@ -1,13 +1,225 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/cereForge.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CereForge</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Favicon and Icons -->
+  <link rel="icon" type="image/png" href="/cereForge.png" />
+  <link rel="apple-touch-icon" href="/cereForge.png" />
+  <link rel="shortcut icon" href="/cereForge.png" />
+
+  <!-- Basic Meta Tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1E3A8A" />
+  <meta name="robots" content="index, follow" />
+  <meta name="googlebot" content="index, follow" />
+  <meta name="language" content="English" />
+  <meta name="revisit-after" content="7 days" />
+  <meta name="author" content="Cereforge" />
+
+  <!-- SEO Meta Tags -->
+  <title>Cereforge - AI-Powered Software Solutions & Hardware Integration | Custom Development in 30 Days</title>
+  <meta name="description"
+    content="Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms." />
+  <meta name="keywords"
+    content="AI software development, custom software solutions, hardware integration, neural infrastructure, robotic assembly, smart manufacturing, software engineering, firmware development, web development, artificial intelligence, machine learning, IoT solutions, automation systems, digital transformation, software consulting, tech solutions, startup development, enterprise software" />
+
+  <!-- Open Graph Meta Tags (Facebook, LinkedIn) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Cereforge - AI-Powered Software Solutions & Hardware Integration" />
+  <meta property="og:description"
+    content="Transform your ideas into innovation with AI-powered software solutions, hardware integration, and complete digital platforms. 30-day delivery guaranteed." />
+  <meta property="og:image" content="https://cereforge.com/cereForge.png" />
+  <meta property="og:image:alt" content="Cereforge Logo - AI-Powered Software Solutions" />
+  <meta property="og:url" content="https://cereforge.com" />
+  <meta property="og:site_name" content="Cereforge" />
+  <meta property="og:locale" content="en_US" />
+
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@cereforge" />
+  <meta name="twitter:creator" content="@cereforge" />
+  <meta name="twitter:title" content="Cereforge - AI-Powered Software Solutions & Hardware Integration" />
+  <meta name="twitter:description"
+    content="Transform your ideas into innovation with AI-powered software solutions, hardware integration, and complete digital platforms. 30-day delivery guaranteed." />
+  <meta name="twitter:image" content="https://cereforge.com/cereForge.png" />
+  <meta name="twitter:image:alt" content="Cereforge Logo - AI-Powered Software Solutions" />
+  <!-- Google Search Console -->
+  <meta name="google-site-verification" content="YOUR_VERIFICATION_CODE" />
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'GA_MEASUREMENT_ID');
+  </script>
+
+  <!-- Business/Organization Schema -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Cereforge",
+      "alternateName": ["Cere Forge", "CereForge", "cere forge"],
+      "description": "AI-powered software solutions, hardware integration, and intelligent automation company specializing in neural-forge systems and resilient infrastructure.",
+      "url": "https://cereforge.com",
+      "logo": "https://cereforge.com/cereForge.png",
+      "image": "https://cereforge.com/cereForge.png",
+      "foundingDate": "2024",
+      "slogan": "Forging Intelligence into Innovation",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "email": "info@cereforge.com"
+      },
+      "sameAs": [
+        "https://facebook.com/cereforge",
+        "https://instagram.com/cereforge",
+        "https://x.com/cereforge",
+        "https://linkedin.com/company/cereforge",
+        "https://youtube.com/@cereforge"
+      ],
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Lagos",
+        "addressCountry": "NG"
+      },
+      "areaServed": "Worldwide",
+      "knowsAbout": [
+        "Artificial Intelligence",
+        "Software Development",
+        "Hardware Integration",
+        "Neural Networks",
+        "IoT Solutions",
+        "Automation Systems",
+        "Machine Learning",
+        "Robotics",
+        "Digital Transformation"
+      ],
+      "serviceType": [
+        "AI Software Development",
+        "Hardware Integration",
+        "Custom Software Solutions",
+        "Neural Infrastructure Platforms",
+        "Robotic Assembly Controllers",
+        "Smart Manufacturing Systems",
+        "Web Development",
+        "Firmware Development"
+      ]
+    }
+    </script>
+
+  <!-- Website Schema -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Cereforge",
+      "url": "https://cereforge.com",
+      "description": "AI-powered software solutions, hardware integration, and intelligent automation platforms",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Cereforge"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://cereforge.com/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+  <!-- Service Schema -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "name": "AI-Powered Software Development",
+      "description": "Complete software solutions from concept to deployment in 30 days, including AI integration, hardware systems, and digital platforms",
+      "provider": {
+        "@type": "Organization",
+        "name": "Cereforge"
+      },
+      "areaServed": "Worldwide",
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Software Development Services",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Neural Infrastructure Platform Development"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Robotic Assembly Controller Development"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Smart Manufacturing Suite Development"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "AI-Powered Quality Control Systems"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Blockchain Supply Chain Solutions"
+            }
+          }
+        ]
+      }
+    }
+    </script>
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://cereforge.com/" />
+
+  <!-- Preconnect to External Domains -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://www.google-analytics.com" />
+  <link rel="preconnect" href="https://www.googletagmanager.com" />
+
+  <!-- DNS Prefetch -->
+  <link rel="dns-prefetch" href="//youtube.com" />
+  <link rel="dns-prefetch" href="//facebook.com" />
+  <link rel="dns-prefetch" href="//instagram.com" />
+  <link rel="dns-prefetch" href="//linkedin.com" />
+  <link rel="dns-prefetch" href="//x.com" />
+
+  <!-- Alternate Languages (if you plan to add them) -->
+  <link rel="alternate" hreflang="en" href="https://cereforge.com/" />
+  <link rel="alternate" hreflang="x-default" href="https://cereforge.com/" />
+
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+
+  <!-- Performance Hints -->
+  <link rel="preload" href="/cereForge.png" as="image" />
+
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
