@@ -119,9 +119,9 @@ const LoginPage = () => {
                     <div className="bg-white/10 backdrop-blur-sm rounded-t-xl border border-white/20 border-b-0">
                         <div className="flex">
                             {[
-                                { id: 'partners' as PortalType, label: 'Partners', icon: <Building className="w-3 h-3 sm:w-4 sm:h-4" /> },
-                                { id: 'admins' as PortalType, label: 'Admins', icon: <Shield className="w-3 h-3 sm:w-4 sm:h-4" /> },
-                                { id: 'cereforge' as PortalType, label: 'Cereforge', icon: <User className="w-3 h-3 sm:w-4 sm:h-4" /> }
+                                { id: 'partners' as PortalType, label: 'Partners', shortLabel: 'Part', icon: <Building className="w-3 h-3 sm:w-4 sm:h-4" /> },
+                                { id: 'admins' as PortalType, label: 'Admins', shortLabel: 'Admin', icon: <Shield className="w-3 h-3 sm:w-4 sm:h-4" /> },
+                                { id: 'cereforge' as PortalType, label: 'Cereforge', shortLabel: 'Core', icon: <User className="w-3 h-3 sm:w-4 sm:h-4" /> }
                             ].map((portal) => (
                                 <button
                                     key={portal.id}
@@ -133,7 +133,7 @@ const LoginPage = () => {
                                 >
                                     {portal.icon}
                                     <span className="hidden sm:inline">{portal.label}</span>
-                                    <span className="sm:hidden">{portal.label.slice(0, 4)}</span>
+                                    <span className="sm:hidden">{portal.shortLabel}</span>
                                 </button>
                             ))}
                         </div>
