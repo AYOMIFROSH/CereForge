@@ -12,7 +12,8 @@ import {
     Linkedin,
     Calendar,
     DollarSign,
-    ArrowLeft
+    ArrowLeft,
+    Home
 } from 'lucide-react';
 import cereforge from '../assets/cereForge.png';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -139,7 +140,7 @@ const GetStarted = () => {
                     <p className="text-sm text-gray-500">{description}</p>
                 )}
                 <div
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 ${dragActive === label ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                    className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 ${dragActive === label ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                         } ${file ? 'border-green-400 bg-green-50' : ''}`}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -155,10 +156,10 @@ const GetStarted = () => {
                     />
 
                     {file ? (
-                        <div className="flex items-center justify-center space-x-3">
-                            <CheckCircle className="w-6 h-6 text-green-500" />
-                            <div>
-                                <p className="text-sm font-medium text-green-700">{file.name}</p>
+                        <div className="flex items-center justify-center space-x-2 sm:space-x-3">
+                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-green-700 truncate">{file.name}</p>
                                 <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                             </div>
                             <button
@@ -166,16 +167,16 @@ const GetStarted = () => {
                                     e.stopPropagation();
                                     onFileSelect(null);
                                 }}
-                                className="text-red-500 hover:text-red-700 transition-colors"
+                                className="text-red-500 hover:text-red-700 transition-colors p-1"
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-4 h-4 sm:w-5 sm:h-5" />
                             </button>
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                            <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto" />
                             <div>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-xs sm:text-sm text-gray-600">
                                     <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
                                 </p>
                                 <p className="text-xs text-gray-500">Max file size: 10MB</p>
@@ -220,24 +221,24 @@ const GetStarted = () => {
     if (showConfirmation) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <CheckCircle className="w-10 h-10 text-green-600" />
+                <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Thank You!</h2>
-                    <p className="text-gray-600 mb-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Thank You!</h2>
+                    <p className="text-gray-600 mb-6 text-sm sm:text-base">
                         Your project submission has been received. We'll reach out within 48 hours to discuss your project in detail.
                     </p>
                     <div className="space-y-3">
                         <button
                             onClick={() => window.open('https://calendly.com/cereforge', '_blank')}
-                            className="w-full bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                            className="w-full bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base"
                         >
                             Schedule Call Now
                         </button>
                         <button
                             onClick={() => window.location.href = '/'}
-                            className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors"
+                            className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors text-sm sm:text-base"
                         >
                             Back to Home
                         </button>
@@ -248,71 +249,115 @@ const GetStarted = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <nav className="bg-white shadow-sm border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <div className="flex items-center space-x-3">
-                            <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-8 h-8" />
-                            <div className="font-bold text-lg text-gray-900">
-                                <span className="relative inline-block">
-                                    <div className="absolute inset-0 bg-blue-100 rounded-lg transform -skew-x-12"></div>
-                                    <span className="text-blue-900 relative z-10 px-2">CERE</span>
-                                </span><span>FORGE</span>
+        <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+            {/* Updated Navigation Header with Progress Bar */}
+            <nav className="fixed top-4 w-full z-50 px-4">
+                <div className="max-w-7xl mx-auto">
+                    {/* Desktop Navigation with Progress */}
+                    <div className="hidden sm:flex flex-col items-center space-y-3">
+                        <div className="flex items-center space-x-6 rounded-full px-6 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
+                            <div className="flex items-center space-x-2">
+                                <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-8 h-8" />
+                                <div className="relative inline-block">
+                                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
+                                    <span className="text-blue-900 relative z-10 px-3 py-1 font-bold text-lg">CERE</span>
+                                </div>
+                                <span className="text-white font-bold text-lg">FORGE</span>
                             </div>
-                        </div>
+                            
+                            {/* Progress section in header */}
+                            <div className="flex items-center space-x-4">
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-white text-sm font-medium">Step {currentStep} of {totalSteps}</span>
+                                    <div className="w-32 bg-white/20 rounded-full h-2">
+                                        <div
+                                            className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            </div>
 
-                        <button
-                            onClick={() => window.location.href = '/'}
-                            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            <span>Back to Home</span>
-                        </button>
+                            <button
+                                onClick={() => window.location.href = '/'}
+                                className="text-white hover:text-orange-500 transition-colors p-1"
+                                aria-label="Back to Home"
+                            >
+                                <Home className="w-5 h-5" />
+                                
+                            </button>
+                            
+                        </div>
+                    </div>
+
+                    {/* Mobile Navigation with Progress */}
+                    <div className="sm:hidden">
+                        <div className="flex flex-col space-y-3">
+                            <div className="flex justify-between items-center h-14 rounded-full px-4 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
+                                {/* Logo */}
+                                <div className="flex items-center space-x-2">
+                                    <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-6 h-6" />
+                                    <div className="relative inline-block">
+                                        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
+                                        <span className="text-blue-900 relative z-10 px-2 py-1 font-bold text-sm">CERE</span>
+                                    </div>
+                                    <span className="text-white font-bold text-sm">FORGE</span>
+                                </div>
+
+                                {/* Home button and Menu */}
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => window.location.href = '/'}
+                                        className="text-white hover:text-orange-500 transition-colors p-1"
+                                        aria-label="Back to Home"
+                                    >
+
+                                        <Home className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Progress Bar for Mobile */}
+                            <div className="rounded-full px-4 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-white text-xs font-medium">Step {currentStep} of {totalSteps}</span>
+                                    <span className="text-white text-xs">{Math.round((currentStep / totalSteps) * 100)}%</span>
+                                </div>
+                                <div className="w-full bg-white/20 rounded-full h-2">
+                                    <div
+                                        className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                                        style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>                        
                     </div>
                 </div>
             </nav>
 
-            {/* Progress Bar */}
-            <div className="bg-white border-b">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center justify-between mb-2">
-                        <h1 className="text-xl font-bold text-gray-900">Start Your Project</h1>
-                        <span className="text-sm text-gray-500">Step {currentStep} of {totalSteps}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                            className="bg-blue-800 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-                        ></div>
-                    </div>
-                </div>
-            </div>
-
             {/* Form Content */}
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white rounded-xl shadow-lg p-8">
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">{getStepTitle()}</h2>
-                        <p className="text-gray-600">Please fill in all required information to help us understand your project better.</p>
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 mt-28 sm:mt-32">
+                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
+                    <div className="mb-6 sm:mb-8">
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{getStepTitle()}</h2>
+                        <p className="text-sm sm:text-base text-gray-600">Please fill in all required information to help us understand your project better.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Step 1: Personal & Company Info */}
                         {currentStep === 1 && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Full Name <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <input
                                             type="text"
                                             value={formData.fullName}
                                             onChange={(e) => handleInputChange('fullName', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             placeholder="Enter your full name"
                                             required
                                         />
@@ -324,12 +369,12 @@ const GetStarted = () => {
                                         Email Address <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <input
                                             type="email"
                                             value={formData.email}
                                             onChange={(e) => handleInputChange('email', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             placeholder="Enter your email address"
                                             required
                                         />
@@ -341,12 +386,12 @@ const GetStarted = () => {
                                         Phone Number <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <input
                                             type="tel"
                                             value={formData.phone}
                                             onChange={(e) => handleInputChange('phone', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             placeholder="Enter your phone number"
                                             required
                                         />
@@ -358,12 +403,12 @@ const GetStarted = () => {
                                         Company Name <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <input
                                             type="text"
                                             value={formData.companyName}
                                             onChange={(e) => handleInputChange('companyName', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             placeholder="Enter your company name"
                                             required
                                         />
@@ -375,12 +420,12 @@ const GetStarted = () => {
                                         Company Website
                                     </label>
                                     <div className="relative">
-                                        <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <input
                                             type="url"
                                             value={formData.companyWebsite}
                                             onChange={(e) => handleInputChange('companyWebsite', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             placeholder="https://yourcompany.com"
                                         />
                                     </div>
@@ -391,12 +436,12 @@ const GetStarted = () => {
                                         LinkedIn Profile
                                     </label>
                                     <div className="relative">
-                                        <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <input
                                             type="url"
                                             value={formData.linkedinProfile}
                                             onChange={(e) => handleInputChange('linkedinProfile', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             placeholder="https://linkedin.com/in/yourprofile"
                                         />
                                     </div>
@@ -415,7 +460,7 @@ const GetStarted = () => {
                                         type="text"
                                         value={formData.projectTitle}
                                         onChange={(e) => handleInputChange('projectTitle', e.target.value)}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                        className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                         placeholder="Give your project a descriptive title"
                                         required
                                     />
@@ -429,13 +474,13 @@ const GetStarted = () => {
                                         value={formData.projectDescription}
                                         onChange={(e) => handleInputChange('projectDescription', e.target.value)}
                                         rows={4}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                        className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                         placeholder="Describe your project in detail - what problem does it solve, who is it for, what are your goals?"
                                         required
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             What stage is your project in? <span className="text-red-500">*</span>
@@ -443,7 +488,7 @@ const GetStarted = () => {
                                         <select
                                             value={formData.projectStage}
                                             onChange={(e) => handleInputChange('projectStage', e.target.value)}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             required
                                         >
                                             <option value="">Select project stage</option>
@@ -461,7 +506,7 @@ const GetStarted = () => {
                                         <select
                                             value={formData.solutionType}
                                             onChange={(e) => handleInputChange('solutionType', e.target.value)}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             required
                                         >
                                             <option value="">Select solution type</option>
@@ -508,18 +553,18 @@ const GetStarted = () => {
                         {/* Step 4: Timeline & Budget */}
                         {currentStep === 4 && (
                             <div className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Ideal Start Date <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                             <input
                                                 type="date"
                                                 value={formData.startDate}
                                                 onChange={(e) => handleInputChange('startDate', e.target.value)}
-                                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                                 required
                                             />
                                         </div>
@@ -530,12 +575,12 @@ const GetStarted = () => {
                                             Ideal Completion Date <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                             <input
                                                 type="date"
                                                 value={formData.completionDate}
                                                 onChange={(e) => handleInputChange('completionDate', e.target.value)}
-                                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                                 required
                                             />
                                         </div>
@@ -547,11 +592,11 @@ const GetStarted = () => {
                                         Estimated Budget Range <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                                         <select
                                             value={formData.budgetRange}
                                             onChange={(e) => handleInputChange('budgetRange', e.target.value)}
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
                                             required
                                         >
                                             <option value="">Select budget range</option>
@@ -571,7 +616,7 @@ const GetStarted = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-4">
                                         Do you have an internal tech team? <span className="text-red-500">*</span>
                                     </label>
-                                    <div className="flex space-x-4">
+                                    <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0">
                                         <label className="flex items-center">
                                             <input
                                                 type="radio"
@@ -582,7 +627,7 @@ const GetStarted = () => {
                                                 className="mr-2"
                                                 required
                                             />
-                                            Yes
+                                            <span className="text-sm sm:text-base">Yes</span>
                                         </label>
                                         <label className="flex items-center">
                                             <input
@@ -594,7 +639,7 @@ const GetStarted = () => {
                                                 className="mr-2"
                                                 required
                                             />
-                                            No
+                                            <span className="text-sm sm:text-base">No</span>
                                         </label>
                                     </div>
                                 </div>
@@ -603,7 +648,7 @@ const GetStarted = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-4">
                                         Would you like to schedule a discovery call? <span className="text-red-500">*</span>
                                     </label>
-                                    <div className="flex space-x-4">
+                                    <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0">
                                         <label className="flex items-center">
                                             <input
                                                 type="radio"
@@ -614,7 +659,7 @@ const GetStarted = () => {
                                                 className="mr-2"
                                                 required
                                             />
-                                            Yes
+                                            <span className="text-sm sm:text-base">Yes</span>
                                         </label>
                                         <label className="flex items-center">
                                             <input
@@ -626,7 +671,7 @@ const GetStarted = () => {
                                                 className="mr-2"
                                                 required
                                             />
-                                            No
+                                            <span className="text-sm sm:text-base">No</span>
                                         </label>
                                     </div>
                                 </div>
@@ -636,7 +681,7 @@ const GetStarted = () => {
                         {/* Step 6: Legal & Consent */}
                         {currentStep === 6 && (
                             <div className="space-y-6">
-                                <div className="bg-gray-50 p-6 rounded-lg">
+                                <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Legal & Consent</h3>
 
                                     <div className="space-y-4">
@@ -645,7 +690,7 @@ const GetStarted = () => {
                                                 type="checkbox"
                                                 checked={formData.termsAccepted}
                                                 onChange={(e) => handleInputChange('termsAccepted', e.target.checked)}
-                                                className="mt-1"
+                                                className="mt-1 flex-shrink-0"
                                                 required
                                             />
                                             <span className="text-sm text-gray-700">
@@ -658,7 +703,7 @@ const GetStarted = () => {
                                                 type="checkbox"
                                                 checked={formData.contactConsent}
                                                 onChange={(e) => handleInputChange('contactConsent', e.target.checked)}
-                                                className="mt-1"
+                                                className="mt-1 flex-shrink-0"
                                                 required
                                             />
                                             <span className="text-sm text-gray-700">
@@ -671,12 +716,12 @@ const GetStarted = () => {
                         )}
 
                         {/* Navigation Buttons */}
-                        <div className="flex justify-between pt-6 border-t border-gray-200">
+                        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 pt-6 border-t border-gray-200">
                             <button
                                 type="button"
                                 onClick={handlePrevious}
                                 disabled={currentStep === 1}
-                                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${currentStep === 1
+                                className={`flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${currentStep === 1
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                         : 'bg-gray-200 hover:bg-gray-300 text-gray-700 transform hover:scale-105'
                                     }`}
@@ -689,7 +734,7 @@ const GetStarted = () => {
                                 <button
                                     type="button"
                                     onClick={handleNext}
-                                    className="flex items-center space-x-2 bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                                    className="flex items-center justify-center space-x-2 bg-blue-800 hover:bg-blue-900 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base"
                                 >
                                     <span>Next</span>
                                     <ChevronRight className="w-4 h-4" />
@@ -697,7 +742,7 @@ const GetStarted = () => {
                             ) : (
                                 <button
                                     type="submit"
-                                    className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                                    className="flex items-center justify-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base"
                                 >
                                     <span>Start Your Project</span>
                                     <ChevronRight className="w-4 h-4" />
