@@ -155,7 +155,7 @@ const LandingPage = () => {
                         <div className="flex justify-between items-center h-16 rounded-full px-6 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
                             {/* Logo */}
                             <div className="flex items-center space-x-2">
-                                <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
+                                <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-8 h-8" />
                                 <div className="relative inline-block">
                                     {/* Sleek transparent blur background */}
                                     <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
@@ -237,7 +237,7 @@ const LandingPage = () => {
                     <div className="grid lg:grid-cols-2 gap-12 items-center">
                         <div>
                             <div className="flex items-center space-x-4 mb-6">
-                                <img src={cereforge} alt="Cereforge Logo" className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white/10 p-2" />
+                                <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white/10 p-2" />
                                 <div>
                                     <h1 className="text-3xl sm:text-4xl font-bold relative">
                                         <span className="relative inline-block">

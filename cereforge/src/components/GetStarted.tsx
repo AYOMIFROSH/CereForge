@@ -253,7 +253,7 @@ const GetStarted = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center space-x-3">
-                            <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
+                            <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-8 h-8" />
                             <div className="font-bold text-lg text-gray-900">
                                 <span className="relative inline-block">
                                     <div className="absolute inset-0 bg-blue-100 rounded-lg transform -skew-x-12"></div>
