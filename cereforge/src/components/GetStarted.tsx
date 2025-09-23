@@ -256,7 +256,7 @@ const GetStarted = () => {
                     {/* Desktop Navigation with Progress */}
                     <div className="hidden sm:flex flex-col items-center space-y-3">
                         <div className="flex items-center space-x-6 rounded-full px-6 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1">
                                 <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-8 h-8" />
                                 <div className="relative inline-block">
                                     <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
