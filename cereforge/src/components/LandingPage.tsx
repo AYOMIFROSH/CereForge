@@ -182,29 +182,29 @@ const LandingPage = () => {
                         {isMobileMenuOpen && (
                             <div className="absolute top-full left-4 right-4 mt-2 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/95 overflow-hidden animate-in slide-in-from-top duration-300">
                                 <div className="py-4">
-                                    <a 
-                                        href="#home" 
+                                    <a
+                                        href="#home"
                                         className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                         Home
                                     </a>
-                                    <a 
-                                        href="#about" 
+                                    <a
+                                        href="#about"
                                         className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                         About
                                     </a>
-                                    <a 
-                                        href="#team" 
+                                    <a
+                                        href="#team"
                                         className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
                                         Cereforge
                                     </a>
-                                    <a 
-                                        href="#projects" 
+                                    <a
+                                        href="#projects"
                                         className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
@@ -261,11 +261,13 @@ const LandingPage = () => {
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                                <button className="inset-0 bg-white/20 shadow-lg border border-white/20  backdrop-blur-sm hover:blue-900/40 text-white px-8 py-2 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2">
-                                    <span className="text-orange-500">Start Your Project</span>
+                                <button
+                                    onClick={() => window.location.href = '/get-started'}
+                                    className="inset-0 bg-white/20 shadow-lg border border-white/20  backdrop-blur-sm hover:blue-900/40 text-white px-8 py-2 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
+                                >                                    <span className="text-orange-500">Start Your Project</span>
                                     <ChevronRight className=" text-orange-400 w-5 h-5" />
                                 </button>
-                                
+
                             </div>
 
                             <div className="grid grid-cols-3 gap-8 text-center">
@@ -581,11 +583,11 @@ const LandingPage = () => {
             </section>
 
             {/* Footer */}
-            <footer className="bg-blue-900 text-white py-16">
+            <footer className="bg-blue-900 text-white py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div>
-                            <h3 className="text-lg font-bold mb-4">Company</h3>
+                            <h3 className="text-lg font-bold mb-3">Company</h3>
                             <ul className="space-y-2">
                                 <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">About Cereforge</a></li>
                                 <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Careers</a></li>
@@ -596,14 +598,14 @@ const LandingPage = () => {
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-bold mb-4">Blog</h3>
-                            <p className="text-blue-200 mb-4">Explore our insights</p>
+                            <h3 className="text-lg font-bold mb-3">Blog</h3>
+                            <p className="text-blue-200 mb-3">Explore our insights</p>
                             <a href="#" className="text-orange-400 hover:text-orange-300 transition-colors">Visit Blog →</a>
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-bold mb-4">Follow the forge. Stay inspired.</h3>
-                            <div className="flex flex-wrap gap-4 mb-4">
+                            <h3 className="text-lg font-bold mb-3">Follow the forge. Stay inspired.</h3>
+                            <div className="flex flex-wrap gap-4 mb-3">
                                 <a href="https://facebook.com/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">Facebook</a>
                                 <a href="https://instagram.com/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">Instagram</a>
                                 <a href="https://x.com/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">X</a>
@@ -612,8 +614,8 @@ const LandingPage = () => {
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-bold mb-4">Newsletter</h3>
-                            <p className="text-blue-200 text-sm mb-4">Get updates on innovation, engineering, and AI.</p>
+                            <h3 className="text-lg font-bold mb-3">Newsletter</h3>
+                            <p className="text-blue-200 text-sm mb-3">Get updates on innovation, engineering, and AI.</p>
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                     type="email"
@@ -629,7 +631,7 @@ const LandingPage = () => {
                         </div>
                     </div>
 
-                    <div className="border-t border-blue-800 mt-12 pt-8 text-center text-blue-200">
+                    <div className="border-t border-blue-800 mt-6 pt-4 text-center text-blue-200">
                         <p>&copy; 2024 Cereforge. All rights reserved. Forging Intelligence into Innovation.</p>
                     </div>
                 </div>

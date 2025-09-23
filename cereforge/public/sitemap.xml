@@ -18,5 +18,12 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
+  <url>
+    <loc>https://cereforge.com/get-started</loc>
+    <lastmod>2025-09-23</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
   <!-- Add more pages as you create them -->
 </urlset>

@@ -1,6 +1,13 @@
 User-agent: *
 Allow: /
 
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
 # Sitemaps
 Sitemap: https://cereforge.com/sitemap.xml
 Sitemap: https://cereforge.com/sitemap-images.xml
@@ -11,3 +18,5 @@ Crawl-delay: 1
 # Block unnecessary paths if you have them
 # Disallow: /admin/
 # Disallow: /private/
+# Disallow: /core/
+# Disallow: /login

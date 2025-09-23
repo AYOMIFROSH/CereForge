@@ -1,0 +1,714 @@
+import { useState } from 'react';
+import { 
+    ChevronRight, 
+    Upload, 
+    X, 
+    CheckCircle, 
+    User, 
+    Mail, 
+    Phone, 
+    Building, 
+    Globe, 
+    Linkedin,
+    Calendar,
+    DollarSign,
+    ArrowLeft
+} from 'lucide-react';
+import cereforge from '../assets/cereForge.png';
+
+// Define interfaces for type safety
+interface FormData {
+    // Section 1: Personal & Company Info
+    fullName: string;
+    email: string;
+    phone: string;
+    companyName: string;
+    companyWebsite: string;
+    linkedinProfile: string;
+
+    // Section 2: Project Overview
+    projectTitle: string;
+    projectDescription: string;
+    projectStage: string;
+    solutionType: string;
+
+    // Section 3: Uploads (file objects)
+    projectBrief: File | null;
+    referenceImages: File | null;
+    profilePhoto: File | null;
+
+    // Section 4: Timeline & Budget
+    startDate: string;
+    completionDate: string;
+    budgetRange: string;
+
+    // Section 5: Collaboration Preferences
+    hasInternalTeam: string;
+    scheduleCall: string;
+
+    // Section 6: Legal & Consent
+    termsAccepted: boolean;
+    contactConsent: boolean;
+}
+
+interface FileUploadProps {
+    label: string;
+    description?: string;
+    file: File | null;
+    onFileSelect: (file: File | null) => void;
+    accept?: string;
+    required?: boolean;
+}
+
+const GetStarted = () => {
+    const [currentStep, setCurrentStep] = useState<number>(1);
+    const [formData, setFormData] = useState<FormData>({
+        fullName: '',
+        email: '',
+        phone: '',
+        companyName: '',
+        companyWebsite: '',
+        linkedinProfile: '',
+        projectTitle: '',
+        projectDescription: '',
+        projectStage: '',
+        solutionType: '',
+        projectBrief: null,
+        referenceImages: null,
+        profilePhoto: null,
+        startDate: '',
+        completionDate: '',
+        budgetRange: '',
+        hasInternalTeam: '',
+        scheduleCall: '',
+        termsAccepted: false,
+        contactConsent: false
+    });
+
+    const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
+    const [dragActive, setDragActive] = useState<string>('');
+
+    const totalSteps = 6;
+
+    const handleInputChange = (field: keyof FormData, value: string | boolean | File | null): void => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const FileUpload: React.FC<FileUploadProps> = ({ 
+        label, 
+        description, 
+        file, 
+        onFileSelect, 
+        accept = ".pdf,.docx,.pptx,.jpg,.jpeg,.png", 
+        required = false 
+    }) => {
+        const handleDragOver = (e: React.DragEvent) => {
+            e.preventDefault();
+            setDragActive(label);
+        };
+
+        const handleDragLeave = (e: React.DragEvent) => {
+            e.preventDefault();
+            setDragActive('');
+        };
+
+        const handleDrop = (e: React.DragEvent) => {
+            e.preventDefault();
+            setDragActive('');
+            const files = e.dataTransfer.files;
+            if (files && files[0]) {
+                onFileSelect(files[0]); 
+            }
+        };
+
+        const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const files = e.target.files;
+            if (files && files[0]) {
+                onFileSelect(files[0]);
+            }
+        };
+
+        return (
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                    {label} {required && <span className="text-red-500">*</span>}
+                </label>
+                {description && (
+                    <p className="text-sm text-gray-500">{description}</p>
+                )}
+                <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 ${
+                        dragActive === label ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                    } ${file ? 'border-green-400 bg-green-50' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById(`file-${label.replace(/\s+/g, '-').toLowerCase()}`)?.click()}
+                >
+                    <input
+                        id={`file-${label.replace(/\s+/g, '-').toLowerCase()}`}
+                        type="file"
+                        accept={accept}
+                        onChange={handleFileChange}
+                        className="hidden"
+                    />
+                    
+                    {file ? (
+                        <div className="flex items-center justify-center space-x-3">
+                            <CheckCircle className="w-6 h-6 text-green-500" />
+                            <div>
+                                <p className="text-sm font-medium text-green-700">{file.name}</p>
+                                <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onFileSelect(null);
+                                }}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                            <div>
+                                <p className="text-sm text-gray-600">
+                                    <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+                                </p>
+                                <p className="text-xs text-gray-500">Max file size: 10MB</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const handleNext = () => {
+        if (currentStep < totalSteps) {
+            setCurrentStep(currentStep + 1);
+        }
+    };
+
+    const handlePrevious = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log('Form submitted:', formData);
+        setShowConfirmation(true);
+    };
+
+    const getStepTitle = (): string => {
+        switch (currentStep) {
+            case 1: return 'Personal & Company Information';
+            case 2: return 'Project Overview';
+            case 3: return 'Project Documents';
+            case 4: return 'Timeline & Budget';
+            case 5: return 'Collaboration Preferences';
+            case 6: return 'Terms & Consent';
+            default: return 'Get Started';
+        }
+    };
+
+    if (showConfirmation) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle className="w-10 h-10 text-green-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Thank You!</h2>
+                    <p className="text-gray-600 mb-6">
+                        Your project submission has been received. We'll reach out within 48 hours to discuss your project in detail.
+                    </p>
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => window.open('https://calendly.com/cereforge', '_blank')}
+                            className="w-full bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                        >
+                            Schedule Call Now
+                        </button>
+                        <button
+                            onClick={() => window.location.href = '/'}
+                            className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors"
+                        >
+                            Back to Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <nav className="bg-white shadow-sm border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-16">
+                        <div className="flex items-center space-x-3">
+                            <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
+                            <div className="font-bold text-lg text-gray-900">
+                                <span className="relative inline-block">
+                                    <div className="absolute inset-0 bg-blue-100 rounded-lg transform -skew-x-12"></div>
+                                    <span className="text-blue-900 relative z-10 px-2">CERE</span>
+                                </span><span>FORGE</span>
+                            </div>
+                        </div>
+                        
+                        <button
+                            onClick={() => window.location.href = '/'}
+                            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            <span>Back to Home</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            {/* Progress Bar */}
+            <div className="bg-white border-b">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <div className="flex items-center justify-between mb-2">
+                        <h1 className="text-xl font-bold text-gray-900">Start Your Project</h1>
+                        <span className="text-sm text-gray-500">Step {currentStep} of {totalSteps}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                            className="bg-blue-800 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                        ></div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="bg-white rounded-xl shadow-lg p-8">
+                    <div className="mb-8">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">{getStepTitle()}</h2>
+                        <p className="text-gray-600">Please fill in all required information to help us understand your project better.</p>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Step 1: Personal & Company Info */}
+                        {currentStep === 1 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Full Name <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="text"
+                                            value={formData.fullName}
+                                            onChange={(e) => handleInputChange('fullName', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="Enter your full name"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Email Address <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={(e) => handleInputChange('email', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="Enter your email address"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Phone Number <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="Enter your phone number"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Company Name <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="text"
+                                            value={formData.companyName}
+                                            onChange={(e) => handleInputChange('companyName', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="Enter your company name"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Company Website
+                                    </label>
+                                    <div className="relative">
+                                        <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="url"
+                                            value={formData.companyWebsite}
+                                            onChange={(e) => handleInputChange('companyWebsite', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="https://yourcompany.com"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        LinkedIn Profile
+                                    </label>
+                                    <div className="relative">
+                                        <Linkedin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <input
+                                            type="url"
+                                            value={formData.linkedinProfile}
+                                            onChange={(e) => handleInputChange('linkedinProfile', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            placeholder="https://linkedin.com/in/yourprofile"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 2: Project Overview */}
+                        {currentStep === 2 && (
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Project Title <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.projectTitle}
+                                        onChange={(e) => handleInputChange('projectTitle', e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                        placeholder="Give your project a descriptive title"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Brief Description of the Project <span className="text-red-500">*</span>
+                                    </label>
+                                    <textarea
+                                        value={formData.projectDescription}
+                                        onChange={(e) => handleInputChange('projectDescription', e.target.value)}
+                                        rows={4}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                        placeholder="Describe your project in detail - what problem does it solve, who is it for, what are your goals?"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            What stage is your project in? <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={formData.projectStage}
+                                            onChange={(e) => handleInputChange('projectStage', e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            required
+                                        >
+                                            <option value="">Select project stage</option>
+                                            <option value="idea">Idea</option>
+                                            <option value="prototype">Prototype</option>
+                                            <option value="mvp">MVP</option>
+                                            <option value="scaling">Scaling</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            What type of solution are you seeking? <span className="text-red-500">*</span>
+                                        </label>
+                                        <select
+                                            value={formData.solutionType}
+                                            onChange={(e) => handleInputChange('solutionType', e.target.value)}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            required
+                                        >
+                                            <option value="">Select solution type</option>
+                                            <option value="software">Software Engineering</option>
+                                            <option value="hardware">Hardware Engineering</option>
+                                            <option value="ai">AI/Intelligent Systems</option>
+                                            <option value="fullstack">Full-stack Innovation</option>
+                                            <option value="web">Web Development</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 3: Uploads */}
+                        {currentStep === 3 && (
+                            <div className="space-y-6">
+                                <FileUpload
+                                    label="Upload Project Brief"
+                                    description="PDF, DOCX, or PPTX format"
+                                    file={formData.projectBrief}
+                                    onFileSelect={(file) => handleInputChange('projectBrief', file)}
+                                    accept=".pdf,.docx,.pptx"
+                                />
+
+                                <FileUpload
+                                    label="Upload Reference Images or Sketches"
+                                    description="Images that help explain your project vision"
+                                    file={formData.referenceImages}
+                                    onFileSelect={(file) => handleInputChange('referenceImages', file)}
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                />
+
+                                <FileUpload
+                                    label="Upload Your Profile Photo or Company Logo"
+                                    description="Recommended for better personalization"
+                                    file={formData.profilePhoto}
+                                    onFileSelect={(file) => handleInputChange('profilePhoto', file)}
+                                    accept=".jpg,.jpeg,.png"
+                                />
+                            </div>
+                        )}
+
+                        {/* Step 4: Timeline & Budget */}
+                        {currentStep === 4 && (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Ideal Start Date <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                            <input
+                                                type="date"
+                                                value={formData.startDate}
+                                                onChange={(e) => handleInputChange('startDate', e.target.value)}
+                                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Ideal Completion Date <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                            <input
+                                                type="date"
+                                                value={formData.completionDate}
+                                                onChange={(e) => handleInputChange('completionDate', e.target.value)}
+                                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Estimated Budget Range <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                        <select
+                                            value={formData.budgetRange}
+                                            onChange={(e) => handleInputChange('budgetRange', e.target.value)}
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                            required
+                                        >
+                                            <option value="">Select budget range</option>
+                                            <option value="500k-1m">₦500k–₦1M</option>
+                                            <option value="1m-5m">₦1M–₦5M</option>
+                                            <option value="5m+">₦5M+</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 5: Collaboration Preferences */}
+                        {currentStep === 5 && (
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-4">
+                                        Do you have an internal tech team? <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="flex space-x-4">
+                                        <label className="flex items-center">
+                                            <input
+                                                type="radio"
+                                                name="hasInternalTeam"
+                                                value="yes"
+                                                checked={formData.hasInternalTeam === 'yes'}
+                                                onChange={(e) => handleInputChange('hasInternalTeam', e.target.value)}
+                                                className="mr-2"
+                                                required
+                                            />
+                                            Yes
+                                        </label>
+                                        <label className="flex items-center">
+                                            <input
+                                                type="radio"
+                                                name="hasInternalTeam"
+                                                value="no"
+                                                checked={formData.hasInternalTeam === 'no'}
+                                                onChange={(e) => handleInputChange('hasInternalTeam', e.target.value)}
+                                                className="mr-2"
+                                                required
+                                            />
+                                            No
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-4">
+                                        Would you like to schedule a discovery call? <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="flex space-x-4">
+                                        <label className="flex items-center">
+                                            <input
+                                                type="radio"
+                                                name="scheduleCall"
+                                                value="yes"
+                                                checked={formData.scheduleCall === 'yes'}
+                                                onChange={(e) => handleInputChange('scheduleCall', e.target.value)}
+                                                className="mr-2"
+                                                required
+                                            />
+                                            Yes
+                                        </label>
+                                        <label className="flex items-center">
+                                            <input
+                                                type="radio"
+                                                name="scheduleCall"
+                                                value="no"
+                                                checked={formData.scheduleCall === 'no'}
+                                                onChange={(e) => handleInputChange('scheduleCall', e.target.value)}
+                                                className="mr-2"
+                                                required
+                                            />
+                                            No
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 6: Legal & Consent */}
+                        {currentStep === 6 && (
+                            <div className="space-y-6">
+                                <div className="bg-gray-50 p-6 rounded-lg">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Legal & Consent</h3>
+                                    
+                                    <div className="space-y-4">
+                                        <label className="flex items-start space-x-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.termsAccepted}
+                                                onChange={(e) => handleInputChange('termsAccepted', e.target.checked)}
+                                                className="mt-1"
+                                                required
+                                            />
+                                            <span className="text-sm text-gray-700">
+                                                I agree to Cereforge's <a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a> and <a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a> <span className="text-red-500">*</span>
+                                            </span>
+                                        </label>
+
+                                        <label className="flex items-start space-x-3">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.contactConsent}
+                                                onChange={(e) => handleInputChange('contactConsent', e.target.checked)}
+                                                className="mt-1"
+                                                required
+                                            />
+                                            <span className="text-sm text-gray-700">
+                                                I consent to be contacted by the Cereforge team regarding my project <span className="text-red-500">*</span>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Navigation Buttons */}
+                        <div className="flex justify-between pt-6 border-t border-gray-200">
+                            <button
+                                type="button"
+                                onClick={handlePrevious}
+                                disabled={currentStep === 1}
+                                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+                                    currentStep === 1
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700 transform hover:scale-105'
+                                }`}
+                            >
+                                <ArrowLeft className="w-4 h-4" />
+                                <span>Previous</span>
+                            </button>
+
+                            {currentStep < totalSteps ? (
+                                <button
+                                    type="button"
+                                    onClick={handleNext}
+                                    className="flex items-center space-x-2 bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                                >
+                                    <span>Next</span>
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    className="flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105"
+                                >
+                                    <span>Start Your Project</span>
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default GetStarted;
