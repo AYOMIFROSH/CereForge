@@ -1,20 +1,21 @@
 import { useState } from 'react';
-import { 
-    ChevronRight, 
-    Upload, 
-    X, 
-    CheckCircle, 
-    User, 
-    Mail, 
-    Phone, 
-    Building, 
-    Globe, 
+import {
+    ChevronRight,
+    Upload,
+    X,
+    CheckCircle,
+    User,
+    Mail,
+    Phone,
+    Building,
+    Globe,
     Linkedin,
     Calendar,
     DollarSign,
     ArrowLeft
 } from 'lucide-react';
 import cereforge from '../assets/cereForge.png';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Define interfaces for type safety
 interface FormData {
@@ -61,6 +62,7 @@ interface FileUploadProps {
 }
 
 const GetStarted = () => {
+    useDocumentTitle("Get Started");
     const [currentStep, setCurrentStep] = useState<number>(1);
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
@@ -94,13 +96,13 @@ const GetStarted = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const FileUpload: React.FC<FileUploadProps> = ({ 
-        label, 
-        description, 
-        file, 
-        onFileSelect, 
-        accept = ".pdf,.docx,.pptx,.jpg,.jpeg,.png", 
-        required = false 
+    const FileUpload: React.FC<FileUploadProps> = ({
+        label,
+        description,
+        file,
+        onFileSelect,
+        accept = ".pdf,.docx,.pptx,.jpg,.jpeg,.png",
+        required = false
     }) => {
         const handleDragOver = (e: React.DragEvent) => {
             e.preventDefault();
@@ -117,7 +119,7 @@ const GetStarted = () => {
             setDragActive('');
             const files = e.dataTransfer.files;
             if (files && files[0]) {
-                onFileSelect(files[0]); 
+                onFileSelect(files[0]);
             }
         };
 
@@ -137,9 +139,8 @@ const GetStarted = () => {
                     <p className="text-sm text-gray-500">{description}</p>
                 )}
                 <div
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 ${
-                        dragActive === label ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                    } ${file ? 'border-green-400 bg-green-50' : ''}`}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 ${dragActive === label ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                        } ${file ? 'border-green-400 bg-green-50' : ''}`}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
@@ -152,7 +153,7 @@ const GetStarted = () => {
                         onChange={handleFileChange}
                         className="hidden"
                     />
-                    
+
                     {file ? (
                         <div className="flex items-center justify-center space-x-3">
                             <CheckCircle className="w-6 h-6 text-green-500" />
@@ -261,7 +262,7 @@ const GetStarted = () => {
                                 </span><span>FORGE</span>
                             </div>
                         </div>
-                        
+
                         <button
                             onClick={() => window.location.href = '/'}
                             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -281,7 +282,7 @@ const GetStarted = () => {
                         <span className="text-sm text-gray-500">Step {currentStep} of {totalSteps}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                             className="bg-blue-800 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${(currentStep / totalSteps) * 100}%` }}
                         ></div>
@@ -637,7 +638,7 @@ const GetStarted = () => {
                             <div className="space-y-6">
                                 <div className="bg-gray-50 p-6 rounded-lg">
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Legal & Consent</h3>
-                                    
+
                                     <div className="space-y-4">
                                         <label className="flex items-start space-x-3">
                                             <input
@@ -675,11 +676,10 @@ const GetStarted = () => {
                                 type="button"
                                 onClick={handlePrevious}
                                 disabled={currentStep === 1}
-                                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                                    currentStep === 1
+                                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${currentStep === 1
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                         : 'bg-gray-200 hover:bg-gray-300 text-gray-700 transform hover:scale-105'
-                                }`}
+                                    }`}
                             >
                                 <ArrowLeft className="w-4 h-4" />
                                 <span>Previous</span>
