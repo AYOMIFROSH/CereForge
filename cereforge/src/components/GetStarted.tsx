@@ -264,7 +264,7 @@ const GetStarted = () => {
                                 </div>
                                 <span className="text-white font-bold text-lg">FORGE</span>
                             </div>
-                            
+
                             {/* Progress section in header */}
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2">
@@ -284,53 +284,46 @@ const GetStarted = () => {
                                 aria-label="Back to Home"
                             >
                                 <Home className="w-5 h-5" />
-                                
+
                             </button>
-                            
+
                         </div>
                     </div>
-
                     {/* Mobile Navigation with Progress */}
                     <div className="sm:hidden">
-                        <div className="flex flex-col space-y-3">
-                            <div className="flex justify-between items-center h-14 rounded-full px-4 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
-                                {/* Logo */}
-                                <div className="flex items-center space-x-2">
-                                    <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-6 h-6" />
-                                    <div className="relative inline-block">
-                                        <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
-                                        <span className="text-blue-900 relative z-10 px-2 py-1 font-bold text-sm">CERE</span>
-                                    </div>
-                                    <span className="text-white font-bold text-sm">FORGE</span>
+                        <div className="flex justify-between items-center rounded-full px-4 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
+                            {/* Logo */}
+                            <div className="flex items-center space-x-2">
+                                <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-6 h-6" />
+                                <div className="relative inline-block">
+                                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
+                                    <span className="text-blue-900 relative z-10 px-2 py-1 font-bold text-sm">CERE</span>
                                 </div>
-
-                                {/* Home button and Menu */}
-                                <div className="flex items-center space-x-2">
-                                    <button
-                                        onClick={() => window.location.href = '/'}
-                                        className="text-white hover:text-orange-500 transition-colors p-1"
-                                        aria-label="Back to Home"
-                                    >
-
-                                        <Home className="w-4 h-4" />
-                                    </button>
-                                </div>
+                                <span className="text-white font-bold text-sm">FORGE</span>
                             </div>
 
-                            {/* Progress Bar for Mobile */}
-                            <div className="rounded-full px-4 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="text-white text-xs font-medium">Step {currentStep} of {totalSteps}</span>
-                                    <span className="text-white text-xs">{Math.round((currentStep / totalSteps) * 100)}%</span>
+                            {/* Progress in the middle */}
+                            <div className="flex-1 mx-4">
+                                <div className="flex items-center justify-center mb-1">
+                                    <span className="text-white text-xs font-medium">Step {currentStep}/{totalSteps}</span>
                                 </div>
-                                <div className="w-full bg-white/20 rounded-full h-2">
+                                <div className="w-full bg-white/20 rounded-full h-1.5">
                                     <div
-                                        className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                                        className="bg-orange-500 h-1.5 rounded-full transition-all duration-300"
                                         style={{ width: `${(currentStep / totalSteps) * 100}%` }}
                                     ></div>
                                 </div>
                             </div>
-                        </div>                        
+
+                            {/* Home button */}
+                            <button
+                                onClick={() => window.location.href = '/'}
+                                className="text-white hover:text-orange-500 transition-colors p-1"
+                                aria-label="Back to Home"
+                            >
+                                <Home className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </nav>
@@ -722,8 +715,8 @@ const GetStarted = () => {
                                 onClick={handlePrevious}
                                 disabled={currentStep === 1}
                                 className={`flex items-center justify-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${currentStep === 1
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700 transform hover:scale-105'
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700 transform hover:scale-105'
                                     }`}
                             >
                                 <ArrowLeft className="w-4 h-4" />
