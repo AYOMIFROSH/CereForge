@@ -26,8 +26,11 @@ interface PortalConfig {
 }
 
 const LoginPage = () => {
-    useDocumentTitle("Login");
-    const [activePortal, setActivePortal] = useState<PortalType>('partners');
+    useDocumentTitle(
+        "Login - Cereforge",
+        "Login to your Cereforge account - Partners Portal, Admin Portal, and Core System access.",
+        "/login"
+    ); const [activePortal, setActivePortal] = useState<PortalType>('partners');
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [formData, setFormData] = useState<FormData>({
         email: '',
@@ -129,8 +132,8 @@ const LoginPage = () => {
                                     key={portal.id}
                                     onClick={() => setActivePortal(portal.id)}
                                     className={`flex-1 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 border-b-2 ${activePortal === portal.id
-                                            ? 'text-white border-white bg-white/10'
-                                            : 'text-blue-200 border-transparent hover:text-white hover:bg-white/5'
+                                        ? 'text-white border-white bg-white/10'
+                                        : 'text-blue-200 border-transparent hover:text-white hover:bg-white/5'
                                         }`}
                                 >
                                     {portal.icon}

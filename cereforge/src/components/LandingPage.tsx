@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronRight, ExternalLink, Brain, Zap, Shield, Users, Menu, X } from 'lucide-react';
 import cereforge from '../assets/cereForge.png'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Define the Project interface
 interface Project {
@@ -16,6 +17,11 @@ interface Project {
 }
 
 const LandingPage = () => {
+    useDocumentTitle(
+        "Cereforge - AI Software & Hardware Solutions",
+        "Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms.",
+        "/"
+    );
     const [cardsSpread, setCardsSpread] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [email, setEmail] = useState<string>('');

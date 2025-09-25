@@ -63,8 +63,11 @@ interface FileUploadProps {
 }
 
 const GetStarted = () => {
-    useDocumentTitle("Get Started");
-    const [currentStep, setCurrentStep] = useState<number>(1);
+    useDocumentTitle(
+        "Get Started - Cereforge",
+        "Start your AI-powered software solution project with Cereforge. Complete our project form and get your custom solution in 30 days.",
+        "/get-started"
+    ); const [currentStep, setCurrentStep] = useState<number>(1);
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
         email: '',
@@ -289,6 +292,7 @@ const GetStarted = () => {
 
                         </div>
                     </div>
+
                     {/* Mobile Navigation with Progress */}
                     <div className="sm:hidden">
                         <div className="flex justify-between items-center rounded-full px-4 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
@@ -329,7 +333,7 @@ const GetStarted = () => {
             </nav>
 
             {/* Form Content */}
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 mt-28 sm:mt-32">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 mt-28 sm:mt-38">
                 <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
                     <div className="mb-6 sm:mb-8">
                         <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{getStepTitle()}</h2>
