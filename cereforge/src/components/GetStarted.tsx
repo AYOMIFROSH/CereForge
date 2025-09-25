@@ -11,12 +11,10 @@ import {
     Globe,
     Linkedin,
     Calendar,
-    DollarSign,
     ArrowLeft,
     Home
 } from 'lucide-react';
 import cereforge from '../assets/cereForge.png';
-import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Define interfaces for type safety
 interface FormData {
@@ -63,11 +61,7 @@ interface FileUploadProps {
 }
 
 const GetStarted = () => {
-    useDocumentTitle(
-        "Get Started - Cereforge",
-        "Start your AI-powered software solution project with Cereforge. Complete our project form and get your custom solution in 30 days.",
-        "/get-started"
-    ); const [currentStep, setCurrentStep] = useState<number>(1);
+    const [currentStep, setCurrentStep] = useState<number>(1);
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
         email: '',
@@ -91,8 +85,17 @@ const GetStarted = () => {
         contactConsent: false
     });
 
+    const [selectedCurrency, setSelectedCurrency] = useState<string>('₦');
+    const [showCurrencyDropdown, setShowCurrencyDropdown] = useState<boolean>(false);
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const [dragActive, setDragActive] = useState<string>('');
+
+    const currencies = [
+        { symbol: '$', name: 'USD' },
+        { symbol: '₦', name: 'NGN' },
+        { symbol: '£', name: 'GBP' },
+        { symbol: '€', name: 'EUR' }
+    ];
 
     const totalSteps = 6;
 
@@ -206,6 +209,7 @@ const GetStarted = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log('Form submitted:', formData);
+        console.log('Selected currency:', selectedCurrency);
         setShowConfirmation(true);
     };
 
@@ -287,9 +291,7 @@ const GetStarted = () => {
                                 aria-label="Back to Home"
                             >
                                 <Home className="w-5 h-5" />
-
                             </button>
-
                         </div>
                     </div>
 
@@ -586,21 +588,48 @@ const GetStarted = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Estimated Budget Range <span className="text-red-500">*</span>
+                                        Project Budget <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                                        <select
+                                        {/* Currency Selector */}
+                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                                                className="flex items-center space-x-1 text-gray-600 hover:text-gray-800 transition-colors p-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            >
+                                                <span className="font-medium text-lg">{selectedCurrency}</span>
+                                                <ChevronRight className={`w-3 h-3 transform transition-transform ${showCurrencyDropdown ? 'rotate-90' : ''}`} />
+                                            </button>
+                                            
+                                            {showCurrencyDropdown && (
+                                                <div className="absolute top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[100px] z-20">
+                                                    {currencies.map((currency) => (
+                                                        <button
+                                                            key={currency.name}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedCurrency(currency.symbol);
+                                                                setShowCurrencyDropdown(false);
+                                                            }}
+                                                            className="w-full text-left px-3 py-2 hover:bg-gray-100 transition-colors flex items-center justify-between text-sm"
+                                                        >
+                                                            <span className="font-medium">{currency.symbol}</span>
+                                                            <span className="text-xs text-gray-500">{currency.name}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <input
+                                            type="text"
                                             value={formData.budgetRange}
                                             onChange={(e) => handleInputChange('budgetRange', e.target.value)}
-                                            className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
+                                            className="w-full pl-16 sm:pl-20 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
+                                            placeholder="Enter your project budget"
                                             required
-                                        >
-                                            <option value="">Select budget range</option>
-                                            <option value="500k-1m">₦500k–₦1M</option>
-                                            <option value="1m-5m">₦1M–₦5M</option>
-                                            <option value="5m+">₦5M+</option>
-                                        </select>
+                                        />
                                     </div>
                                 </div>
                             </div>
