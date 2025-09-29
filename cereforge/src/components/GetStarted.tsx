@@ -1,4 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// TypeScript declaration for Calendly
+declare global {
+    interface Window {
+        Calendly: {
+            initPopupWidget: (options: { url: string }) => void;
+        };
+    }
+}
 import {
     ChevronRight,
     Upload,
@@ -98,6 +107,37 @@ const GetStarted = () => {
     ];
 
     const totalSteps = 6;
+
+    // Load Calendly widget script
+    useEffect(() => {
+        // Add Calendly CSS
+        const link = document.createElement('link');
+        link.href = 'https://assets.calendly.com/assets/external/widget.css';
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+
+        // Add Calendly JS
+        const script = document.createElement('script');
+        script.src = 'https://assets.calendly.com/assets/external/widget.js';
+        script.type = 'text/javascript';
+        script.async = true;
+        document.body.appendChild(script);
+
+        return () => {
+            // Cleanup
+            document.head.removeChild(link);
+            document.body.removeChild(script);
+        };
+    }, []);
+
+    const handleCalendlyClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (window.Calendly) {
+            window.Calendly.initPopupWidget({
+                url: 'https://calendly.com/cereforgepurpose'
+            });
+        }
+    };
 
     const handleInputChange = (field: keyof FormData, value: string | boolean | File | null): void => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -238,7 +278,7 @@ const GetStarted = () => {
                     </p>
                     <div className="space-y-3">
                         <button
-                            onClick={() => window.open('https://calendly.com/cereforge', '_blank')}
+                            onClick={handleCalendlyClick}
                             className="w-full bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base"
                         >
                             Schedule Call Now
@@ -568,22 +608,6 @@ const GetStarted = () => {
                                             />
                                         </div>
                                     </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Ideal Completion Date <span className="text-red-500">*</span>
-                                        </label>
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
-                                            <input
-                                                type="date"
-                                                value={formData.completionDate}
-                                                onChange={(e) => handleInputChange('completionDate', e.target.value)}
-                                                className="w-full pl-8 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm sm:text-base"
-                                                required
-                                            />
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <div>
@@ -701,6 +725,23 @@ const GetStarted = () => {
                                         </label>
                                     </div>
                                 </div>
+
+                                {/* Add Calendly option when user selects "Yes" for scheduling call */}
+                                {formData.scheduleCall === 'yes' && (
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <p className="text-sm text-blue-700 mb-3">
+                                            You can schedule a discovery call now or after submitting the form.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={handleCalendlyClick}
+                                            className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+                                        >
+                                            <Calendar className="w-4 h-4" />
+                                            <span>Schedule Call Now</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
