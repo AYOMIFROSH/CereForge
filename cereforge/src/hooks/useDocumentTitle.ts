@@ -3,33 +3,45 @@ import { useEffect } from 'react';
 export const useDocumentTitle = (title: string, description?: string, canonicalPath?: string) => {
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = `${title} | Cereforge`;
+    document.title = title; // Remove " | Cereforge" since it's already in the title
     
-    // Handle canonical URL
-    let canonicalLink = document.querySelector('link[rel="canonical"]');
-    const canonicalUrl = `https://cereforge.com${canonicalPath || ''}`;
+    // Handle canonical URL - ensure it starts with /
+    const normalizedPath = canonicalPath?.startsWith('/') ? canonicalPath : `/${canonicalPath || ''}`;
+    const canonicalUrl = `https://cereforge.com${normalizedPath === '/' ? '' : normalizedPath}`;
+    
+    let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     
     if (canonicalLink) {
-      canonicalLink.setAttribute('href', canonicalUrl);
+      canonicalLink.href = canonicalUrl;
     } else {
       canonicalLink = document.createElement('link');
-      canonicalLink.setAttribute('rel', 'canonical');
-      canonicalLink.setAttribute('href', canonicalUrl);
+      canonicalLink.rel = 'canonical';
+      canonicalLink.href = canonicalUrl;
       document.head.appendChild(canonicalLink);
     }
     
     // Handle meta description if provided
     if (description) {
-      let metaDescription = document.querySelector('meta[name="description"]');
+      let metaDescription = document.querySelector('meta[name="description"]') as HTMLMetaElement;
+      const originalDescription = metaDescription?.content;
+      
       if (metaDescription) {
-        metaDescription.setAttribute('content', description);
+        metaDescription.content = description;
       }
+      
+      // Return cleanup for description too
+      return () => {
+        document.title = previousTitle;
+        if (metaDescription && originalDescription) {
+          metaDescription.content = originalDescription;
+        }
+      };
     }
     
     // Handle Open Graph URL
-    let ogUrl = document.querySelector('meta[property="og:url"]');
+    let ogUrl = document.querySelector('meta[property="og:url"]') as HTMLMetaElement;
     if (ogUrl) {
-      ogUrl.setAttribute('content', canonicalUrl);
+      ogUrl.content = canonicalUrl;
     }
     
     return () => {
