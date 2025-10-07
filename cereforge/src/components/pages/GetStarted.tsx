@@ -23,7 +23,7 @@ import {
     ArrowLeft,
     Home
 } from 'lucide-react';
-import cereforge from '../assets/cereForge.png';
+import cereforge from '../../assets/cereForge.png';
 
 // Define interfaces for type safety
 interface FormData {

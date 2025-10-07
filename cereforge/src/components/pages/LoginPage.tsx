@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, User, Mail, Lock, Shield, Building } from 'lucide-react';
-import cereForge from '../assets/cereForge.png'
+import cereForge from '../../assets/cereForge.png'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Define types for the form data

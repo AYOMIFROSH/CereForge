@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LandingPage from './components/LandingPage';
-import LoginPage from './components/LoginPage';
-import GetStarted from './components/GetStarted';
+import LandingPage from './components/pages/LandingPage';
+import LoginPage from './components/pages/LoginPage';
+import GetStarted from './components/pages/GetStarted';
 import { Analytics } from "@vercel/analytics/react"
 
 const App = () => {
