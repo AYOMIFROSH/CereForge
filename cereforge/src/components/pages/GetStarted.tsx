@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // TypeScript declaration for Calendly
 declare global {
@@ -70,6 +71,11 @@ interface FileUploadProps {
 }
 
 const GetStarted = () => {
+    useDocumentTitle(
+            "Cereforge - Project Onboarding Form / Get Started",
+            "Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms.",
+            "/Get Started"
+        );
     const [currentStep, setCurrentStep] = useState<number>(1);
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
