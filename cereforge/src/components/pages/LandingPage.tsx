@@ -597,7 +597,7 @@ const LandingPage = () => {
                             <ul className="space-y-2">
                                 <li><a href="#about" className="text-blue-200 hover:text-orange-400 transition-colors">About Cereforge</a></li>
                                 <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Careers</a></li>
-                                <li><a target="/get-started" href="consultation" className="text-blue-200 hover:text-orange-400 transition-colors">Contact Us</a></li>
+                                <li><a target="_blank" href="/get-started" className="text-blue-200 hover:text-orange-400 transition-colors">Contact Us</a></li>
                                 <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Privacy Policy</a></li>
                                 <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Terms of Service</a></li>
                             </ul>
