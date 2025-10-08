@@ -606,8 +606,9 @@ const LandingPage = () => {
                         <div>
                             <h3 className="text-lg font-bold mb-3">Blog</h3>
                             <p className="text-blue-200 mb-3">Explore our insights</p>
-                            <a href="#" className="text-orange-400 hover:text-orange-300 transition-colors">Visit Blog →</a>
-                            <a href="/calendar" className="text-orange-400 hover:text-orange-300 transition-colors">Cereforge Calendar</a>
+                            <a href="#" className="text-orange-400 hover:text-orange-300 transition-colors">Visit Blog →</a> <br/>
+                            <a target="_blank" href="/calendar" className="text-orange-400 hover:text-orange-300 transition-colors">Cereforge Calendar</a>
+
                         </div>
 
                         <div>
