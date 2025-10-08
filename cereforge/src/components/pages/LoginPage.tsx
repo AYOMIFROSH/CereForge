@@ -27,10 +27,11 @@ interface PortalConfig {
 
 const LoginPage = () => {
     useDocumentTitle(
-        "Login - Cereforge",
+        "Cereforge - Login",
         "Login to your Cereforge account - Partners Portal, Admin Portal, and Core System access.",
         "/login"
-    ); const [activePortal, setActivePortal] = useState<PortalType>('partners');
+    ); 
+    const [activePortal, setActivePortal] = useState<PortalType>('partners');
     const [showPassword, setShowPassword] = useState<boolean>(false);
     const [formData, setFormData] = useState<FormData>({
         email: '',

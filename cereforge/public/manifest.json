@@ -1,7 +1,7 @@
 {
-  "name": "Cereforge - AI-Powered Software Solutions",
+  "name": "Cereforge - AI-Powered Software & Automation",
   "short_name": "Cereforge",
-  "description": "AI-powered software solutions, hardware integration, and intelligent automation platforms",
+  "description": "AI-powered software solutions, hardware integration, and intelligent automation platforms.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1E3A8A",
@@ -21,7 +21,19 @@
       "purpose": "maskable any"
     }
   ],
-  "categories": ["business", "productivity", "technology", "software", "AI", "ai", "automation", "hardware", "integration", "solutrions", "platforms", "tools"],
+  "categories": [
+    "business",
+    "productivity",
+    "technology",
+    "software",
+    "AI",
+    "automation",
+    "hardware",
+    "integration",
+    "solutions",
+    "platforms",
+    "tools"
+  ],
   "lang": "en",
   "dir": "ltr"
 }
