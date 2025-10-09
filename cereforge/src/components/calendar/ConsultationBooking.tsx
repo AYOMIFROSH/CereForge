@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Clock, Video, CheckCircle, User, Mail, Building, ChevronRight, ChevronLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 interface ConsultationBookingProps {
   isOpen: boolean;
@@ -9,6 +10,11 @@ interface ConsultationBookingProps {
 }
 
 const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClose }) => {
+  useDocumentTitle(
+    "Cereforge - Discovery Consultation Booking",
+    " Discovery, Consultation, Technical Review, Follow-up Meeting",
+    "/Consultation "
+  );
   const [step, setStep] = useState(1);
   const [consultationType, setConsultationType] = useState<'discovery' | 'technical' | 'follow-up'>('discovery');
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
@@ -25,7 +31,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
   const getAvailableDates = (): Dayjs[] => {
     const dates: Dayjs[] = [];
     let currentDate = dayjs().add(1, 'day');
-    
+
     while (dates.length < 20) {
       if (currentDate.day() !== 0 && currentDate.day() !== 6) {
         dates.push(currentDate);
