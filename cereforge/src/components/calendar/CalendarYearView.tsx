@@ -118,6 +118,8 @@ const CalendarYearView: React.FC<CalendarYearViewProps> = ({
                           const isCurrentMonthDay = day.month() === monthIndex;
                           const eventCount = getEventCountForDay(day);
                           const hasEvents = eventCount > 0;
+                          // Only show today indicator if the day belongs to this month
+                          const showTodayIndicator = isToday && isCurrentMonthDay;
 
                           return (
                             <motion.button
@@ -134,8 +136,8 @@ const CalendarYearView: React.FC<CalendarYearViewProps> = ({
                                 relative aspect-square flex items-center justify-center text-xs font-medium
                                 rounded-md transition-all
                                 ${!isCurrentMonthDay ? 'text-gray-300' : ''}
-                                ${isToday ? 'bg-orange-500 text-white font-bold' : ''}
-                                ${!isToday && isCurrentMonthDay ? 'text-gray-700 hover:bg-blue-100' : ''}
+                                ${showTodayIndicator ? 'bg-orange-500 text-white font-bold' : ''}
+                                ${!showTodayIndicator && isCurrentMonthDay ? 'text-gray-700 hover:bg-blue-100' : ''}
                                 ${!isCurrentMonthDay ? 'cursor-default' : 'cursor-pointer'}
                               `}
                             >
