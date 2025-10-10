@@ -11,7 +11,7 @@ interface ConsultationBookingProps {
 
 const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClose }) => {
   useDocumentTitle(
-    "Cereforge - Discovery Consultation Booking",
+    "Cereforge - Discovery Consultation Technical-Review Booking",
     " Discovery, Consultation, Technical Review, Follow-up Meeting",
     "/Consultation "
   );

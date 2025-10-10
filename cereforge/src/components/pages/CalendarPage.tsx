@@ -7,6 +7,7 @@ import CalendarGrid from '../../components/calendar/CalendarGrid';
 import CalendarDayView from '../../components/calendar/CalendarDayView';
 import CalendarWeekView from '../../components/calendar/CalendarWeekView';
 import CalendarYearView from '../../components/calendar/CalendarYearView';
+import MobileCalendarView from '../../components/calendar/MobileCalendarView';
 import EventModal from '../../components/calendar/EventModal';
 import { CalendarEvent } from '../../types/calendar.types';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
@@ -19,6 +20,7 @@ const CalendarPage = () => {
         "Calendar - Manage your events and schedules at Cereforge",
         "/Calender"
     );
+
     // Custom hook for event management
     const {
         filteredEvents,
@@ -29,6 +31,9 @@ const CalendarPage = () => {
         updateLabel
     } = useCalendarEvents();
 
+    // Responsive state - detect if mobile
+    const [isMobile, setIsMobile] = useState(false);
+
     // Calendar state
     const [monthIndex, setMonthIndex] = useState(dayjs().month());
     const [daySelected, setDaySelected] = useState<Dayjs>(dayjs());
@@ -36,6 +41,22 @@ const CalendarPage = () => {
     const [showEventModal, setShowEventModal] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [currentView, setCurrentView] = useState<CalendarView>('month');
+
+    // Detect screen size for mobile/desktop
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+
+        // Check on mount
+        checkMobile();
+
+        // Add resize listener
+        window.addEventListener('resize', checkMobile);
+
+        // Cleanup
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Sync small calendar with main calendar
     useEffect(() => {
@@ -91,13 +112,12 @@ const CalendarPage = () => {
         setShowEventModal(true);
     };
 
-
     const handleMonthClick = (monthIdx: number) => {
         setMonthIndex(monthIdx);
         setCurrentView('month');
     };
 
-    // Render current view
+    // Render current view (Desktop only)
     const renderView = () => {
         switch (currentView) {
             case 'day':
@@ -143,6 +163,37 @@ const CalendarPage = () => {
         }
     };
 
+    // Mobile View
+    if (isMobile) {
+        return (
+            <>
+                <MobileCalendarView
+                    events={filteredEvents}
+                    onEventClick={handleEventClick}
+                    onDayClick={handleDayClick}
+                    onCreateEvent={handleCreateEvent}
+                    daySelected={daySelected}
+                />
+
+                {/* Event Modal for Mobile */}
+                {showEventModal && (
+                    <EventModal
+                        isOpen={showEventModal}
+                        onClose={() => {
+                            setShowEventModal(false);
+                            setSelectedEvent(null);
+                        }}
+                        daySelected={daySelected}
+                        selectedEvent={selectedEvent}
+                        onSave={handleSaveEvent}
+                        onDelete={handleDeleteEvent}
+                    />
+                )}
+            </>
+        );
+    }
+
+    // Desktop View
     return (
         <div className="flex h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden">
             {/* Sidebar - Fixed with independent scroll */}
