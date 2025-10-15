@@ -271,12 +271,32 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
               animate={{ opacity: 1, x: 0 }}
               className="md:w-80 bg-gradient-to-br from-blue-900 to-blue-800 text-white p-6 flex flex-col"
             >
-              {/* Back button for mobile */}
+              {/* Back button - Only visible in step 2 (Desktop) */}
+              {step === 2 && (
+                <motion.button
+                  whileHover={{ x: -4 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setConsultationType(null);
+                    setStep(1);
+                    setSelectedDate(null);
+                    setSelectedTime('');
+                  }}
+                  className="hidden md:flex items-center space-x-2 text-orange-600 hover:text-orange-500 transition-colors mb-6 -ml-2"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                  <span className="text-sm font-medium">Change Consultation Type</span>
+                </motion.button>
+              )}
+
+              {/* Back button for mobile - visible in all steps after step 1 */}
               <button
                 onClick={() => {
                   if (step === 2) {
                     setConsultationType(null);
                     setStep(1);
+                    setSelectedDate(null);
+                    setSelectedTime('');
                   } else {
                     setStep(step - 1);
                   }
@@ -471,46 +491,46 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
                       </div>
 
                       {/* Full Month Calendar View */}
-                      <div className="bg-gray-300 rounded-lg border border-gray-200 p-4">
+                      <div className="bg-white rounded-lg border border-gray-200 p-4">
                         {/* Month Navigation */}
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-sm font-bold text-gray-900">
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handlePrevCalendarMonth}
+                            disabled={currentCalendarMonth <= dayjs().month()}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <ChevronLeft className="w-5 h-5 text-gray-600" />
+                          </motion.button>
+                          
+                          <h3 className="text-lg font-bold text-gray-900">
                             {dayjs(new Date(dayjs().year(), currentCalendarMonth)).format('MMMM YYYY')}
                           </h3>
-                          <div className="flex items-center space-x-1">
-                            <motion.button
-                              type="button"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={handlePrevCalendarMonth}
-                              disabled={currentCalendarMonth <= dayjs().month()}
-                              className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              <ChevronLeft className="w-4 h-4 text-gray-600" />
-                            </motion.button>
-                            <motion.button
-                              type="button"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={handleNextCalendarMonth}
-                              className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                            >
-                              <ChevronRight className="w-4 h-4 text-gray-600" />
-                            </motion.button>
-                          </div>
+                          
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={handleNextCalendarMonth}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <ChevronRight className="w-5 h-5 text-gray-600" />
+                          </motion.button>
                         </div>
 
                         {/* Days of Week */}
-                        <div className="grid grid-cols-7 gap-1 mb-2">
-                          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                            <div key={i} className="text-center text-xs font-semibold text-gray-500 py-1">
+                        <div className="grid grid-cols-7 gap-2 mb-3">
+                          {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, i) => (
+                            <div key={i} className="text-center text-xs font-semibold text-gray-500 py-2">
                               {day}
                             </div>
                           ))}
                         </div>
 
                         {/* Calendar Grid */}
-                        <div className="grid grid-cols-7 gap-1">
+                        <div className="grid grid-cols-7 gap-2">
                           {getMonthDays(currentCalendarMonth).flat().map((day, idx) => {
                             const isCurrentMonth = day.month() === currentCalendarMonth;
                             const isAvailable = isDateAvailable(day) && isCurrentMonth;
@@ -521,17 +541,17 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
                               <motion.button
                                 key={idx}
                                 type="button"
-                                whileHover={isAvailable ? { scale: 1.1 } : {}}
+                                whileHover={isAvailable ? { scale: 1.05 } : {}}
                                 whileTap={isAvailable ? { scale: 0.95 } : {}}
                                 onClick={() => isAvailable && setSelectedDate(day)}
                                 disabled={!isAvailable}
                                 className={`
-                                  aspect-square flex items-center justify-center text-sm rounded-lg transition-all
-                                  ${!isCurrentMonth ? 'text-gray-300 cursor-not-allowed' : ''}
-                                  ${isAvailable && !isSelected ? 'text-gray-900 hover:bg-blue-100 cursor-pointer' : ''}
-                                  ${!isAvailable && isCurrentMonth ? 'text-gray-400 bg-gray-50 cursor-not-allowed' : ''}
-                                  ${isSelected ? 'bg-blue-900 text-white font-bold' : ''}
-                                  ${isToday && !isSelected && isAvailable ? 'border-2 border-blue-900 font-semibold' : ''}
+                                  aspect-square flex items-center justify-center text-sm rounded-lg transition-all font-medium
+                                  ${!isCurrentMonth ? 'text-gray-300 cursor-not-allowed invisible' : ''}
+                                  ${isAvailable && !isSelected ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer' : ''}
+                                  ${!isAvailable && isCurrentMonth ? 'text-gray-300 cursor-not-allowed' : ''}
+                                  ${isSelected ? 'bg-blue-600 text-white font-bold shadow-md' : ''}
+                                  ${isToday && !isSelected && isAvailable ? 'ring-2 ring-blue-600 ring-inset' : ''}
                                 `}
                               >
                                 {day.format('D')}

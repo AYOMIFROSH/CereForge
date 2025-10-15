@@ -1,14 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-
-// TypeScript declaration for Calendly
-declare global {
-    interface Window {
-        Calendly: {
-            initPopupWidget: (options: { url: string }) => void;
-        };
-    }
-}
+import ConsultationBooking from '@/components/calendar/ConsultationBooking';
 import {
     ChevronRight,
     Upload,
@@ -72,10 +64,11 @@ interface FileUploadProps {
 
 const GetStarted = () => {
     useDocumentTitle(
-            "Cereforge - Project Onboarding Form / Get Started",
-            "Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms.",
-            "/Get Started"
-        );
+        "Cereforge - Project Onboarding Form / Get Started",
+        "Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms.",
+        "/Get Started"
+    );
+
     const [currentStep, setCurrentStep] = useState<number>(1);
     const [formData, setFormData] = useState<FormData>({
         fullName: '',
@@ -104,6 +97,7 @@ const GetStarted = () => {
     const [showCurrencyDropdown, setShowCurrencyDropdown] = useState<boolean>(false);
     const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
     const [dragActive, setDragActive] = useState<string>('');
+    const [showConsultationModal, setShowConsultationModal] = useState<boolean>(false);
 
     const currencies = [
         { symbol: '$', name: 'USD' },
@@ -114,35 +108,8 @@ const GetStarted = () => {
 
     const totalSteps = 6;
 
-    // Load Calendly widget script
-    useEffect(() => {
-        // Add Calendly CSS
-        const link = document.createElement('link');
-        link.href = 'https://assets.calendly.com/assets/external/widget.css';
-        link.rel = 'stylesheet';
-        document.head.appendChild(link);
-
-        // Add Calendly JS
-        const script = document.createElement('script');
-        script.src = 'https://assets.calendly.com/assets/external/widget.js';
-        script.type = 'text/javascript';
-        script.async = true;
-        document.body.appendChild(script);
-
-        return () => {
-            // Cleanup
-            document.head.removeChild(link);
-            document.body.removeChild(script);
-        };
-    }, []);
-
-    const handleCalendlyClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        if (window.Calendly) {
-            window.Calendly.initPopupWidget({
-                url: 'https://calendly.com/cereforgepurpose'
-            });
-        }
+    const handleConsultationClick = () => {
+        setShowConsultationModal(true);
     };
 
     const handleInputChange = (field: keyof FormData, value: string | boolean | File | null): void => {
@@ -284,7 +251,7 @@ const GetStarted = () => {
                     </p>
                     <div className="space-y-3">
                         <button
-                            onClick={handleCalendlyClick}
+                            onClick={handleConsultationClick}
                             className="w-full bg-blue-800 hover:bg-blue-900 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base"
                         >
                             Schedule Call Now
@@ -297,6 +264,15 @@ const GetStarted = () => {
                         </button>
                     </div>
                 </div>
+
+                {/* Consultation Modal */}
+                {showConsultationModal && (
+                    <ConsultationBooking
+                        isOpen={showConsultationModal}
+                        onClose={() => setShowConsultationModal(false)}
+                        mode="popup"
+                    />
+                )}
             </div>
         );
     }
@@ -732,7 +708,7 @@ const GetStarted = () => {
                                     </div>
                                 </div>
 
-                                {/* Add Calendly option when user selects "Yes" for scheduling call */}
+                                {/* Add Consultation option when user selects "Yes" for scheduling call */}
                                 {formData.scheduleCall === 'yes' && (
                                     <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                         <p className="text-sm text-blue-700 mb-3">
@@ -740,7 +716,7 @@ const GetStarted = () => {
                                         </p>
                                         <button
                                             type="button"
-                                            onClick={handleCalendlyClick}
+                                            onClick={handleConsultationClick}
                                             className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
                                         >
                                             <Calendar className="w-4 h-4" />
@@ -825,6 +801,15 @@ const GetStarted = () => {
                     </form>
                 </div>
             </div>
+
+            {/* Consultation Modal */}
+            {showConsultationModal && (
+                <ConsultationBooking
+                    isOpen={showConsultationModal}
+                    onClose={() => setShowConsultationModal(false)}
+                    mode="popup"
+                />
+            )}
         </div>
     );
 };
