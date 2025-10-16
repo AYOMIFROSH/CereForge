@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant} from 'slate';
+import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory, HistoryEditor } from 'slate-history';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,11 +8,11 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Quote,
   Image, Link2, Smile, Upload, X, Check,
-  Type, Paintbrush
+  Type, Paintbrush, Edit2
 } from 'lucide-react';
 
 // TypeScript types
-type CustomElement = 
+type CustomElement =
   | { type: 'paragraph'; align?: string; children: CustomText[] }
   | { type: 'heading1'; align?: string; children: CustomText[] }
   | { type: 'heading2'; align?: string; children: CustomText[] }
@@ -21,7 +21,8 @@ type CustomElement =
   | { type: 'numbered-list'; children: CustomElement[] }
   | { type: 'list-item'; children: CustomText[] }
   | { type: 'block-quote'; children: CustomText[] }
-  | { type: 'image'; url: string; children: CustomText[] };
+  | { type: 'link'; url: string; children: CustomText[] }
+  | { type: 'image'; url: string; align?: 'left' | 'center' | 'right'; width?: number; children: CustomText[] };
 
 type CustomText = {
   text: string;
@@ -44,12 +45,18 @@ declare module 'slate' {
   }
 }
 
-// Custom plugins
+// Custom plugins - Make images and links INLINE and VOID
 const withImages = (editor: Editor) => {
-  const { isVoid } = editor;
+  const { isInline, isVoid } = editor;
+
+  editor.isInline = (element) => {
+    return element.type === 'image' || element.type === 'link' ? true : isInline(element);
+  };
+
   editor.isVoid = (element) => {
     return element.type === 'image' ? true : isVoid(element);
   };
+
   return editor;
 };
 
@@ -61,7 +68,20 @@ const CereforgeEditor: React.FC = () => {
   const [showTextColor, setShowTextColor] = useState<boolean>(false);
   const [showBgColor, setShowBgColor] = useState<boolean>(false);
   const [showHeadingMenu, setShowHeadingMenu] = useState<boolean>(false);
-  const [resizingImage, setResizingImage] = useState<{ path: number[]; startX: number; startWidth: number } | null>(null);
+  const [hoveredImagePath, setHoveredImagePath] = useState<string | null>(null);
+  const [hoveredLinkPath, setHoveredLinkPath] = useState<string | null>(null);
+  const [resizingImage, setResizingImage] = useState<{
+    path: Path;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+  } | null>(null);
+  const [showLinkPopover, setShowLinkPopover] = useState<boolean>(false);
+  const [linkUrl, setLinkUrl] = useState<string>('');
+  const [linkText, setLinkText] = useState<string>('');
+  const [linkPopoverPosition, setLinkPopoverPosition] = useState<{ top: number; left: number } | null>(null);
+  const [editingLinkPath, setEditingLinkPath] = useState<Path | null>(null);
 
   const editor = useMemo(() => withImages(withHistory(withReact(createEditor()))), []);
   const [value, setValue] = useState<Descendant[]>([
@@ -92,7 +112,7 @@ const CereforgeEditor: React.FC = () => {
     const isList = ['bulleted-list', 'numbered-list'].includes(format);
 
     Transforms.unwrapNodes(editor, {
-      match: (n) => 
+      match: (n) =>
         !Editor.isEditor(n) &&
         SlateElement.isElement(n) &&
         ['bulleted-list', 'numbered-list'].includes(n.type),
@@ -102,7 +122,7 @@ const CereforgeEditor: React.FC = () => {
     const newProperties: Partial<CustomElement> = {
       type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
     };
-    
+
     Transforms.setNodes<SlateElement>(editor, newProperties);
 
     if (!isActive && isList) {
@@ -113,7 +133,7 @@ const CereforgeEditor: React.FC = () => {
 
   const isBlockActive = (format: string): boolean => {
     const [match] = Editor.nodes(editor, {
-      match: (n) => 
+      match: (n) =>
         !Editor.isEditor(n) &&
         SlateElement.isElement(n) &&
         n.type === format,
@@ -121,15 +141,41 @@ const CereforgeEditor: React.FC = () => {
     return !!match;
   };
 
-  // Set text alignment - Fixed type error
+  // Check current alignment
+  const getCurrentAlignment = useCallback((): string => {
+    const [match] = Editor.nodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) &&
+        SlateElement.isElement(n) &&
+        Editor.isBlock(editor, n),
+    });
+    
+    if (match) {
+      const [node] = match;
+      return (node as any).align || 'left';
+    }
+    return 'left';
+  }, [editor]);
+
+  // Set text alignment
   const setAlignment = useCallback((align: string) => {
     Transforms.setNodes<SlateElement>(
       editor,
       { align } as Partial<CustomElement>,
-      { 
+      {
         match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
       }
     );
+  }, [editor]);
+
+  // Set image alignment
+  const setImageAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
+    Transforms.setNodes(
+      editor,
+      { align } as Partial<CustomElement>,
+      { at: path }
+    );
+    ReactEditor.focus(editor);
   }, [editor]);
 
   // Set font size
@@ -155,11 +201,143 @@ const CereforgeEditor: React.FC = () => {
     const image: CustomElement = {
       type: 'image',
       url,
+      align: 'left',
+      width: 300,
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, image);
+    Transforms.move(editor);
     setShowImageModal(false);
     setImageUrl('');
+  }, [editor]);
+
+  // Insert or edit link
+  const insertLink = useCallback((url: string, text: string) => {
+    if (!url) return;
+
+    if (editingLinkPath) {
+      // Editing existing link
+      Transforms.setNodes(
+        editor,
+        { url } as Partial<CustomElement>,
+        { at: editingLinkPath }
+      );
+      
+      // Update text if provided
+      if (text && text !== Editor.string(editor, editingLinkPath)) {
+        Transforms.delete(editor, { at: editingLinkPath });
+        Transforms.insertNodes(
+          editor,
+          {
+            type: 'link',
+            url,
+            children: [{ text }],
+          } as CustomElement,
+          { at: editingLinkPath }
+        );
+      }
+    } else {
+      // Inserting new link
+      const { selection } = editor;
+      const isCollapsed = selection && Range.isCollapsed(selection);
+
+      if (isCollapsed) {
+        const link: CustomElement = {
+          type: 'link',
+          url,
+          children: [{ text: text || url }],
+        };
+        Transforms.insertNodes(editor, link);
+      } else {
+        Transforms.wrapNodes(
+          editor,
+          {
+            type: 'link',
+            url,
+            children: [],
+          } as CustomElement,
+          { split: true }
+        );
+      }
+
+      Transforms.move(editor, { distance: 1, unit: 'offset' });
+      Transforms.insertText(editor, ' ');
+      Transforms.move(editor, { distance: 1, unit: 'offset' });
+    }
+
+    setShowLinkPopover(false);
+    setLinkUrl('');
+    setLinkText('');
+    setEditingLinkPath(null);
+    ReactEditor.focus(editor);
+  }, [editor, editingLinkPath]);
+
+  // Remove link
+  const removeLink = useCallback(() => {
+    Transforms.unwrapNodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === 'link',
+    });
+  }, [editor]);
+
+  // Check if cursor is in a link
+  const isLinkActive = useCallback(() => {
+    const [link] = Editor.nodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === 'link',
+    });
+    return !!link;
+  }, [editor]);
+
+  // Handle link button click
+  const handleLinkClick = useCallback(() => {
+    const { selection } = editor;
+    if (!selection) return;
+
+    const domSelection = window.getSelection();
+    if (domSelection && domSelection.rangeCount > 0) {
+      const domRange = domSelection.getRangeAt(0);
+      const rect = domRange.getBoundingClientRect();
+
+      setLinkPopoverPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+      });
+    }
+
+    const [link] = Editor.nodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === 'link',
+    });
+
+    if (link) {
+      const [linkNode] = link;
+      const linkElement = linkNode as Extract<CustomElement, { type: 'link' }>;
+      setLinkUrl(linkElement.url);
+      setLinkText(Editor.string(editor, link[1]));
+    } else {
+      const selectedText = Editor.string(editor, selection);
+      setLinkText(selectedText);
+      setLinkUrl('');
+    }
+
+    setShowLinkPopover(true);
+  }, [editor]);
+
+  // Handle edit link from hover
+  const handleEditLink = useCallback((path: Path, element: Extract<CustomElement, { type: 'link' }>) => {
+    const domNode = ReactEditor.toDOMNode(editor, element);
+    const rect = domNode.getBoundingClientRect();
+
+    setLinkPopoverPosition({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX,
+    });
+
+    setLinkUrl(element.url);
+    setLinkText(Editor.string(editor, path));
+    setEditingLinkPath(path);
+    setShowLinkPopover(true);
   }, [editor]);
 
   // Handle file upload
@@ -197,33 +375,33 @@ const CereforgeEditor: React.FC = () => {
     }
   }, [insertImage]);
 
-  // Image resizing handlers
-  const handleImageMouseDown = (e: React.MouseEvent, path: number[]) => {
+  // Image resize
+  const handleResizeStart = (e: React.MouseEvent, path: Path, currentWidth: number, currentHeight: number) => {
     e.preventDefault();
-    const img = e.currentTarget as HTMLImageElement;
+    e.stopPropagation();
     setResizingImage({
       path,
       startX: e.clientX,
-      startWidth: img.offsetWidth
+      startY: e.clientY,
+      startWidth: currentWidth,
+      startHeight: currentHeight
     });
   };
-
-  
 
   React.useEffect(() => {
     if (!resizingImage) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!resizingImage) return;
-      
+
       const deltaX = e.clientX - resizingImage.startX;
-      const newWidth = Math.max(100, resizingImage.startWidth + deltaX);
-      
-      // Update image width in the editor
-      const img = document.querySelector(`[data-image-path="${resizingImage.path.join('-')}"]`) as HTMLImageElement;
-      if (img) {
-        img.style.width = `${newWidth}px`;
-      }
+      const newWidth = Math.max(100, Math.min(800, resizingImage.startWidth + deltaX));
+
+      Transforms.setNodes(
+        editor,
+        { width: newWidth } as Partial<CustomElement>,
+        { at: resizingImage.path }
+      );
     };
 
     const handleMouseUp = () => {
@@ -237,9 +415,7 @@ const CereforgeEditor: React.FC = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [resizingImage]);
-
-  
+  }, [resizingImage, editor]);
 
   // Render elements
   const renderElement = useCallback((props: RenderElementProps) => {
@@ -265,20 +441,175 @@ const CereforgeEditor: React.FC = () => {
             {props.children}
           </blockquote>
         );
-      case 'image':
+      case 'link':
         const path = ReactEditor.findPath(editor, element);
+        const pathStr = path.join('-');
+        const linkElement = element as Extract<CustomElement, { type: 'link' }>;
+        const isLinkHovered = hoveredLinkPath === pathStr;
+        
         return (
-          <div {...props.attributes} contentEditable={false} className="my-4">
-            <img 
-              src={(element as any).url} 
-              alt="Inserted" 
-              data-image-path={path.join('-')}
-              onMouseDown={(e) => handleImageMouseDown(e, path)}
-              className="max-w-full rounded-lg shadow-md hover:shadow-xl transition-shadow cursor-nwse-resize"
-              style={{ cursor: 'nwse-resize' }}
-            />
+          <span
+            {...props.attributes}
+            className="relative inline-block group"
+            onMouseEnter={() => setHoveredLinkPath(pathStr)}
+            onMouseLeave={() => setHoveredLinkPath(null)}
+          >
+            <a
+              href={linkElement.url}
+              className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+              onClick={(e) => {
+                if (e.ctrlKey || e.metaKey) {
+                  e.preventDefault();
+                  window.open(linkElement.url, '_blank');
+                } else {
+                  e.preventDefault();
+                }
+              }}
+              title={`${linkElement.url} (Ctrl+Click to open)`}
+            >
+              {props.children}
+            </a>
+            
+            {/* Edit and Visit buttons on hover */}
+            <AnimatePresence>
+              {isLinkHovered && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, y: -5 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.8, y: -5 }}
+                  contentEditable={false}
+                  className="absolute -top-10 left-0 bg-gray-800 rounded-lg shadow-xl p-1 flex items-center space-x-1 z-50"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(linkElement.url, '_blank');
+                    }}
+                    className="p-1.5 rounded hover:bg-gray-700 transition-colors text-white"
+                    title="Visit link"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleEditLink(path, linkElement);
+                    }}
+                    className="p-1.5 rounded hover:bg-gray-700 transition-colors text-white"
+                    title="Edit link"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </span>
+        );
+      case 'image':
+        const imgPath = ReactEditor.findPath(editor, element);
+        const imgPathStr = imgPath.join('-');
+        const imageElement = element as Extract<CustomElement, { type: 'image' }>;
+        const imageWidth = imageElement.width || 300;
+        const imageAlign = imageElement.align || 'left';
+        const isHovered = hoveredImagePath === imgPathStr;
+
+        const getAlignmentStyle = () => {
+          switch (imageAlign) {
+            case 'center':
+              return { display: 'flex', justifyContent: 'center', width: '100%' };
+            case 'right':
+              return { display: 'flex', justifyContent: 'flex-end', width: '100%' };
+            default:
+              return { display: 'inline-block' };
+          }
+        };
+
+        return (
+          <span
+            {...props.attributes}
+            contentEditable={false}
+            className="my-2"
+            style={getAlignmentStyle()}
+            onMouseEnter={() => setHoveredImagePath(imgPathStr)}
+            onMouseLeave={() => setHoveredImagePath(null)}
+          >
+            <span className="relative inline-block group">
+              <AnimatePresence>
+                {isHovered && (
+                  <motion.span
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+                    contentEditable={false}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => setImageAlignment(imgPath, 'left')}
+                      className={`p-1.5 rounded transition-colors ${imageAlign === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Left"
+                    >
+                      <AlignLeft size={16} />
+                    </button>
+                    <button
+                      onClick={() => setImageAlignment(imgPath, 'center')}
+                      className={`p-1.5 rounded transition-colors ${imageAlign === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Center"
+                    >
+                      <AlignCenter size={16} />
+                    </button>
+                    <button
+                      onClick={() => setImageAlignment(imgPath, 'right')}
+                      className={`p-1.5 rounded transition-colors ${imageAlign === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Right"
+                    >
+                      <AlignRight size={16} />
+                    </button>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+
+              <span
+                className="relative inline-block"
+                style={{
+                  width: `${imageWidth}px`,
+                  maxWidth: '100%'
+                }}
+              >
+                <img
+                  src={imageElement.url}
+                  alt="Inserted"
+                  className="max-w-full h-auto rounded-lg shadow-md hover:shadow-xl transition-shadow block"
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block'
+                  }}
+                  draggable={false}
+                />
+
+                <span
+                  className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                  onMouseDown={(e) => {
+                    const imgElement = e.currentTarget.previousElementSibling as HTMLImageElement;
+                    handleResizeStart(e, imgPath, imgElement.offsetWidth, imgElement.offsetHeight);
+                  }}
+                  style={{
+                    cursor: 'nwse-resize',
+                    zIndex: 10
+                  }}
+                  contentEditable={false}
+                />
+              </span>
+            </span>
             {props.children}
-          </div>
+          </span>
         );
       default:
         return (
@@ -287,22 +618,22 @@ const CereforgeEditor: React.FC = () => {
           </p>
         );
     }
-  }, [editor, handleImageMouseDown]);
+  }, [editor, hoveredImagePath, hoveredLinkPath, setImageAlignment, handleEditLink]);
 
-  // Render leaf (text formatting)
+  // Render leaf
   const renderLeaf = useCallback((props: RenderLeafProps) => {
     let { children } = props;
     const { leaf } = props;
-    
+
     if (leaf.bold) children = <strong>{children}</strong>;
     if (leaf.italic) children = <em>{children}</em>;
     if (leaf.underline) children = <u>{children}</u>;
     if (leaf.strikethrough) children = <s>{children}</s>;
     if (leaf.subscript) children = <sub>{children}</sub>;
     if (leaf.superscript) children = <sup>{children}</sup>;
-    
+
     return (
-      <span 
+      <span
         {...props.attributes}
         style={{
           fontSize: leaf.fontSize || '16px',
@@ -317,49 +648,26 @@ const CereforgeEditor: React.FC = () => {
 
   const fontSizes = ['10', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48'];
   const colors = [
-    '#000000', '#1e3a8a', '#f97316', '#ef4444', '#10b981', 
+    '#000000', '#1e3a8a', '#f97316', '#ef4444', '#10b981',
     '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16'
   ];
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-orange-50">
       <Slate editor={editor} initialValue={value} onValueChange={setValue}>
-        {/* Fixed Toolbar at Top */}
         <div className="flex-shrink-0 px-4 pt-4 flex justify-center">
           <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 w-full max-w-4xl">
-            {/* Main Formatting Toolbar */}
             <div className="bg-gray-700 px-4 py-3 rounded-xl">
               <div className="flex flex-wrap items-center gap-1">
-                {/* Text Formatting Group */}
-                <ToolbarButton
-                  icon={<Bold size={18} />}
-                  active={isFormatActive('bold')}
-                  onClick={() => toggleFormat('bold')}
-                />
-                <ToolbarButton
-                  icon={<Italic size={18} />}
-                  active={isFormatActive('italic')}
-                  onClick={() => toggleFormat('italic')}
-                />
-                <ToolbarButton
-                  icon={<Underline size={18} />}
-                  active={isFormatActive('underline')}
-                  onClick={() => toggleFormat('underline')}
-                />
-                <ToolbarButton
-                  icon={<Strikethrough size={18} />}
-                  active={isFormatActive('strikethrough')}
-                  onClick={() => toggleFormat('strikethrough')}
-                />
-                
+                <ToolbarButton icon={<Bold size={18} />} active={isFormatActive('bold')} onClick={() => toggleFormat('bold')} title="Bold" />
+                <ToolbarButton icon={<Italic size={18} />} active={isFormatActive('italic')} onClick={() => toggleFormat('italic')} title="Italic" />
+                <ToolbarButton icon={<Underline size={18} />} active={isFormatActive('underline')} onClick={() => toggleFormat('underline')} title="Underline" />
+                <ToolbarButton icon={<Strikethrough size={18} />} active={isFormatActive('strikethrough')} onClick={() => toggleFormat('strikethrough')} title="Strikethrough" />
+
                 <ToolbarDivider />
 
-                {/* Heading Dropdown */}
                 <div className="relative">
-                  <ToolbarButton
-                    icon={<Type size={18} />}
-                    onClick={() => setShowHeadingMenu(!showHeadingMenu)}
-                  />
+                  <ToolbarButton icon={<Type size={18} />} active={showHeadingMenu} onClick={() => setShowHeadingMenu(!showHeadingMenu)} title="Headings" />
                   <AnimatePresence>
                     {showHeadingMenu && (
                       <DropdownMenu onClose={() => setShowHeadingMenu(false)}>
@@ -372,34 +680,21 @@ const CereforgeEditor: React.FC = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* Font Size Dropdown */}
                 <div className="relative">
-                  <ToolbarButton
-                    icon={<span className="text-sm font-medium">A</span>}
-                    onClick={() => setShowFontSize(!showFontSize)}
-                  />
+                  <ToolbarButton icon={<span className="text-sm font-medium">A</span>} active={showFontSize} onClick={() => setShowFontSize(!showFontSize)} title="Font Size" />
                   <AnimatePresence>
                     {showFontSize && (
                       <DropdownMenu onClose={() => setShowFontSize(false)}>
                         {fontSizes.map((size) => (
-                          <DropdownItem 
-                            key={size} 
-                            onClick={() => setFontSize(`${size}px`)}
-                          >
-                            {size}px
-                          </DropdownItem>
+                          <DropdownItem key={size} onClick={() => setFontSize(`${size}px`)}>{size}px</DropdownItem>
                         ))}
                       </DropdownMenu>
                     )}
                   </AnimatePresence>
                 </div>
 
-                {/* Text Color */}
                 <div className="relative">
-                  <ToolbarButton
-                    icon={<Paintbrush size={18} />}
-                    onClick={() => setShowTextColor(!showTextColor)}
-                  />
+                  <ToolbarButton icon={<Paintbrush size={18} />} active={showTextColor} onClick={() => setShowTextColor(!showTextColor)} title="Text Color" />
                   <AnimatePresence>
                     {showTextColor && (
                       <ColorPicker colors={colors} onSelect={setTextColor} onClose={() => setShowTextColor(false)} label="Text Color" />
@@ -407,12 +702,8 @@ const CereforgeEditor: React.FC = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* Background Color */}
                 <div className="relative">
-                  <ToolbarButton
-                    icon={<div className="w-5 h-5 border-2 border-gray-300 rounded" style={{ background: 'linear-gradient(to right, yellow, orange)' }} />}
-                    onClick={() => setShowBgColor(!showBgColor)}
-                  />
+                  <ToolbarButton icon={<div className="w-5 h-5 border-2 border-gray-300 rounded" style={{ background: 'linear-gradient(to right, yellow, orange)' }} />} active={showBgColor} onClick={() => setShowBgColor(!showBgColor)} title="Background Color" />
                   <AnimatePresence>
                     {showBgColor && (
                       <ColorPicker colors={colors} onSelect={setBgColor} onClose={() => setShowBgColor(false)} label="Background Color" />
@@ -422,83 +713,40 @@ const CereforgeEditor: React.FC = () => {
 
                 <ToolbarDivider />
 
-                {/* Subscript/Superscript */}
-                <ToolbarButton
-                  icon={<Subscript size={18} />}
-                  active={isFormatActive('subscript')}
-                  onClick={() => toggleFormat('subscript')}
-                />
-                <ToolbarButton
-                  icon={<Superscript size={18} />}
-                  active={isFormatActive('superscript')}
-                  onClick={() => toggleFormat('superscript')}
-                />
+                <ToolbarButton icon={<Subscript size={18} />} active={isFormatActive('subscript')} onClick={() => toggleFormat('subscript')} title="Subscript" />
+                <ToolbarButton icon={<Superscript size={18} />} active={isFormatActive('superscript')} onClick={() => toggleFormat('superscript')} title="Superscript" />
 
                 <ToolbarDivider />
 
-                {/* Lists and Quote */}
-                <ToolbarButton
-                  icon={<List size={18} />}
-                  active={isBlockActive('bulleted-list')}
-                  onClick={() => toggleBlock('bulleted-list')}
-                />
-                <ToolbarButton
-                  icon={<ListOrdered size={18} />}
-                  active={isBlockActive('numbered-list')}
-                  onClick={() => toggleBlock('numbered-list')}
-                />
-                <ToolbarButton
-                  icon={<Quote size={18} />}
-                  active={isBlockActive('block-quote')}
-                  onClick={() => toggleBlock('block-quote')}
-                />
+                <ToolbarButton icon={<List size={18} />} active={isBlockActive('bulleted-list')} onClick={() => toggleBlock('bulleted-list')} title="Bullet List" />
+                <ToolbarButton icon={<ListOrdered size={18} />} active={isBlockActive('numbered-list')} onClick={() => toggleBlock('numbered-list')} title="Numbered List" />
+                <ToolbarButton icon={<Quote size={18} />} active={isBlockActive('block-quote')} onClick={() => toggleBlock('block-quote')} title="Quote" />
 
                 <ToolbarDivider />
 
-                {/* Alignment */}
-                <ToolbarButton
-                  icon={<AlignLeft size={18} />}
-                  onClick={() => setAlignment('left')}
-                />
-                <ToolbarButton
-                  icon={<AlignCenter size={18} />}
-                  onClick={() => setAlignment('center')}
-                />
-                <ToolbarButton
-                  icon={<AlignRight size={18} />}
-                  onClick={() => setAlignment('right')}
-                />
-                <ToolbarButton
-                  icon={<AlignJustify size={18} />}
-                  onClick={() => setAlignment('justify')}
-                />
+                <ToolbarButton icon={<AlignLeft size={18} />} active={getCurrentAlignment() === 'left'} onClick={() => setAlignment('left')} title="Align Left" />
+                <ToolbarButton icon={<AlignCenter size={18} />} active={getCurrentAlignment() === 'center'} onClick={() => setAlignment('center')} title="Align Center" />
+                <ToolbarButton icon={<AlignRight size={18} />} active={getCurrentAlignment() === 'right'} onClick={() => setAlignment('right')} title="Align Right" />
+                <ToolbarButton icon={<AlignJustify size={18} />} active={getCurrentAlignment() === 'justify'} onClick={() => setAlignment('justify')} title="Align Justify" />
 
                 <ToolbarDivider />
 
-                {/* Media and Links */}
                 <ToolbarButton
                   icon={<Link2 size={18} />}
-                  onClick={() => alert('Link functionality coming soon')}
+                  active={showLinkPopover || isLinkActive()}
+                  onClick={handleLinkClick}
+                  title="Insert Link"
                 />
-                <ToolbarButton
-                  icon={<Image size={18} />}
-                  onClick={() => setShowImageModal(true)}
-                />
-                <ToolbarButton
-                  icon={<Smile size={18} />}
-                  onClick={() => alert('Emoji picker coming soon')}
-                />
+                <ToolbarButton icon={<Image size={18} />} active={showImageModal} onClick={() => setShowImageModal(true)} title="Insert Image" />
+                <ToolbarButton icon={<Smile size={18} />} onClick={() => alert('Emoji picker coming soon')} title="Insert Emoji" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Editor Content Area - Scrollable with narrower width */}
         <div className="flex-1 overflow-hidden px-4 py-6 flex justify-center">
           <div
-            className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl ${
-              isDragging ? 'border-orange-500 bg-orange-50' : 'border-gray-200'
-            }`}
+            className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -507,7 +755,7 @@ const CereforgeEditor: React.FC = () => {
               <Editable
                 renderElement={renderElement}
                 renderLeaf={renderLeaf}
-                placeholder="Start writing..."
+                placeholder="Start typing or insert images..."
                 className="outline-none min-h-full"
                 spellCheck
               />
@@ -516,7 +764,105 @@ const CereforgeEditor: React.FC = () => {
         </div>
       </Slate>
 
-      {/* Image Upload Modal */}
+      {/* Link Popover */}
+      <AnimatePresence>
+        {showLinkPopover && linkPopoverPosition && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            className="fixed z-50 bg-white rounded-lg shadow-2xl border-2 border-blue-500 p-4 w-80"
+            style={{
+              top: `${linkPopoverPosition.top}px`,
+              left: `${linkPopoverPosition.left}px`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Link Text
+                </label>
+                <input
+                  type="text"
+                  value={linkText}
+                  onChange={(e) => setLinkText(e.target.value)}
+                  placeholder="Enter link text"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoFocus={!linkUrl}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  URL
+                </label>
+                <input
+                  type="url"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      insertLink(linkUrl, linkText);
+                    } else if (e.key === 'Escape') {
+                      setShowLinkPopover(false);
+                      setLinkUrl('');
+                      setLinkText('');
+                      setEditingLinkPath(null);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between space-x-2 pt-2">
+                {(isLinkActive() || editingLinkPath) && (
+                  <button
+                    onClick={() => {
+                      removeLink();
+                      setShowLinkPopover(false);
+                      setLinkUrl('');
+                      setLinkText('');
+                      setEditingLinkPath(null);
+                    }}
+                    className="text-xs text-red-600 hover:text-red-700 font-medium"
+                  >
+                    Remove Link
+                  </button>
+                )}
+
+                <div className="flex space-x-2 ml-auto">
+                  <button
+                    onClick={() => {
+                      setShowLinkPopover(false);
+                      setLinkUrl('');
+                      setLinkText('');
+                      setEditingLinkPath(null);
+                    }}
+                    className="px-3 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 rounded font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      insertLink(linkUrl, linkText);
+                      setShowLinkPopover(false);
+                    }}
+                    disabled={!linkUrl}
+                    className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Modal */}
       <AnimatePresence>
         {showImageModal && (
           <motion.div
@@ -535,14 +881,11 @@ const CereforgeEditor: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-900">Insert Image</h3>
-                <button
-                  onClick={() => setShowImageModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
+                <button onClick={() => setShowImageModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X size={24} />
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
@@ -554,7 +897,7 @@ const CereforgeEditor: React.FC = () => {
                     className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
                 </div>
-                
+
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-gray-300"></div>
@@ -563,7 +906,7 @@ const CereforgeEditor: React.FC = () => {
                     <span className="px-2 bg-white text-gray-500">Or</span>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Upload from Computer</label>
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
@@ -575,16 +918,13 @@ const CereforgeEditor: React.FC = () => {
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowImageModal(false)}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
-                >
+                <button onClick={() => setShowImageModal(false)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors">
                   Cancel
                 </button>
                 <button
                   onClick={() => insertImage(imageUrl)}
                   disabled={!imageUrl}
-                  className="flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Check size={18} />
                   <span>Insert</span>
@@ -598,49 +938,45 @@ const CereforgeEditor: React.FC = () => {
   );
 };
 
-// Toolbar Button Component
 const ToolbarButton: React.FC<{
   icon: React.ReactNode;
   active?: boolean;
   onClick: () => void;
-}> = ({ icon, active, onClick }) => (
+  title?: string;
+}> = ({ icon, active, onClick, title }) => (
   <motion.button
     whileHover={{ scale: 1.05 }}
     whileTap={{ scale: 0.95 }}
     onMouseDown={(e) => {
-      e.preventDefault(); // Prevent focus loss
+      e.preventDefault();
       onClick();
     }}
-    className={`p-2 rounded transition-colors ${
-      active ? 'bg-orange-500 text-white' : 'text-gray-300 hover:bg-gray-600 hover:text-white'
-    }`}
+    title={title}
+    className={`p-1 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600 hover:text-white'}`}
   >
     {icon}
   </motion.button>
 );
 
-// Toolbar Divider
 const ToolbarDivider: React.FC = () => (
   <div className="w-px h-6 bg-gray-600 mx-1" />
 );
 
-// Dropdown Menu
 const DropdownMenu: React.FC<{
   children: React.ReactNode;
   onClose: () => void;
 }> = ({ children, onClose }) => {
   React.useEffect(() => {
-  const handleClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.dropdown-menu')) {
-      onClose();
-    }
-  };
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.dropdown-menu')) {
+        onClose();
+      }
+    };
 
-  document.addEventListener('mousedown', handleClick, true);
-
-  return () => document.removeEventListener('mousedown', handleClick, true);
-}, [onClose]);
+    document.addEventListener('mousedown', handleClick, true);
+    return () => document.removeEventListener('mousedown', handleClick, true);
+  }, [onClose]);
 
   return (
     <motion.div
@@ -655,7 +991,6 @@ const DropdownMenu: React.FC<{
   );
 };
 
-// Dropdown Item
 const DropdownItem: React.FC<{
   children: React.ReactNode;
   onClick: () => void;
@@ -668,7 +1003,6 @@ const DropdownItem: React.FC<{
   </button>
 );
 
-// Color Picker
 const ColorPicker: React.FC<{
   colors: string[];
   onSelect: (color: string) => void;
@@ -676,18 +1010,16 @@ const ColorPicker: React.FC<{
   label: string;
 }> = ({ colors, onSelect, onClose, label }) => {
   React.useEffect(() => {
-  const handleClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('.color-picker')) {
-      onClose();
-    }
-  };
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.color-picker')) {
+        onClose();
+      }
+    };
 
-  // ✅ Use capture phase to ensure click inside is ignored properly
-  document.addEventListener('mousedown', handleClick, true);
-
-  return () => document.removeEventListener('mousedown', handleClick, true);
-}, [onClose]);
+    document.addEventListener('mousedown', handleClick, true);
+    return () => document.removeEventListener('mousedown', handleClick, true);
+  }, [onClose]);
 
   return (
     <motion.div
