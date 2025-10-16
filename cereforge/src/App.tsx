@@ -5,6 +5,7 @@ import GetStarted from './components/pages/GetStarted';
 import CalendarPage from './components/pages/CalendarPage';
 import ConsultationBooking from './components/calendar/ConsultationBooking';
 import { Analytics } from "@vercel/analytics/react"
+import CereforgeEditor from './components/textEditor/RichtextEditor';
 
 const App = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const App = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/get-started" element={<GetStarted />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path='/editor' element={<CereforgeEditor />} />
 
         {/* You had duplicate /consultation routes - keep one */}
         <Route
