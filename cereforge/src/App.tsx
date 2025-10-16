@@ -7,6 +7,7 @@ import ConsultationBooking from './components/calendar/ConsultationBooking';
 import { Analytics } from "@vercel/analytics/react"
 import CereforgeEditor from './components/textEditor/RichtextEditor';
 
+
 const App = () => {
   const navigate = useNavigate();
 
