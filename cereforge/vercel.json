@@ -1,11 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "https://www.cereforge.com/:path*",
-      "destination": "https://cereforge.com/:path*",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/" }
   ],
