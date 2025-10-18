@@ -71,7 +71,7 @@ const withCustomElements = (editor: Editor) => {
 
 const CereforgeEditor: React.FC = () => {
   // Sidebar state
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
   // Editor state
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
