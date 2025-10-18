@@ -64,8 +64,8 @@ interface FileUploadProps {
 
 const GetStarted = () => {
     useDocumentTitle(
-        "Cereforge - Project Onboarding Form / Get Started",
-        "Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms.",
+        "Cereforge - Get Started",
+        "Cereforge - Project Onboarding Form ",
         "/Get Started"
     );
 
