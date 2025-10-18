@@ -1,4 +1,4 @@
-// RichtextEditor.tsx - Updated with Sidebar Integration
+// RichtextEditor.tsx - Complete Updated Version with Table & Chart Fixes
 import React, { useState, useCallback, useMemo } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
@@ -13,8 +13,10 @@ import {
 } from 'lucide-react';
 
 // Import the independent sidebar
-import EditorSidebar from './TextSidebar'; // Adjust path as needed
-import cereforge from '../../assets/cereForge.png';
+import EditorSidebar from './TextSidebar';
+import cereforgeLogo from '../../assets/cereForge.png'
+
+// Sample cereforge logo URL - replace with actual import
 
 // TypeScript types
 type CustomElement =
@@ -29,7 +31,7 @@ type CustomElement =
   | { type: 'link'; url: string; children: CustomText[] }
   | { type: 'image'; url: string; align?: 'left' | 'center' | 'right'; width?: number; children: CustomText[] }
   | { type: 'table'; rows: number; cols: number; children: CustomText[] }
-  | { type: 'chart'; chartType: 'bar' | 'line' | 'pie' | 'column'; data: any; children: CustomText[] };
+  | { type: 'chart'; chartType: 'bar' | 'line' | 'pie' | 'column'; title: string; data: { labels: string[]; values: number[] }; children: CustomText[] };
 
 type CustomText = {
   text: string;
@@ -52,7 +54,7 @@ declare module 'slate' {
   }
 }
 
-// Custom plugins - Make images, links, tables, and charts inline/void
+// Custom plugins
 const withCustomElements = (editor: Editor) => {
   const { isInline, isVoid } = editor;
 
@@ -102,7 +104,7 @@ const CereforgeEditor: React.FC = () => {
     } as CustomElement,
   ]);
 
-  // Sidebar handlers - These connect the sidebar to the editor
+  // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {
     const image: CustomElement = {
       type: 'image',
@@ -158,7 +160,11 @@ const CereforgeEditor: React.FC = () => {
     const chartElement: CustomElement = {
       type: 'chart',
       chartType: type,
-      data,
+      title: data.title || `${type.charAt(0).toUpperCase() + type.slice(1)} Chart`,
+      data: {
+        labels: data.labels || [],
+        values: data.values || []
+      },
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, chartElement);
@@ -664,14 +670,24 @@ const CereforgeEditor: React.FC = () => {
       case 'table':
         const tableElement = element as Extract<CustomElement, { type: 'table' }>;
         return (
-          <div {...props.attributes} contentEditable={false} className="my-4">
+          <div {...props.attributes} className="my-4">
             <table className="border-collapse border border-gray-300 w-full max-w-2xl">
               <tbody>
                 {Array.from({ length: tableElement.rows }).map((_, rowIdx) => (
                   <tr key={rowIdx}>
                     {Array.from({ length: tableElement.cols }).map((_, colIdx) => (
                       <td key={colIdx} className="border border-gray-300 p-2 min-w-[100px] min-h-[40px]">
-                        Cell {rowIdx + 1}-{colIdx + 1}
+                        <span
+                          contentEditable={true}
+                          suppressContentEditableWarning={true}
+                          className="outline-none block w-full min-h-[20px] focus:bg-blue-50 px-1 py-0.5 rounded"
+                          onBlur={(e) => {
+                            const cellContent = e.currentTarget.textContent || '';
+                            console.log(`Cell [${rowIdx},${colIdx}]: ${cellContent}`);
+                          }}
+                        >
+                          {`Cell ${rowIdx + 1}-${colIdx + 1}`}
+                        </span>
                       </td>
                     ))}
                   </tr>
@@ -683,20 +699,160 @@ const CereforgeEditor: React.FC = () => {
         );
       case 'chart':
         const chartElement = element as Extract<CustomElement, { type: 'chart' }>;
+        const maxValue = Math.max(...chartElement.data.values, 1);
+        
         return (
-          <div {...props.attributes} contentEditable={false} className="my-4 p-4 bg-gray-50 rounded-lg border border-gray-300">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="font-semibold text-gray-700 capitalize">{chartElement.chartType} Chart</h4>
+          <div {...props.attributes} contentEditable={false} className="my-4 p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+            <div className="mb-4">
+              <h4 className="font-bold text-gray-900 text-lg">{chartElement.title}</h4>
+              <p className="text-sm text-gray-500 capitalize">{chartElement.chartType} Chart</p>
             </div>
-            <div className="bg-white p-4 rounded border border-gray-200">
-              <p className="text-sm text-gray-500">Chart visualization: {chartElement.chartType}</p>
-              {chartElement.data && chartElement.data.labels && (
-                <div className="mt-2 text-xs text-gray-400">
-                  <p>Labels: {chartElement.data.labels.join(', ')}</p>
-                  <p>Values: {chartElement.data.values.join(', ')}</p>
+            
+            {chartElement.chartType === 'bar' && (
+              <div className="space-y-3">
+                {chartElement.data.labels.map((label, idx) => {
+                  const value = chartElement.data.values[idx] || 0;
+                  const percentage = (value / maxValue) * 100;
+                  
+                  return (
+                    <div key={idx} className="flex items-center space-x-3">
+                      <div className="w-24 text-sm font-medium text-gray-700 truncate" title={label}>
+                        {label}
+                      </div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                          style={{ width: `${percentage}%` }}
+                        >
+                          <span className="text-white text-xs font-semibold">{value}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {chartElement.chartType === 'column' && (
+              <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
+                {chartElement.data.labels.map((label, idx) => {
+                  const value = chartElement.data.values[idx] || 0;
+                  const height = (value / maxValue) * 100;
+                  
+                  return (
+                    <div key={idx} className="flex flex-col items-center space-y-2">
+                      <div className="relative group">
+                        <div 
+                          className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all duration-500 hover:from-blue-700 hover:to-blue-500"
+                          style={{ height: `${height * 2}px` }}
+                        >
+                          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs px-2 py-1 rounded">
+                            {value}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate" title={label}>
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {chartElement.chartType === 'pie' && (
+              <div className="flex items-center justify-center">
+                <div className="relative w-64 h-64">
+                  <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                    {(() => {
+                      const total = chartElement.data.values.reduce((a, b) => a + b, 0);
+                      let currentAngle = 0;
+                      const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                      
+                      return chartElement.data.values.map((value, idx) => {
+                        const percentage = (value / total) * 100;
+                        const angle = (percentage / 100) * 360;
+                        const startAngle = currentAngle;
+                        currentAngle += angle;
+                        
+                        const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
+                        const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
+                        const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
+                        const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
+                        
+                        const largeArc = angle > 180 ? 1 : 0;
+                        
+                        return (
+                          <path
+                            key={idx}
+                            d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                            fill={colors[idx % colors.length]}
+                            className="hover:opacity-80 transition-opacity"
+                          />
+                        );
+                      });
+                    })()}
+                  </svg>
                 </div>
-              )}
-            </div>
+                <div className="ml-6 space-y-2">
+                  {chartElement.data.labels.map((label, idx) => {
+                    const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                    const value = chartElement.data.values[idx];
+                    const total = chartElement.data.values.reduce((a, b) => a + b, 0);
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    
+                    return (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <div 
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: colors[idx % colors.length] }}
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          {label}: {value} ({percentage}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {chartElement.chartType === 'line' && (
+              <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
+                <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                  <polyline
+                    points={chartElement.data.values.map((value, idx) => {
+                      const x = (idx / (chartElement.data.values.length - 1)) * 380 + 10;
+                      const y = 190 - (value / maxValue) * 180;
+                      return `${x},${y}`;
+                    }).join(' ')}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                  />
+                  {chartElement.data.values.map((value, idx) => {
+                    const x = (idx / (chartElement.data.values.length - 1)) * 380 + 10;
+                    const y = 190 - (value / maxValue) * 180;
+                    return (
+                      <g key={idx}>
+                        <circle cx={x} cy={y} r="4" fill="#3b82f6" className="hover:r-6 transition-all" />
+                        <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
+                          {value}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+                <div className="flex justify-around mt-2">
+                  {chartElement.data.labels.map((label, idx) => (
+                    <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / chartElement.data.labels.length}%` }}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {props.children}
           </div>
         );
@@ -754,21 +910,21 @@ const CereforgeEditor: React.FC = () => {
         onUploadCSV={handleUploadCSV}
       />
 
-      {/* Cereforge Logo Button - Fixed at screen left, acts as sidebar toggle */}
+      {/* Cereforge Logo Button */}
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 z-40 p-2 bg-gray-700 rounded-lg hover:bg-gray-700 transition-all shadow-lg hover:scale-105 transform"
+          className="fixed top-4 left-4 z-40 p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all shadow-lg hover:scale-105 transform"
           title="Open Sidebar"
         >
-          <img src={cereforge} alt="Hamburger open sidebar" className='w-5'/>
+          <img src={cereforgeLogo} alt="Open sidebar" className='w-5'/>
         </button>
       )}
 
       {/* Main Editor Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <Slate editor={editor} initialValue={value} onValueChange={setValue}>
-          {/* Toolbar - Centered and independent */}
+          {/* Toolbar */}
           <div className="flex-shrink-0 px-4 pt-1 flex justify-center">
             <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 w-full max-w-4xl">
               <div className="bg-gray-700 px-4 py-3 rounded-xl">

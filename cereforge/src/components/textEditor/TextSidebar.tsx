@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3
+  X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3, Plus, Minus
 } from 'lucide-react';
-import cereforge from '../../assets/cereForge.png';
+
+// Sample cereforge logo
+import cereforeLogo from '../../assets/cereForge.png'
 
 // Sidebar view types
 type SidebarView = 'main' | 'gif' | 'sticker' | 'clips' | 'tables' | 'csv' | 'charts';
@@ -65,7 +67,11 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const [tableCols, setTableCols] = useState<number>(3);
   const [showChartModal, setShowChartModal] = useState<boolean>(false);
   const [selectedChartType, setSelectedChartType] = useState<ChartType | null>(null);
-  const [chartData, setChartData] = useState<string>('');
+  
+  // Chart form state
+  const [chartTitle, setChartTitle] = useState<string>('');
+  const [chartLabels, setChartLabels] = useState<string[]>(['Label 1', 'Label 2', 'Label 3']);
+  const [chartValues, setChartValues] = useState<number[]>([10, 20, 15]);
 
   const navigateToView = (view: SidebarView) => {
     setSidebarView(view);
@@ -90,45 +96,89 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
   const handleInsertGif = (url: string) => {
     onInsertGif(url);
-    // Don't close sidebar - removed onClose()
   };
 
   const handleInsertSticker = (url: string) => {
     onInsertSticker(url);
-    // Don't close sidebar - removed onClose()
   };
 
   const handleInsertClip = (url: string) => {
     onInsertClip(url);
-    // Don't close sidebar - removed onClose()
   };
 
   const handleInsertTable = () => {
     onInsertTable(tableRows, tableCols);
     setShowTableModal(false);
-    // Don't close sidebar - removed onClose()
   };
 
   const handleInsertChart = () => {
     if (selectedChartType) {
-      try {
-        const data = chartData ? JSON.parse(chartData) : { labels: [], values: [] };
-        onInsertChart(selectedChartType, data);
-        setShowChartModal(false);
-        setSelectedChartType(null);
-        setChartData('');
-        // Don't close sidebar - removed onClose()
-      } catch (e) {
-        alert('Invalid JSON format. Please check your data.');
-      }
+      const chartData = {
+        title: chartTitle || `${selectedChartType.charAt(0).toUpperCase() + selectedChartType.slice(1)} Chart`,
+        labels: chartLabels.filter(label => label.trim() !== ''),
+        values: chartValues
+      };
+      onInsertChart(selectedChartType, chartData);
+      resetChartForm();
     }
+  };
+
+  const resetChartForm = () => {
+    setShowChartModal(false);
+    setSelectedChartType(null);
+    setChartTitle('');
+    setChartLabels(['Label 1', 'Label 2', 'Label 3']);
+    setChartValues([10, 20, 15]);
   };
 
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && onUploadCSV) {
       onUploadCSV(file);
-      // Don't close sidebar - removed onClose()
+    }
+  };
+
+  const addChartDataRow = () => {
+    setChartLabels([...chartLabels, `Label ${chartLabels.length + 1}`]);
+    setChartValues([...chartValues, 0]);
+  };
+
+  const removeChartDataRow = (index: number) => {
+    if (chartLabels.length > 1) {
+      setChartLabels(chartLabels.filter((_, i) => i !== index));
+      setChartValues(chartValues.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateChartLabel = (index: number, value: string) => {
+    const newLabels = [...chartLabels];
+    newLabels[index] = value;
+    setChartLabels(newLabels);
+  };
+
+  const updateChartValue = (index: number, value: number) => {
+    const newValues = [...chartValues];
+    newValues[index] = value;
+    setChartValues(newValues);
+  };
+
+  const loadChartTemplate = (template: 'sales' | 'products' | 'months') => {
+    switch (template) {
+      case 'sales':
+        setChartTitle('Monthly Sales');
+        setChartLabels(['Jan', 'Feb', 'Mar', 'Apr']);
+        setChartValues([100, 150, 120, 180]);
+        break;
+      case 'products':
+        setChartTitle('Product Performance');
+        setChartLabels(['Product A', 'Product B', 'Product C']);
+        setChartValues([30, 45, 25]);
+        break;
+      case 'months':
+        setChartTitle('Quarterly Data');
+        setChartLabels(['Q1', 'Q2', 'Q3', 'Q4']);
+        setChartValues([250, 300, 280, 320]);
+        break;
     }
   };
 
@@ -144,10 +194,10 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             className="w-80 bg-white border-r border-gray-200 shadow-xl flex flex-col h-full"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 rounded-r border-b border-gray-200 bg-gray-700 ">
+            <div className="flex items-center justify-between p-4 rounded-r border-b border-gray-200 bg-gray-700">
               <div className="flex items-center space-x-2">
-                <img src={cereforge} alt="cereforge logo" className='w-5'/>
-                <div className="flex items-center space-x-0.5 ">
+                <img src={cereforeLogo} alt="cereforge logo" className='w-5'/>
+                <div className="flex items-center space-x-0.5">
                   <div className="relative inline-block">
                     <div className="absolute inset-0 bg-blue-900 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-blue-900"></div>
                     <span className="text-blue relative z-10 px-3 py-1 font-bold text-xl">CERE</span>
@@ -362,7 +412,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Chart Modal */}
+      {/* Chart Modal - Updated with proper form */}
       <AnimatePresence>
         {showChartModal && selectedChartType && (
           <motion.div
@@ -370,52 +420,116 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => { setShowChartModal(false); setSelectedChartType(null); setChartData(''); }}
+            onClick={resetChartForm}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-gray-900 mb-4 capitalize">{selectedChartType} Chart</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4 capitalize">
+                Create {selectedChartType} Chart
+              </h3>
+              
               <div className="space-y-4">
+                {/* Chart Title */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Chart Data (JSON format)
+                    Chart Title
                   </label>
-                  <textarea
-                    value={chartData}
-                    onChange={(e) => setChartData(e.target.value)}
-                    placeholder='{"labels": ["A", "B", "C"], "values": [10, 20, 30]}'
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-h-[100px] font-mono text-sm"
+                  <input
+                    type="text"
+                    value={chartTitle}
+                    onChange={(e) => setChartTitle(e.target.value)}
+                    placeholder={`${selectedChartType.charAt(0).toUpperCase() + selectedChartType.slice(1)} Chart`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter chart data in JSON format or use a template
-                  </p>
                 </div>
+
+                {/* Quick Templates */}
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Quick Templates:</p>
                   <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={() => setChartData('{"labels": ["Jan", "Feb", "Mar"], "values": [100, 150, 120]}')}
-                      className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                      onClick={() => loadChartTemplate('sales')}
+                      className="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors"
                     >
-                      Sales Data
+                      Monthly Sales
                     </button>
                     <button
-                      onClick={() => setChartData('{"labels": ["Product A", "Product B", "Product C"], "values": [30, 45, 25]}')}
-                      className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                      onClick={() => loadChartTemplate('products')}
+                      className="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
                     >
                       Products
                     </button>
+                    <button
+                      onClick={() => loadChartTemplate('months')}
+                      className="px-3 py-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded transition-colors"
+                    >
+                      Quarterly
+                    </button>
                   </div>
                 </div>
+
+                {/* Chart Data */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Chart Data
+                    </label>
+                    <button
+                      onClick={addChartDataRow}
+                      className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    >
+                      <Plus size={14} />
+                      <span>Add Row</span>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {chartLabels.map((label, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={label}
+                          onChange={(e) => updateChartLabel(index, e.target.value)}
+                          placeholder="Label"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <input
+                          type="number"
+                          value={chartValues[index]}
+                          onChange={(e) => updateChartValue(index, Number(e.target.value))}
+                          placeholder="Value"
+                          className="w-24 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {chartLabels.length > 1 && (
+                          <button
+                            onClick={() => removeChartDataRow(index)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remove row"
+                          >
+                            <Minus size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preview hint */}
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-700">
+                    <strong>Tip:</strong> Add labels and values for your chart. The chart will be visualized in your document.
+                  </p>
+                </div>
               </div>
+
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => { setShowChartModal(false); setSelectedChartType(null); setChartData(''); }}
+                  onClick={resetChartForm}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
                 >
                   Cancel
@@ -503,7 +617,7 @@ const MediaView: React.FC<{
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
+                  <div className="text-center py-12">
           <div className="text-gray-300 mb-3 flex justify-center">{emptyIcon}</div>
           <p className="text-gray-500">{emptyMessage}</p>
         </div>
