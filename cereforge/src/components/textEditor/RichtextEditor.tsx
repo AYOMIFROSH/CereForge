@@ -758,7 +758,7 @@ const CereforgeEditor: React.FC = () => {
       {!sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 z-40 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-all shadow-lg hover:scale-105 transform"
+          className="fixed top-4 left-4 z-40 p-2 bg-gray-700 rounded-lg hover:bg-gray-700 transition-all shadow-lg hover:scale-105 transform"
           title="Open Sidebar"
         >
           <img src={cereforge} alt="Hamburger open sidebar" className='w-5'/>
@@ -769,7 +769,7 @@ const CereforgeEditor: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Slate editor={editor} initialValue={value} onValueChange={setValue}>
           {/* Toolbar - Centered and independent */}
-          <div className="flex-shrink-0 px-4 pt-4 flex justify-center">
+          <div className="flex-shrink-0 px-4 pt-1 flex justify-center">
             <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 w-full max-w-4xl">
               <div className="bg-gray-700 px-4 py-3 rounded-xl">
                 <div className="flex flex-wrap items-center gap-1">

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3
 } from 'lucide-react';
+import cereforge from '../../assets/cereForge.png';
 
 // Sidebar view types
 type SidebarView = 'main' | 'gif' | 'sticker' | 'clips' | 'tables' | 'csv' | 'charts';
@@ -78,7 +79,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
   const getFilteredContent = (items: any[]) => {
     if (!searchQuery) return items;
-    return items.filter(item => 
+    return items.filter(item =>
       item.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
@@ -143,17 +144,15 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             className="w-80 bg-white border-r border-gray-200 shadow-xl flex flex-col h-full"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-900 to-blue-800">
+            <div className="flex items-center justify-between p-4 rounded-r border-b border-gray-200 bg-gray-700 ">
               <div className="flex items-center space-x-2">
-                <svg viewBox="0 0 24 24" fill="white" className="w-8 h-8">
-                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
-                </svg>
-                <div className="flex items-center">
+                <img src={cereforge} alt="cereforge logo" className='w-5'/>
+                <div className="flex items-center space-x-0.5 ">
                   <div className="relative inline-block">
-                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
-                    <span className="text-blue-900 relative z-10 px-2 py-0.5 font-bold text-sm bg-white/90 rounded">CERE</span>
+                    <div className="absolute inset-0 bg-blue-900 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-blue-900"></div>
+                    <span className="text-blue relative z-10 px-3 py-1 font-bold text-xl">CERE</span>
                   </div>
-                  <span className="text-white font-bold text-sm ml-1">FORGE</span>
+                  <span className="text-white font-bold text-xl">FORGE</span>
                 </div>
               </div>
               <button
@@ -323,36 +322,36 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Rows: {tableRows}</label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="10" 
-                    value={tableRows} 
-                    onChange={(e) => setTableRows(Number(e.target.value))} 
-                    className="w-full" 
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={tableRows}
+                    onChange={(e) => setTableRows(Number(e.target.value))}
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Columns: {tableCols}</label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="10" 
-                    value={tableCols} 
-                    onChange={(e) => setTableCols(Number(e.target.value))} 
-                    className="w-full" 
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={tableCols}
+                    onChange={(e) => setTableCols(Number(e.target.value))}
+                    className="w-full"
                   />
                 </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <button 
-                  onClick={() => setShowTableModal(false)} 
+                <button
+                  onClick={() => setShowTableModal(false)}
                   className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={handleInsertTable} 
+                <button
+                  onClick={handleInsertTable}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
                 >
                   Insert Table
