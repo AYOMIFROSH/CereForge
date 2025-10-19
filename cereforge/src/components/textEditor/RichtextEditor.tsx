@@ -1,4 +1,4 @@
-// RichtextEditor.tsx - Complete Updated Version with Table & Chart Fixes
+// RichtextEditor.tsx - Complete Fixed Version
 import React, { useState, useCallback, useMemo } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
@@ -9,15 +9,14 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Quote,
   Image, Link2, Smile, Upload, X, Check,
-  Type, Paintbrush, Edit2
+  Type, Paintbrush, Edit2, Trash2
 } from 'lucide-react';
 
 // Import the independent sidebar
 import EditorSidebar from './TextSidebar';
+
+// Sample cereforge logo URL
 import cereforgeLogo from '../../assets/cereForge.png'
-
-// Sample cereforge logo URL - replace with actual import
-
 // TypeScript types
 type CustomElement =
   | { type: 'paragraph'; align?: string; children: CustomText[] }
@@ -30,8 +29,8 @@ type CustomElement =
   | { type: 'block-quote'; children: CustomText[] }
   | { type: 'link'; url: string; children: CustomText[] }
   | { type: 'image'; url: string; align?: 'left' | 'center' | 'right'; width?: number; children: CustomText[] }
-  | { type: 'table'; rows: number; cols: number; children: CustomText[] }
-  | { type: 'chart'; chartType: 'bar' | 'line' | 'pie' | 'column'; title: string; data: { labels: string[]; values: number[] }; children: CustomText[] };
+  | { type: 'table'; rows: number; cols: number; align?: 'left' | 'center' | 'right'; width?: number; cellData?: string[][]; children: CustomText[] }
+  | { type: 'chart'; chartType: 'bar' | 'line' | 'pie' | 'column'; title: string; data: { labels: string[]; values: number[] }; align?: 'left' | 'center' | 'right'; width?: number; children: CustomText[] };
 
 type CustomText = {
   text: string;
@@ -56,16 +55,34 @@ declare module 'slate' {
 
 // Custom plugins
 const withCustomElements = (editor: Editor) => {
-  const { isInline, isVoid } = editor;
+  const { isInline, isVoid, deleteBackward } = editor;
 
   editor.isInline = (element) => {
     return element.type === 'image' || element.type === 'link' ? true : isInline(element);
   };
 
   editor.isVoid = (element) => {
-    return element.type === 'image' || element.type === 'chart' || element.type === 'table' 
-      ? true 
+    return element.type === 'image' || element.type === 'chart' || element.type === 'table'
+      ? true
       : isVoid(element);
+  };
+
+  // Override deleteBackward to prevent table deletion when editing cells
+  editor.deleteBackward = (...args) => {
+    const { selection } = editor;
+
+    if (selection && Range.isCollapsed(selection)) {
+      const [cell] = Editor.nodes(editor, {
+        match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === 'table',
+      });
+
+      if (cell) {
+        // We're inside a table, don't delete the table
+        return;
+      }
+    }
+
+    deleteBackward(...args);
   };
 
   return editor;
@@ -84,8 +101,10 @@ const CereforgeEditor: React.FC = () => {
   const [showBgColor, setShowBgColor] = useState<boolean>(false);
   const [showHeadingMenu, setShowHeadingMenu] = useState<boolean>(false);
   const [hoveredImagePath, setHoveredImagePath] = useState<string | null>(null);
+  const [hoveredTablePath, setHoveredTablePath] = useState<string | null>(null);
+  const [hoveredChartPath, setHoveredChartPath] = useState<string | null>(null);
   const [hoveredLinkPath, setHoveredLinkPath] = useState<string | null>(null);
-  const [resizingImage, setResizingImage] = useState<{
+  const [resizingElement, setResizingElement] = useState<{
     path: Path;
     startX: number;
     startWidth: number;
@@ -96,6 +115,16 @@ const CereforgeEditor: React.FC = () => {
   const [linkPopoverPosition, setLinkPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const [editingLinkPath, setEditingLinkPath] = useState<Path | null>(null);
 
+  // Chart editing state
+  const [showChartEditModal, setShowChartEditModal] = useState<boolean>(false);
+  const [editingChartPath, setEditingChartPath] = useState<Path | null>(null);
+  const [editingChartData, setEditingChartData] = useState<{
+    type: 'bar' | 'line' | 'pie' | 'column';
+    title: string;
+    labels: string[];
+    values: number[];
+  } | null>(null);
+
   const editor = useMemo(() => withCustomElements(withHistory(withReact(createEditor()))), []);
   const [value, setValue] = useState<Descendant[]>([
     {
@@ -103,6 +132,71 @@ const CereforgeEditor: React.FC = () => {
       children: [{ text: '' }],
     } as CustomElement,
   ]);
+
+  // Helper function to ensure empty paragraph after void elements
+  const ensureEmptyParagraphAfter = useCallback(() => {
+    try {
+      const { selection } = editor;
+      if (!selection) return;
+
+      // Get all the nodes to find the inserted element
+      const [match] = Editor.nodes(editor, {
+        match: n => !Editor.isEditor(n) && SlateElement.isElement(n) &&
+          (n.type === 'image' || n.type === 'table' || n.type === 'chart'),
+        at: selection,
+      });
+
+      if (!match) return;
+
+      const [, elementPath] = match;
+
+      // Try to get the next sibling
+      const nextPath = Path.next(elementPath);
+
+      try {
+        const [nextNode] = Editor.node(editor, nextPath);
+
+        // If next node exists and is an empty paragraph, move cursor there
+        if (
+          SlateElement.isElement(nextNode) &&
+          nextNode.type === 'paragraph' &&
+          Editor.isEmpty(editor, nextNode)
+        ) {
+          Transforms.select(editor, Editor.start(editor, nextPath));
+          return;
+        }
+
+        // If next node exists but is not empty paragraph, insert one before moving
+        const emptyParagraph: CustomElement = {
+          type: 'paragraph',
+          children: [{ text: '' }],
+        };
+        Transforms.insertNodes(editor, emptyParagraph, { at: nextPath });
+        Transforms.select(editor, Editor.start(editor, nextPath));
+
+      } catch (e) {
+        // No next sibling exists, insert at the end of parent
+        const emptyParagraph: CustomElement = {
+          type: 'paragraph',
+          children: [{ text: '' }],
+        };
+
+        const parentPath = Path.parent(elementPath);
+        const newPath = [...parentPath, elementPath[elementPath.length - 1] + 1];
+
+        Transforms.insertNodes(editor, emptyParagraph, { at: newPath });
+        Transforms.select(editor, Editor.start(editor, newPath));
+      }
+    } catch (error) {
+      console.error('Error ensuring empty paragraph:', error);
+      // Fallback: just move the cursor forward
+      try {
+        Transforms.move(editor);
+      } catch (e) {
+        // Silent fail
+      }
+    }
+  }, [editor]);
 
   // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {
@@ -114,9 +208,9 @@ const CereforgeEditor: React.FC = () => {
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, image);
-    Transforms.move(editor);
+    ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
-  }, [editor]);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const handleInsertSticker = useCallback((url: string) => {
     const image: CustomElement = {
@@ -127,9 +221,9 @@ const CereforgeEditor: React.FC = () => {
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, image);
-    Transforms.move(editor);
+    ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
-  }, [editor]);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const handleInsertClip = useCallback((url: string) => {
     const image: CustomElement = {
@@ -140,21 +234,28 @@ const CereforgeEditor: React.FC = () => {
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, image);
-    Transforms.move(editor);
+    ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
-  }, [editor]);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const handleInsertTable = useCallback((rows: number, cols: number) => {
+    const cellData: string[][] = Array(rows).fill(null).map((_, rowIdx) =>
+      Array(cols).fill(null).map((_, colIdx) => `Cell ${rowIdx + 1}-${colIdx + 1}`)
+    );
+
     const tableElement: CustomElement = {
       type: 'table',
       rows,
       cols,
+      align: 'left',
+      width: 600,
+      cellData,
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, tableElement);
-    Transforms.move(editor);
+    ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
-  }, [editor]);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const handleInsertChart = useCallback((type: 'bar' | 'line' | 'pie' | 'column', data: any) => {
     const chartElement: CustomElement = {
@@ -165,16 +266,17 @@ const CereforgeEditor: React.FC = () => {
         labels: data.labels || [],
         values: data.values || []
       },
+      align: 'left',
+      width: 600,
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, chartElement);
-    Transforms.move(editor);
+    ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
-  }, [editor]);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const handleUploadCSV = useCallback((file: File) => {
     console.log('CSV file uploaded:', file);
-    // TODO: Parse CSV and create table
     alert('CSV parsing will be implemented. For now, creating a sample table.');
     handleInsertTable(5, 4);
   }, [handleInsertTable]);
@@ -236,7 +338,7 @@ const CereforgeEditor: React.FC = () => {
         SlateElement.isElement(n) &&
         Editor.isBlock(editor, n),
     });
-    
+
     if (match) {
       const [node] = match;
       return (node as any).align || 'left';
@@ -254,7 +356,7 @@ const CereforgeEditor: React.FC = () => {
     );
   }, [editor]);
 
-  const setImageAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
+  const setElementAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
     Transforms.setNodes(
       editor,
       { align } as Partial<CustomElement>,
@@ -287,10 +389,11 @@ const CereforgeEditor: React.FC = () => {
       children: [{ text: '' }],
     };
     Transforms.insertNodes(editor, image);
-    Transforms.move(editor);
+    ensureEmptyParagraphAfter();
     setShowImageModal(false);
     setImageUrl('');
-  }, [editor]);
+    ReactEditor.focus(editor);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const insertLink = useCallback((url: string, text: string) => {
     if (!url) return;
@@ -301,7 +404,7 @@ const CereforgeEditor: React.FC = () => {
         { url } as Partial<CustomElement>,
         { at: editingLinkPath }
       );
-      
+
       if (text && text !== Editor.string(editor, editingLinkPath)) {
         Transforms.delete(editor, { at: editingLinkPath });
         Transforms.insertNodes(
@@ -413,6 +516,38 @@ const CereforgeEditor: React.FC = () => {
     setShowLinkPopover(true);
   }, [editor]);
 
+  // Chart editing handlers
+  const handleEditChart = useCallback((path: Path, element: Extract<CustomElement, { type: 'chart' }>) => {
+    setEditingChartPath(path);
+    setEditingChartData({
+      type: element.chartType,
+      title: element.title,
+      labels: [...element.data.labels],
+      values: [...element.data.values],
+    });
+    setShowChartEditModal(true);
+  }, []);
+
+  const handleSaveChartEdit = useCallback(() => {
+    if (editingChartPath && editingChartData) {
+      Transforms.setNodes(
+        editor,
+        {
+          title: editingChartData.title,
+          data: {
+            labels: editingChartData.labels,
+            values: editingChartData.values,
+          },
+        } as Partial<CustomElement>,
+        { at: editingChartPath }
+      );
+      setShowChartEditModal(false);
+      setEditingChartPath(null);
+      setEditingChartData(null);
+      ReactEditor.focus(editor);
+    }
+  }, [editor, editingChartPath, editingChartData]);
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
@@ -449,7 +584,7 @@ const CereforgeEditor: React.FC = () => {
   const handleResizeStart = (e: React.MouseEvent, path: Path, currentWidth: number) => {
     e.preventDefault();
     e.stopPropagation();
-    setResizingImage({
+    setResizingElement({
       path,
       startX: e.clientX,
       startWidth: currentWidth,
@@ -457,23 +592,23 @@ const CereforgeEditor: React.FC = () => {
   };
 
   React.useEffect(() => {
-    if (!resizingImage) return;
+    if (!resizingElement) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!resizingImage) return;
+      if (!resizingElement) return;
 
-      const deltaX = e.clientX - resizingImage.startX;
-      const newWidth = Math.max(100, Math.min(800, resizingImage.startWidth + deltaX));
+      const deltaX = e.clientX - resizingElement.startX;
+      const newWidth = Math.max(100, Math.min(800, resizingElement.startWidth + deltaX));
 
       Transforms.setNodes(
         editor,
         { width: newWidth } as Partial<CustomElement>,
-        { at: resizingImage.path }
+        { at: resizingElement.path }
       );
     };
 
     const handleMouseUp = () => {
-      setResizingImage(null);
+      setResizingElement(null);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -483,7 +618,25 @@ const CereforgeEditor: React.FC = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [resizingImage, editor]);
+  }, [resizingElement, editor]);
+
+  // Update table cell content
+  const updateTableCell = useCallback((path: Path, rowIdx: number, colIdx: number, content: string) => {
+    const [node] = Editor.node(editor, path);
+    const tableElement = node as Extract<CustomElement, { type: 'table' }>;
+
+    const newCellData = tableElement.cellData ? [...tableElement.cellData] : [];
+    if (!newCellData[rowIdx]) {
+      newCellData[rowIdx] = [];
+    }
+    newCellData[rowIdx][colIdx] = content;
+
+    Transforms.setNodes(
+      editor,
+      { cellData: newCellData } as Partial<CustomElement>,
+      { at: path }
+    );
+  }, [editor]);
 
   // Render elements
   const renderElement = useCallback((props: RenderElementProps) => {
@@ -514,7 +667,7 @@ const CereforgeEditor: React.FC = () => {
         const pathStr = path.join('-');
         const linkElement = element as Extract<CustomElement, { type: 'link' }>;
         const isLinkHovered = hoveredLinkPath === pathStr;
-        
+
         return (
           <span
             {...props.attributes}
@@ -537,7 +690,7 @@ const CereforgeEditor: React.FC = () => {
             >
               {props.children}
             </a>
-            
+
             <AnimatePresence>
               {isLinkHovered && (
                 <motion.div
@@ -584,7 +737,7 @@ const CereforgeEditor: React.FC = () => {
         const imageElement = element as Extract<CustomElement, { type: 'image' }>;
         const imageWidth = imageElement.width || 300;
         const imageAlign = imageElement.align || 'left';
-        const isHovered = hoveredImagePath === imgPathStr;
+        const isImageHovered = hoveredImagePath === imgPathStr;
 
         const getAlignmentStyle = () => {
           switch (imageAlign) {
@@ -608,7 +761,7 @@ const CereforgeEditor: React.FC = () => {
           >
             <span className="relative inline-block group">
               <AnimatePresence>
-                {isHovered && (
+                {isImageHovered && (
                   <motion.span
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -617,25 +770,36 @@ const CereforgeEditor: React.FC = () => {
                     contentEditable={false}
                   >
                     <button
-                      onClick={() => setImageAlignment(imgPath, 'left')}
+                      onClick={() => setElementAlignment(imgPath, 'left')}
                       className={`p-1.5 rounded transition-colors ${imageAlign === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
                       title="Align Left"
                     >
                       <AlignLeft size={16} />
                     </button>
                     <button
-                      onClick={() => setImageAlignment(imgPath, 'center')}
+                      onClick={() => setElementAlignment(imgPath, 'center')}
                       className={`p-1.5 rounded transition-colors ${imageAlign === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
                       title="Align Center"
                     >
                       <AlignCenter size={16} />
                     </button>
                     <button
-                      onClick={() => setImageAlignment(imgPath, 'right')}
+                      onClick={() => setElementAlignment(imgPath, 'right')}
                       className={`p-1.5 rounded transition-colors ${imageAlign === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
                       title="Align Right"
                     >
                       <AlignRight size={16} />
+                    </button>
+                    <div className="w-px h-6 bg-gray-600 mx-1" />
+                    <button
+                      onClick={() => {
+                        Transforms.removeNodes(editor, { at: imgPath });
+                        ReactEditor.focus(editor);
+                      }}
+                      className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                      title="Delete Image"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </motion.span>
                 )}
@@ -668,191 +832,363 @@ const CereforgeEditor: React.FC = () => {
           </span>
         );
       case 'table':
+        const tablePath = ReactEditor.findPath(editor, element);
+        const tablePathStr = tablePath.join('-');
         const tableElement = element as Extract<CustomElement, { type: 'table' }>;
+        const tableWidth = tableElement.width || 600;
+        const tableAlign = tableElement.align || 'left';
+        const isTableHovered = hoveredTablePath === tablePathStr;
+        const cellData = tableElement.cellData || [];
+
+        const getTableAlignmentStyle = () => {
+          switch (tableAlign) {
+            case 'center':
+              return { display: 'flex', justifyContent: 'center', width: '100%' };
+            case 'right':
+              return { display: 'flex', justifyContent: 'flex-end', width: '100%' };
+            default:
+              return { display: 'inline-block' };
+          }
+        };
+
         return (
-          <div {...props.attributes} className="my-4">
-            <table className="border-collapse border border-gray-300 w-full max-w-2xl">
-              <tbody>
-                {Array.from({ length: tableElement.rows }).map((_, rowIdx) => (
-                  <tr key={rowIdx}>
-                    {Array.from({ length: tableElement.cols }).map((_, colIdx) => (
-                      <td key={colIdx} className="border border-gray-300 p-2 min-w-[100px] min-h-[40px]">
-                        <span
-                          contentEditable={true}
-                          suppressContentEditableWarning={true}
-                          className="outline-none block w-full min-h-[20px] focus:bg-blue-50 px-1 py-0.5 rounded"
-                          onBlur={(e) => {
-                            const cellContent = e.currentTarget.textContent || '';
-                            console.log(`Cell [${rowIdx},${colIdx}]: ${cellContent}`);
-                          }}
-                        >
-                          {`Cell ${rowIdx + 1}-${colIdx + 1}`}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div
+            {...props.attributes}
+            className="my-4"
+            style={getTableAlignmentStyle()}
+            onMouseEnter={() => setHoveredTablePath(tablePathStr)}
+            onMouseLeave={() => setHoveredTablePath(null)}
+          >
+            <div contentEditable={false} className="relative inline-block group" style={{ width: `${tableWidth}px`, maxWidth: '100%' }}>
+              <AnimatePresence>
+                {isTableHovered && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+                    contentEditable={false}
+                  >
+                    <button
+                      onClick={() => setElementAlignment(tablePath, 'left')}
+                      className={`p-1.5 rounded transition-colors ${tableAlign === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Left"
+                    >
+                      <AlignLeft size={16} />
+                    </button>
+                    <button
+                      onClick={() => setElementAlignment(tablePath, 'center')}
+                      className={`p-1.5 rounded transition-colors ${tableAlign === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Center"
+                    >
+                      <AlignCenter size={16} />
+                    </button>
+                    <button
+                      onClick={() => setElementAlignment(tablePath, 'right')}
+                      className={`p-1.5 rounded transition-colors ${tableAlign === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Right"
+                    >
+                      <AlignRight size={16} />
+                    </button>
+                    <div className="w-px h-6 bg-gray-600 mx-1" />
+                    <button
+                      onClick={() => {
+                        Transforms.removeNodes(editor, { at: tablePath });
+                        ReactEditor.focus(editor);
+                      }}
+                      className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                      title="Delete Table"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <table className="border-collapse border border-gray-300 w-full">
+                <tbody>
+                  {Array.from({ length: tableElement.rows }).map((_, rowIdx) => (
+                    <tr key={rowIdx}>
+                      {Array.from({ length: tableElement.cols }).map((_, colIdx) => {
+                        const isHeaderRow = rowIdx === 0;
+                        const CellTag = isHeaderRow ? 'th' : 'td';
+
+                        return (
+                          <CellTag
+                            key={colIdx}
+                            className={`border border-gray-300 p-2 min-w-[100px] min-h-[40px] ${isHeaderRow ? 'bg-gray-50' : ''}`}
+                          >
+                            <input
+                              type="text"
+                              defaultValue={cellData[rowIdx]?.[colIdx] || (isHeaderRow ? `Header ${colIdx + 1}` : `Cell ${rowIdx + 1}-${colIdx + 1}`)}
+                              onBlur={(e) => {
+                                const cellContent = e.target.value;
+                                updateTableCell(tablePath, rowIdx, colIdx, cellContent);
+                              }}
+                              className={`w-full bg-transparent border-none outline-none focus:bg-blue-50 px-1 py-0.5 rounded ${isHeaderRow ? 'font-bold text-gray-900' : ''}`}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                            />
+                          </CellTag>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <span
+                className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                onMouseDown={(e) => handleResizeStart(e, tablePath, tableWidth)}
+                style={{ cursor: 'nwse-resize', zIndex: 10 }}
+                contentEditable={false}
+              />
+            </div>
             {props.children}
           </div>
         );
       case 'chart':
+        const chartPath = ReactEditor.findPath(editor, element);
+        const chartPathStr = chartPath.join('-');
         const chartElement = element as Extract<CustomElement, { type: 'chart' }>;
+        const chartWidth = chartElement.width || 600;
+        const chartAlign = chartElement.align || 'left';
+        const isChartHovered = hoveredChartPath === chartPathStr;
         const maxValue = Math.max(...chartElement.data.values, 1);
-        
-        return (
-          <div {...props.attributes} contentEditable={false} className="my-4 p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
-            <div className="mb-4">
-              <h4 className="font-bold text-gray-900 text-lg">{chartElement.title}</h4>
-              <p className="text-sm text-gray-500 capitalize">{chartElement.chartType} Chart</p>
-            </div>
-            
-            {chartElement.chartType === 'bar' && (
-              <div className="space-y-3">
-                {chartElement.data.labels.map((label, idx) => {
-                  const value = chartElement.data.values[idx] || 0;
-                  const percentage = (value / maxValue) * 100;
-                  
-                  return (
-                    <div key={idx} className="flex items-center space-x-3">
-                      <div className="w-24 text-sm font-medium text-gray-700 truncate" title={label}>
-                        {label}
-                      </div>
-                      <div className="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-                          style={{ width: `${percentage}%` }}
-                        >
-                          <span className="text-white text-xs font-semibold">{value}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
 
-            {chartElement.chartType === 'column' && (
-              <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
-                {chartElement.data.labels.map((label, idx) => {
-                  const value = chartElement.data.values[idx] || 0;
-                  const height = (value / maxValue) * 100;
-                  
-                  return (
-                    <div key={idx} className="flex flex-col items-center space-y-2">
-                      <div className="relative group">
-                        <div 
-                          className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all duration-500 hover:from-blue-700 hover:to-blue-500"
-                          style={{ height: `${height * 2}px` }}
-                        >
-                          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                            {value}
+        const getChartAlignmentStyle = () => {
+          switch (chartAlign) {
+            case 'center':
+              return { display: 'flex', justifyContent: 'center', width: '100%' };
+            case 'right':
+              return { display: 'flex', justifyContent: 'flex-end', width: '100%' };
+            default:
+              return { display: 'inline-block' };
+          }
+        };
+
+        return (
+          <div
+            {...props.attributes}
+            contentEditable={false}
+            className="my-4"
+            style={getChartAlignmentStyle()}
+            onMouseEnter={() => setHoveredChartPath(chartPathStr)}
+            onMouseLeave={() => setHoveredChartPath(null)}
+          >
+            <div className="relative inline-block group" style={{ width: `${chartWidth}px`, maxWidth: '100%' }}>
+              <AnimatePresence>
+                {isChartHovered && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+                    contentEditable={false}
+                  >
+                    <button
+                      onClick={() => setElementAlignment(chartPath, 'left')}
+                      className={`p-1.5 rounded transition-colors ${chartAlign === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Left"
+                    >
+                      <AlignLeft size={16} />
+                    </button>
+                    <button
+                      onClick={() => setElementAlignment(chartPath, 'center')}
+                      className={`p-1.5 rounded transition-colors ${chartAlign === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Center"
+                    >
+                      <AlignCenter size={16} />
+                    </button>
+                    <button
+                      onClick={() => setElementAlignment(chartPath, 'right')}
+                      className={`p-1.5 rounded transition-colors ${chartAlign === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                      title="Align Right"
+                    >
+                      <AlignRight size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleEditChart(chartPath, chartElement)}
+                      className="p-1.5 rounded transition-colors text-gray-300 hover:bg-gray-700"
+                      title="Edit Chart"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <div className="w-px h-6 bg-gray-600 mx-1" />
+                    <button
+                      onClick={() => {
+                        Transforms.removeNodes(editor, { at: chartPath });
+                        ReactEditor.focus(editor);
+                      }}
+                      className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                      title="Delete Chart"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+                <div className="mb-4">
+                  <h4 className="font-bold text-gray-900 text-lg">{chartElement.title}</h4>
+                  <p className="text-sm text-gray-500 capitalize">{chartElement.chartType} Chart</p>
+                </div>
+
+                {chartElement.chartType === 'bar' && (
+                  <div className="space-y-3">
+                    {chartElement.data.labels.map((label, idx) => {
+                      const value = chartElement.data.values[idx] || 0;
+                      const percentage = (value / maxValue) * 100;
+
+                      return (
+                        <div key={idx} className="flex items-center space-x-3">
+                          <div className="w-24 text-sm font-medium text-gray-700 truncate" title={label}>
+                            {label}
+                          </div>
+                          <div className="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                              style={{ width: `${percentage}%` }}
+                            >
+                              <span className="text-white text-xs font-semibold">{value}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate" title={label}>
-                        {label}
-                      </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {chartElement.chartType === 'column' && (
+                  <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
+                    {chartElement.data.labels.map((label, idx) => {
+                      const value = chartElement.data.values[idx] || 0;
+                      const height = (value / maxValue) * 100;
+
+                      return (
+                        <div key={idx} className="flex flex-col items-center space-y-2">
+                          <div className="relative group">
+                            <div
+                              className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t transition-all duration-500 hover:from-blue-700 hover:to-blue-500"
+                              style={{ height: `${height * 2}px` }}
+                            >
+                              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs px-2 py-1 rounded">
+                                {value}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate" title={label}>
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {chartElement.chartType === 'pie' && (
+                  <div className="flex items-center justify-center">
+                    <div className="relative w-64 h-64">
+                      <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                        {(() => {
+                          const total = chartElement.data.values.reduce((a, b) => a + b, 0);
+                          let currentAngle = 0;
+                          const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+
+                          return chartElement.data.values.map((value, idx) => {
+                            const percentage = (value / total) * 100;
+                            const angle = (percentage / 100) * 360;
+                            const startAngle = currentAngle;
+                            currentAngle += angle;
+
+                            const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
+                            const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
+                            const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
+                            const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
+
+                            const largeArc = angle > 180 ? 1 : 0;
+
+                            return (
+                              <path
+                                key={idx}
+                                d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                fill={colors[idx % colors.length]}
+                                className="hover:opacity-80 transition-opacity"
+                              />
+                            );
+                          });
+                        })()}
+                      </svg>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <div className="ml-6 space-y-2">
+                      {chartElement.data.labels.map((label, idx) => {
+                        const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                        const value = chartElement.data.values[idx];
+                        const total = chartElement.data.values.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
 
-            {chartElement.chartType === 'pie' && (
-              <div className="flex items-center justify-center">
-                <div className="relative w-64 h-64">
-                  <svg viewBox="0 0 100 100" className="transform -rotate-90">
-                    {(() => {
-                      const total = chartElement.data.values.reduce((a, b) => a + b, 0);
-                      let currentAngle = 0;
-                      const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-                      
-                      return chartElement.data.values.map((value, idx) => {
-                        const percentage = (value / total) * 100;
-                        const angle = (percentage / 100) * 360;
-                        const startAngle = currentAngle;
-                        currentAngle += angle;
-                        
-                        const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
-                        const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
-                        const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
-                        const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
-                        
-                        const largeArc = angle > 180 ? 1 : 0;
-                        
                         return (
-                          <path
-                            key={idx}
-                            d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                            fill={colors[idx % colors.length]}
-                            className="hover:opacity-80 transition-opacity"
-                          />
+                          <div key={idx} className="flex items-center space-x-2">
+                            <div
+                              className="w-4 h-4 rounded"
+                              style={{ backgroundColor: colors[idx % colors.length] }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">
+                              {label}: {value} ({percentage}%)
+                            </span>
+                          </div>
                         );
-                      });
-                    })()}
-                  </svg>
-                </div>
-                <div className="ml-6 space-y-2">
-                  {chartElement.data.labels.map((label, idx) => {
-                    const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-                    const value = chartElement.data.values[idx];
-                    const total = chartElement.data.values.reduce((a, b) => a + b, 0);
-                    const percentage = ((value / total) * 100).toFixed(1);
-                    
-                    return (
-                      <div key={idx} className="flex items-center space-x-2">
-                        <div 
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: colors[idx % colors.length] }}
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          {label}: {value} ({percentage}%)
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      })}
+                    </div>
+                  </div>
+                )}
 
-            {chartElement.chartType === 'line' && (
-              <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
-                <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-                  <polyline
-                    points={chartElement.data.values.map((value, idx) => {
-                      const x = (idx / (chartElement.data.values.length - 1)) * 380 + 10;
-                      const y = 190 - (value / maxValue) * 180;
-                      return `${x},${y}`;
-                    }).join(' ')}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="2"
-                  />
-                  {chartElement.data.values.map((value, idx) => {
-                    const x = (idx / (chartElement.data.values.length - 1)) * 380 + 10;
-                    const y = 190 - (value / maxValue) * 180;
-                    return (
-                      <g key={idx}>
-                        <circle cx={x} cy={y} r="4" fill="#3b82f6" className="hover:r-6 transition-all" />
-                        <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
-                          {value}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
-                <div className="flex justify-around mt-2">
-                  {chartElement.data.labels.map((label, idx) => (
-                    <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / chartElement.data.labels.length}%` }}>
-                      {label}
-                    </span>
-                  ))}
-                </div>
+                {chartElement.chartType === 'line' && (
+                  <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
+                    <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                      <polyline
+                        points={chartElement.data.values.map((value, idx) => {
+                          const x = (idx / (chartElement.data.values.length - 1)) * 380 + 10;
+                          const y = 190 - (value / maxValue) * 180;
+                          return `${x},${y}`;
+                        }).join(' ')}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                      />
+                      {chartElement.data.values.map((value, idx) => {
+                        const x = (idx / (chartElement.data.values.length - 1)) * 380 + 10;
+                        const y = 190 - (value / maxValue) * 180;
+                        return (
+                          <g key={idx}>
+                            <circle cx={x} cy={y} r="4" fill="#3b82f6" className="hover:r-6 transition-all" />
+                            <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
+                              {value}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                    <div className="flex justify-around mt-2">
+                      {chartElement.data.labels.map((label, idx) => (
+                        <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / chartElement.data.labels.length}%` }}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            
+
+              <span
+                className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+                onMouseDown={(e) => handleResizeStart(e, chartPath, chartWidth)}
+                style={{ cursor: 'nwse-resize', zIndex: 10 }}
+                contentEditable={false}
+              />
+            </div>
             {props.children}
           </div>
         );
@@ -863,7 +1199,7 @@ const CereforgeEditor: React.FC = () => {
           </p>
         );
     }
-  }, [editor, hoveredImagePath, hoveredLinkPath, setImageAlignment, handleEditLink]);
+  }, [editor, hoveredImagePath, hoveredTablePath, hoveredChartPath, hoveredLinkPath, setElementAlignment, handleEditLink, handleEditChart, updateTableCell]);
 
   const renderLeaf = useCallback((props: RenderLeafProps) => {
     let { children } = props;
@@ -917,7 +1253,7 @@ const CereforgeEditor: React.FC = () => {
           className="fixed top-4 left-4 z-40 p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all shadow-lg hover:scale-105 transform"
           title="Open Sidebar"
         >
-          <img src={cereforgeLogo} alt="Open sidebar" className='w-5'/>
+          <img src={cereforgeLogo} alt='cereforge logo' className="w-5 h-5" />
         </button>
       )}
 
@@ -1181,6 +1517,151 @@ const CereforgeEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Chart Edit Modal */}
+      <AnimatePresence>
+        {showChartEditModal && editingChartData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setShowChartEditModal(false);
+              setEditingChartPath(null);
+              setEditingChartData(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900 capitalize">
+                  Edit {editingChartData.type} Chart
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowChartEditModal(false);
+                    setEditingChartPath(null);
+                    setEditingChartData(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Chart Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chart Title
+                  </label>
+                  <input
+                    type="text"
+                    value={editingChartData.title}
+                    onChange={(e) => setEditingChartData({ ...editingChartData, title: e.target.value })}
+                    placeholder="Chart Title"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Chart Data */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Chart Data
+                    </label>
+                    <button
+                      onClick={() => {
+                        setEditingChartData({
+                          ...editingChartData,
+                          labels: [...editingChartData.labels, `Label ${editingChartData.labels.length + 1}`],
+                          values: [...editingChartData.values, 0],
+                        });
+                      }}
+                      className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                      <span>Add Row</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {editingChartData.labels.map((label, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={label}
+                          onChange={(e) => {
+                            const newLabels = [...editingChartData.labels];
+                            newLabels[index] = e.target.value;
+                            setEditingChartData({ ...editingChartData, labels: newLabels });
+                          }}
+                          placeholder="Label"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <input
+                          type="number"
+                          value={editingChartData.values[index]}
+                          onChange={(e) => {
+                            const newValues = [...editingChartData.values];
+                            newValues[index] = Number(e.target.value);
+                            setEditingChartData({ ...editingChartData, values: newValues });
+                          }}
+                          placeholder="Value"
+                          className="w-24 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {editingChartData.labels.length > 1 && (
+                          <button
+                            onClick={() => {
+                              const newLabels = editingChartData.labels.filter((_, i) => i !== index);
+                              const newValues = editingChartData.values.filter((_, i) => i !== index);
+                              setEditingChartData({ ...editingChartData, labels: newLabels, values: newValues });
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remove row"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowChartEditModal(false);
+                    setEditingChartPath(null);
+                    setEditingChartData(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveChartEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -1200,9 +1681,8 @@ const ToolbarButton: React.FC<{
       onClick();
     }}
     title={title}
-    className={`p-1 rounded transition-colors ${
-      active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600 hover:text-white'
-    }`}
+    className={`p-1 rounded transition-colors ${active ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-600 hover:text-white'
+      }`}
   >
     {icon}
   </motion.button>
