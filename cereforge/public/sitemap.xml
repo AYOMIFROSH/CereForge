@@ -46,4 +46,13 @@
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
+
+  <!-- Editor -->
+
+  <url>
+    <loc>https://cereforge.com/editor</loc>
+    <lastmod>2025-10-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
 </urlset>

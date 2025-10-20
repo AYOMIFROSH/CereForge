@@ -1,11 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3, Plus, Minus
+  X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3, Plus, Minus, Loader2
 } from 'lucide-react';
+import { giphyService, GiphyImage } from '../../services/giphyService';
 
-// Sample cereforge logo
+// cereforge logo
 import cereforeLogo from '../../assets/cereForge.png'
+
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Sidebar view types
 type SidebarView = 'main' | 'gif' | 'sticker' | 'clips' | 'tables' | 'csv' | 'charts';
@@ -22,33 +25,14 @@ interface EditorSidebarProps {
   onUploadCSV?: (file: File) => void;
 }
 
-// Sample data
-const sampleGifs = [
-  { id: 1, url: 'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif', title: 'Celebrating' },
-  { id: 2, url: 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif', title: 'Happy' },
-  { id: 3, url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif', title: 'Dancing' },
-  { id: 4, url: 'https://media.giphy.com/media/3o7absbD7PbTFQa0c8/giphy.gif', title: 'Excited' },
-  { id: 5, url: 'https://media.giphy.com/media/l0HlKrB02QY0f1mbm/giphy.gif', title: 'Working' },
-  { id: 6, url: 'https://media.giphy.com/media/3o7aD2saalBwwftBIY/giphy.gif', title: 'Success' },
-  { id: 7, url: 'https://media.giphy.com/media/26tnjjQQRqPbwDxdK/giphy.gif', title: 'Thinking' },
-  { id: 8, url: 'https://media.giphy.com/media/3oriO0OEd9QIDdllqo/giphy.gif', title: 'Coding' },
-];
-
-const sampleStickers = [
-  { id: 1, url: 'https://media.giphy.com/media/3o6Zt2qU8f3KJqqBKo/giphy.gif', title: 'Thumbs Up' },
-  { id: 2, url: 'https://media.giphy.com/media/3o6ZtpvPW6fqxkE1xu/giphy.gif', title: 'Heart' },
-  { id: 3, url: 'https://media.giphy.com/media/l0HlO3BJ8LALPW4sE/giphy.gif', title: 'Star' },
-  { id: 4, url: 'https://media.giphy.com/media/3o6Zt6fzS6qEbLhKWQ/giphy.gif', title: 'Fire' },
-  { id: 5, url: 'https://media.giphy.com/media/26u4lOMA8JKSnL9Uk/giphy.gif', title: 'Clap' },
-  { id: 6, url: 'https://media.giphy.com/media/l0MYGb8O8zqBt3o76/giphy.gif', title: 'Cool' },
-];
-
-const sampleClips = [
-  { id: 1, url: 'https://media.giphy.com/media/26tPplGWjN0xLybiU/giphy.gif', title: 'Nature' },
-  { id: 2, url: 'https://media.giphy.com/media/3oriO13PHvBaxIEGFi/giphy.gif', title: 'Tech' },
-  { id: 3, url: 'https://media.giphy.com/media/l0HlRnAWXxn0MhKLK/giphy.gif', title: 'Space' },
-  { id: 4, url: 'https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif', title: 'Science' },
-];
+// Transform Giphy data to our format
+const transformGiphyData = (items: GiphyImage[]) => {
+  return items.map(item => ({
+    id: item.id,
+    url: item.images.fixed_height.url,
+    title: item.title || 'Untitled'
+  }));
+};
 
 const EditorSidebar: React.FC<EditorSidebarProps> = ({
   isOpen,
@@ -60,6 +44,11 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onInsertChart,
   onUploadCSV
 }) => {
+  useDocumentTitle(
+    "Cereforge - Editor",
+    "Cereforge - Edit Document, Compose Mails, Send Mails, Free will, Elegantly Crafted",
+    "/editor"
+  );
   const [sidebarView, setSidebarView] = useState<SidebarView>('main');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showTableModal, setShowTableModal] = useState<boolean>(false);
@@ -67,32 +56,98 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const [tableCols, setTableCols] = useState<number>(3);
   const [showChartModal, setShowChartModal] = useState<boolean>(false);
   const [selectedChartType, setSelectedChartType] = useState<ChartType | null>(null);
-  
+
+  // Giphy data states
+  const [gifs, setGifs] = useState<any[]>([]);
+  const [stickers, setStickers] = useState<any[]>([]);
+  const [clips, setClips] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [offset, setOffset] = useState<number>(0);
+
   // Chart form state
   const [chartTitle, setChartTitle] = useState<string>('');
   const [chartLabels, setChartLabels] = useState<string[]>(['Label 1', 'Label 2', 'Label 3']);
   const [chartValues, setChartValues] = useState<number[]>([10, 20, 15]);
 
+  // Fetch content with offset for infinite scroll
+  useEffect(() => {
+    const fetchContent = async () => {
+      if (sidebarView !== 'gif' && sidebarView !== 'sticker' && sidebarView !== 'clips') {
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        let response;
+
+        if (sidebarView === 'gif') {
+          response = searchQuery
+            ? await giphyService.searchGifs(searchQuery, 20, offset)
+            : await giphyService.getTrendingGifs(20, offset);
+
+          const newItems = transformGiphyData(response.data);
+          setGifs(prev => offset === 0 ? newItems : [...prev, ...newItems]);
+          setHasMore(response.data.length === 20);
+        }
+        else if (sidebarView === 'sticker') {
+          response = searchQuery
+            ? await giphyService.searchStickers(searchQuery, 20, offset)
+            : await giphyService.getTrendingStickers(20, offset);
+
+          const newItems = transformGiphyData(response.data);
+          setStickers(prev => offset === 0 ? newItems : [...prev, ...newItems]);
+          setHasMore(response.data.length === 20);
+        }
+        else if (sidebarView === 'clips') {
+          response = searchQuery
+            ? await giphyService.searchClips(searchQuery, 20, offset)
+            : await giphyService.getTrendingClips(20, offset);
+
+          const newItems = transformGiphyData(response.data);
+          setClips(prev => offset === 0 ? newItems : [...prev, ...newItems]);
+          setHasMore(response.data.length === 20);
+        }
+      } catch (err) {
+        console.error('Error fetching Giphy content:', err);
+        setError('Failed to load content. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContent();
+  }, [sidebarView, searchQuery, offset]);
+
+  // Debounce search query and reset offset
+  useEffect(() => {
+    if (!searchQuery) return;
+
+    const timeoutId = setTimeout(() => {
+      setOffset(0);
+      setHasMore(true);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
+
+  // Reset offset and hasMore when view changes
+  useEffect(() => {
+    setOffset(0);
+    setHasMore(true);
+    setSearchQuery('');
+  }, [sidebarView]);
+
   const navigateToView = (view: SidebarView) => {
     setSidebarView(view);
-    setSearchQuery('');
   };
 
   const goBackToMain = () => {
     setSidebarView('main');
-    setSearchQuery('');
   };
-
-  const getFilteredContent = (items: any[]) => {
-    if (!searchQuery) return items;
-    return items.filter(item =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  };
-
-  const filteredGifs = useMemo(() => getFilteredContent(sampleGifs), [searchQuery]);
-  const filteredStickers = useMemo(() => getFilteredContent(sampleStickers), [searchQuery]);
-  const filteredClips = useMemo(() => getFilteredContent(sampleClips), [searchQuery]);
 
   const handleInsertGif = (url: string) => {
     onInsertGif(url);
@@ -105,6 +160,12 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const handleInsertClip = (url: string) => {
     onInsertClip(url);
   };
+
+  const loadMoreContent = useCallback(() => {
+    if (!isLoading && hasMore) {
+      setOffset(prev => prev + 20);
+    }
+  }, [isLoading, hasMore]);
 
   const handleInsertTable = () => {
     onInsertTable(tableRows, tableCols);
@@ -196,7 +257,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between p-4 rounded-r border-b border-gray-200 bg-gray-700">
               <div className="flex items-center space-x-2">
-                <img src={cereforeLogo} alt="cereforge logo" className='w-5'/>
+                <img src={cereforeLogo} alt="cereforge logo" className='w-5' />
                 <div className="flex items-center space-x-0.5">
                   <div className="relative inline-block">
                     <div className="absolute inset-0 bg-blue-900 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-blue-900"></div>
@@ -238,40 +299,52 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
               {sidebarView === 'gif' && (
                 <MediaView
-                  title="Animations"
-                  items={filteredGifs}
+                  title="GIFs"
+                  items={gifs}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   onBack={goBackToMain}
                   onItemClick={handleInsertGif}
                   emptyIcon={<Image size={48} />}
                   emptyMessage="No GIFs found"
+                  isLoading={isLoading}
+                  error={error}
+                  hasMore={hasMore}
+                  onLoadMore={loadMoreContent}
                 />
               )}
 
               {sidebarView === 'sticker' && (
                 <MediaView
                   title="Stickers"
-                  items={filteredStickers}
+                  items={stickers}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   onBack={goBackToMain}
                   onItemClick={handleInsertSticker}
                   emptyIcon={<Smile size={48} />}
                   emptyMessage="No stickers found"
+                  isLoading={isLoading}
+                  error={error}
+                  hasMore={hasMore}
+                  onLoadMore={loadMoreContent}
                 />
               )}
 
               {sidebarView === 'clips' && (
                 <MediaView
                   title="Video Clips"
-                  items={filteredClips}
+                  items={clips}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   onBack={goBackToMain}
                   onItemClick={handleInsertClip}
                   emptyIcon={<Video size={48} />}
                   emptyMessage="No clips found"
+                  isLoading={isLoading}
+                  error={error}
+                  hasMore={hasMore}
+                  onLoadMore={loadMoreContent}
                 />
               )}
 
@@ -351,7 +424,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Table Modal */}
+      {/* Modals remain the same... */}
       <AnimatePresence>
         {showTableModal && (
           <motion.div
@@ -412,7 +485,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Chart Modal - Updated with proper form */}
+      {/* Chart Modal... */}
       <AnimatePresence>
         {showChartModal && selectedChartType && (
           <motion.div
@@ -432,9 +505,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
               <h3 className="text-xl font-bold text-gray-900 mb-4 capitalize">
                 Create {selectedChartType} Chart
               </h3>
-              
+
               <div className="space-y-4">
-                {/* Chart Title */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Chart Title
@@ -448,7 +520,6 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   />
                 </div>
 
-                {/* Quick Templates */}
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Quick Templates:</p>
                   <div className="flex flex-wrap gap-2">
@@ -473,7 +544,6 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   </div>
                 </div>
 
-                {/* Chart Data */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -487,7 +557,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                       <span>Add Row</span>
                     </button>
                   </div>
-                  
+
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {chartLabels.map((label, index) => (
                       <div key={index} className="flex items-center space-x-2">
@@ -519,7 +589,6 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   </div>
                 </div>
 
-                {/* Preview hint */}
                 <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-xs text-blue-700">
                     <strong>Tip:</strong> Add labels and values for your chart. The chart will be visualized in your document.
@@ -576,55 +645,118 @@ const MediaView: React.FC<{
   onItemClick: (url: string) => void;
   emptyIcon: React.ReactNode;
   emptyMessage: string;
-}> = ({ title, items, searchQuery, onSearchChange, onBack, onItemClick, emptyIcon, emptyMessage }) => (
-  <div className="h-full flex flex-col">
-    <div className="p-4 border-b border-gray-200 space-y-3">
-      <div className="flex items-center space-x-2">
-        <button onClick={onBack} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-          <ArrowLeft size={20} className="text-gray-600" />
-        </button>
-        <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+  isLoading: boolean;
+  error: string | null;
+  hasMore: boolean;
+  onLoadMore: () => void;
+}> = ({ title, items, searchQuery, onSearchChange, onBack, onItemClick, emptyIcon, emptyMessage, isLoading, error, hasMore, onLoadMore }) => {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll handler
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container || isLoading || !hasMore) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // Load more when user is 200px from bottom
+    if (scrollHeight - scrollTop - clientHeight < 200) {
+      onLoadMore();
+    }
+  }, [isLoading, hasMore, onLoadMore]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b border-gray-200 space-y-3">
+        <div className="flex items-center space-x-2">
+          <button onClick={onBack} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+            <ArrowLeft size={20} className="text-gray-600" />
+          </button>
+          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+        </div>
+        <div className="relative">
+          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder={`Search ${title.toLowerCase()}...`}
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+        </div>
       </div>
-      <div className="relative">
-        <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder={`Search ${title.toLowerCase()}...`}
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-        />
-      </div>
-    </div>
-    <div className="flex-1 overflow-y-auto p-4">
-      {items.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3">
-          {items.map((item) => (
-            <motion.button
-              key={item.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onItemClick(item.url)}
-              className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all shadow-sm hover:shadow-md group"
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
+        {error ? (
+          <div className="text-center py-12">
+            <div className="text-red-400 mb-3 flex justify-center">
+              <X size={48} />
+            </div>
+            <p className="text-red-600 font-medium">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
-              <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-end p-2">
-                <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded">
-                  {item.title}
-                </span>
+              Retry
+            </button>
+          </div>
+        ) : items.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              {items.map((item) => (
+                <motion.button
+                  key={item.id}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => onItemClick(item.url)}
+                  className="relative aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-500 transition-all shadow-sm hover:shadow-md group"
+                >
+                  <img src={item.url} alt={item.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-end p-2">
+                    <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 px-2 py-1 rounded truncate w-full">
+                      {item.title}
+                    </span>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Loading more indicator */}
+            {isLoading && (
+              <div className="text-center py-6">
+                <Loader2 className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Loading more...</p>
               </div>
-            </motion.button>
-          ))}
-        </div>
-      ) : (
-                  <div className="text-center py-12">
-          <div className="text-gray-300 mb-3 flex justify-center">{emptyIcon}</div>
-          <p className="text-gray-500">{emptyMessage}</p>
-        </div>
-      )}
+            )}
+
+            {/* End of results */}
+            {!hasMore && !isLoading && (
+              <div className="text-center py-6">
+                <p className="text-sm text-gray-500">No more {title.toLowerCase()} to load</p>
+              </div>
+            )}
+          </>
+        ) : isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
+            <p className="text-gray-500">Loading {title.toLowerCase()}...</p>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-gray-300 mb-3 flex justify-center">{emptyIcon}</div>
+            <p className="text-gray-500">{emptyMessage}</p>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ChartTypeButton: React.FC<{
   type: ChartType;
