@@ -1,6 +1,6 @@
 // src/services/giphyService.ts
 
-const GIPHY_API_KEY = 'C8rpMJWfnLfS7km9sF0GVtlKfWHTP1NX';
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY;
 const GIPHY_BASE_URL = 'https://api.giphy.com/v1';
 
 export interface GiphyImage {
