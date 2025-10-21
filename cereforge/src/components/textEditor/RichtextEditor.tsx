@@ -403,23 +403,30 @@ const CereforgeEditor: React.FC = () => {
     if (!url) return;
 
     if (editingLinkPath) {
+      // Update the URL
       Transforms.setNodes(
         editor,
         { url } as Partial<CustomElement>,
         { at: editingLinkPath }
       );
 
+      // If text changed, update the children
       if (text && text !== Editor.string(editor, editingLinkPath)) {
-        Transforms.delete(editor, { at: editingLinkPath });
-        Transforms.insertNodes(
-          editor,
-          {
-            type: 'link',
-            url,
-            children: [{ text }],
-          } as CustomElement,
-          { at: editingLinkPath }
-        );
+        // Remove existing children
+        const linkNode = Editor.node(editor, editingLinkPath)[0];
+        if (SlateElement.isElement(linkNode) && linkNode.type === 'link') {
+          // Delete all existing text in the link
+          for (let i = linkNode.children.length - 1; i >= 0; i--) {
+            Transforms.removeNodes(editor, { at: [...editingLinkPath, i] });
+          }
+
+          // Insert new text
+          Transforms.insertNodes(
+            editor,
+            [{ text }],
+            { at: [...editingLinkPath, 0] }
+          );
+        }
       }
     } else {
       const { selection } = editor;
@@ -697,7 +704,7 @@ const CereforgeEditor: React.FC = () => {
 
             <AnimatePresence>
               {isLinkHovered && (
-                <motion.div
+                <motion.span
                   initial={{ opacity: 0, scale: 0.8, y: -5 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.8, y: -5 }}
@@ -730,7 +737,7 @@ const CereforgeEditor: React.FC = () => {
                   >
                     <Edit2 size={14} />
                   </button>
-                </motion.div>
+                </motion.span>
               )}
             </AnimatePresence>
           </span>
@@ -1418,6 +1425,7 @@ const CereforgeEditor: React.FC = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Link Text</label>
                 <input
+                  autoFocus
                   type="text"
                   value={linkText}
                   onChange={(e) => setLinkText(e.target.value)}
