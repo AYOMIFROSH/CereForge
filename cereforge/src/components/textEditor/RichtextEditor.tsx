@@ -1258,7 +1258,7 @@ const CereforgeEditor: React.FC = () => {
       )}
 
       {/* Main Editor Area */}
-  <div className="flex-1 flex flex-col overflow-hidden ">
+      <div className="flex-1 flex flex-col overflow-hidden ">
         <Slate editor={editor} initialValue={value} onValueChange={setValue}>
           {/* Toolbar */}
           <div className="flex-shrink-0 px-4 pt-1 flex justify-center">
@@ -1346,12 +1346,41 @@ const CereforgeEditor: React.FC = () => {
           </div>
 
           {/* Editor Content */}
-          <div className="flex-1 overflow-hidden px-4 py-6 flex justify-center ">
+          {/* Editor Content */}
+          <div
+            className="flex-1 overflow-hidden px-4 py-6 flex justify-center"
+            onClick={(e) => {
+              // If clicking in the container but not on text, focus the editor
+              if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.editor-container')) {
+                try {
+                  ReactEditor.focus(editor);
+                  // Move cursor to end if no selection
+                  if (!editor.selection) {
+                    Transforms.select(editor, Editor.end(editor, []));
+                  }
+                } catch (err) {
+                  // Silent fail if editor isn't ready
+                }
+              }
+            }}
+          >
             <div
-              className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+              className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl editor-container ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
+              onClick={() => {
+                // Also handle clicks on the white container
+                try {
+                  ReactEditor.focus(editor);
+                  if (!editor.selection) {
+                    Transforms.select(editor, Editor.end(editor, []));
+                  }
+                } catch (err) {
+                  // Silent fail
+                }
+              }}
             >
               <div className="p-8 max-w-3xl mx-auto">
                 <Editable
