@@ -245,184 +245,185 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
   return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ x: -320 }}
-            animate={{ x: 0 }}
-            exit={{ x: -320 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="w-80 bg-white border-r border-gray-200 shadow-xl flex flex-col h-full"
+
+      <motion.div
+        initial={false}
+        animate={{
+          x: isOpen ? 0 : -320,
+          width: isOpen ? 320 : 0,
+        }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="bg-white border-r border-gray-200 shadow-xl flex flex-col h-full overflow-hidden"
+        style={{ flexShrink: 0 }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 rounded-r border-b border-gray-200 bg-gray-700">
+          <div className="flex items-center space-x-2">
+            <img src={cereforeLogo} alt="cereforge logo" className='w-5' />
+            <div className="flex items-center space-x-0.5">
+              <div className="relative inline-block">
+                <div className="absolute inset-0 bg-blue-900 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-blue-900"></div>
+                <span className="text-blue relative z-10 px-3 py-1 font-bold text-xl">CERE</span>
+              </div>
+              <span className="text-white font-bold text-xl">FORGE</span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white hover:text-orange-400 transition-colors p-1 rounded-lg hover:bg-white/10"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 rounded-r border-b border-gray-200 bg-gray-700">
-              <div className="flex items-center space-x-2">
-                <img src={cereforeLogo} alt="cereforge logo" className='w-5' />
-                <div className="flex items-center space-x-0.5">
-                  <div className="relative inline-block">
-                    <div className="absolute inset-0 bg-blue-900 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-blue-900"></div>
-                    <span className="text-blue relative z-10 px-3 py-1 font-bold text-xl">CERE</span>
-                  </div>
-                  <span className="text-white font-bold text-xl">FORGE</span>
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {sidebarView === 'main' && (
+            <div className="p-4 space-y-6">
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Animations</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  <SidebarButton onClick={() => navigateToView('gif')} icon={<Image size={20} />} label="GIF" />
+                  <SidebarButton onClick={() => navigateToView('sticker')} icon={<Smile size={20} />} label="Sticker" />
+                  <SidebarButton onClick={() => navigateToView('clips')} icon={<Video size={20} />} label="Clips" />
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="text-white hover:text-orange-400 transition-colors p-1 rounded-lg hover:bg-white/10"
-              >
-                <X size={20} />
-              </button>
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Format</h3>
+                <div className="space-y-2">
+                  <SidebarButton onClick={() => navigateToView('tables')} icon={<Table size={20} />} label="Tables" fullWidth />
+                  <SidebarButton onClick={() => navigateToView('csv')} icon={<Table size={20} />} label="CSV" fullWidth />
+                  <SidebarButton onClick={() => navigateToView('charts')} icon={<BarChart3 size={20} />} label="Charts" fullWidth />
+                </div>
+              </div>
             </div>
+          )}
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto">
-              {sidebarView === 'main' && (
-                <div className="p-4 space-y-6">
-                  <div>
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Animations</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      <SidebarButton onClick={() => navigateToView('gif')} icon={<Image size={20} />} label="GIF" />
-                      <SidebarButton onClick={() => navigateToView('sticker')} icon={<Smile size={20} />} label="Sticker" />
-                      <SidebarButton onClick={() => navigateToView('clips')} icon={<Video size={20} />} label="Clips" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Format</h3>
-                    <div className="space-y-2">
-                      <SidebarButton onClick={() => navigateToView('tables')} icon={<Table size={20} />} label="Tables" fullWidth />
-                      <SidebarButton onClick={() => navigateToView('csv')} icon={<Table size={20} />} label="CSV" fullWidth />
-                      <SidebarButton onClick={() => navigateToView('charts')} icon={<BarChart3 size={20} />} label="Charts" fullWidth />
-                    </div>
-                  </div>
+          {sidebarView === 'gif' && (
+            <MediaView
+              title="GIFs"
+              items={gifs}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onBack={goBackToMain}
+              onItemClick={handleInsertGif}
+              emptyIcon={<Image size={48} />}
+              emptyMessage="No GIFs found"
+              isLoading={isLoading}
+              error={error}
+              hasMore={hasMore}
+              onLoadMore={loadMoreContent}
+            />
+          )}
+
+          {sidebarView === 'sticker' && (
+            <MediaView
+              title="Stickers"
+              items={stickers}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onBack={goBackToMain}
+              onItemClick={handleInsertSticker}
+              emptyIcon={<Smile size={48} />}
+              emptyMessage="No stickers found"
+              isLoading={isLoading}
+              error={error}
+              hasMore={hasMore}
+              onLoadMore={loadMoreContent}
+            />
+          )}
+
+          {sidebarView === 'clips' && (
+            <MediaView
+              title="Video Clips"
+              items={clips}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onBack={goBackToMain}
+              onItemClick={handleInsertClip}
+              emptyIcon={<Video size={48} />}
+              emptyMessage="No clips found"
+              isLoading={isLoading}
+              error={error}
+              hasMore={hasMore}
+              onLoadMore={loadMoreContent}
+            />
+          )}
+
+          {sidebarView === 'tables' && (
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                    <ArrowLeft size={20} className="text-gray-600" />
+                  </button>
+                  <h3 className="text-lg font-bold text-gray-900">Tables</h3>
                 </div>
-              )}
-
-              {sidebarView === 'gif' && (
-                <MediaView
-                  title="GIFs"
-                  items={gifs}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onBack={goBackToMain}
-                  onItemClick={handleInsertGif}
-                  emptyIcon={<Image size={48} />}
-                  emptyMessage="No GIFs found"
-                  isLoading={isLoading}
-                  error={error}
-                  hasMore={hasMore}
-                  onLoadMore={loadMoreContent}
-                />
-              )}
-
-              {sidebarView === 'sticker' && (
-                <MediaView
-                  title="Stickers"
-                  items={stickers}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onBack={goBackToMain}
-                  onItemClick={handleInsertSticker}
-                  emptyIcon={<Smile size={48} />}
-                  emptyMessage="No stickers found"
-                  isLoading={isLoading}
-                  error={error}
-                  hasMore={hasMore}
-                  onLoadMore={loadMoreContent}
-                />
-              )}
-
-              {sidebarView === 'clips' && (
-                <MediaView
-                  title="Video Clips"
-                  items={clips}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onBack={goBackToMain}
-                  onItemClick={handleInsertClip}
-                  emptyIcon={<Video size={48} />}
-                  emptyMessage="No clips found"
-                  isLoading={isLoading}
-                  error={error}
-                  hasMore={hasMore}
-                  onLoadMore={loadMoreContent}
-                />
-              )}
-
-              {sidebarView === 'tables' && (
-                <div className="h-full flex flex-col">
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ArrowLeft size={20} className="text-gray-600" />
-                      </button>
-                      <h3 className="text-lg font-bold text-gray-900">Tables</h3>
-                    </div>
-                  </div>
-                  <div className="flex-1 p-4 space-y-4">
-                    <button
-                      onClick={() => setShowTableModal(true)}
-                      className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                    >
-                      <Table size={32} className="mx-auto text-gray-400 group-hover:text-blue-500 mb-2" />
-                      <p className="text-sm font-medium text-gray-600 group-hover:text-blue-600">Create New Table</p>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {sidebarView === 'csv' && (
-                <div className="h-full flex flex-col">
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ArrowLeft size={20} className="text-gray-600" />
-                      </button>
-                      <h3 className="text-lg font-bold text-gray-900">CSV</h3>
-                    </div>
-                  </div>
-                  <div className="flex-1 p-4 space-y-4">
-                    <label className="block">
-                      <span className="text-sm font-medium text-gray-700 mb-2 block">Upload CSV File</span>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={handleCSVUpload}
-                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                      />
-                    </label>
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-sm text-blue-700">
-                        Upload a CSV file to insert as a table in your document.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {sidebarView === 'charts' && (
-                <div className="h-full flex flex-col">
-                  <div className="p-4 border-b border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-                        <ArrowLeft size={20} className="text-gray-600" />
-                      </button>
-                      <h3 className="text-lg font-bold text-gray-900">Charts</h3>
-                    </div>
-                  </div>
-                  <div className="flex-1 p-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <ChartTypeButton type="bar" label="Bar Chart" onClick={() => { setSelectedChartType('bar'); setShowChartModal(true); }} />
-                      <ChartTypeButton type="column" label="Column Chart" onClick={() => { setSelectedChartType('column'); setShowChartModal(true); }} />
-                      <ChartTypeButton type="pie" label="Pie Chart" onClick={() => { setSelectedChartType('pie'); setShowChartModal(true); }} />
-                      <ChartTypeButton type="line" label="Line Chart" onClick={() => { setSelectedChartType('line'); setShowChartModal(true); }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+              </div>
+              <div className="flex-1 p-4 space-y-4">
+                <button
+                  onClick={() => setShowTableModal(true)}
+                  className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                >
+                  <Table size={32} className="mx-auto text-gray-400 group-hover:text-blue-500 mb-2" />
+                  <p className="text-sm font-medium text-gray-600 group-hover:text-blue-600">Create New Table</p>
+                </button>
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+
+          {sidebarView === 'csv' && (
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                    <ArrowLeft size={20} className="text-gray-600" />
+                  </button>
+                  <h3 className="text-lg font-bold text-gray-900">CSV</h3>
+                </div>
+              </div>
+              <div className="flex-1 p-4 space-y-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-gray-700 mb-2 block">Upload CSV File</span>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                  />
+                </label>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-700">
+                    Upload a CSV file to insert as a table in your document.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {sidebarView === 'charts' && (
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                    <ArrowLeft size={20} className="text-gray-600" />
+                  </button>
+                  <h3 className="text-lg font-bold text-gray-900">Charts</h3>
+                </div>
+              </div>
+              <div className="flex-1 p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <ChartTypeButton type="bar" label="Bar Chart" onClick={() => { setSelectedChartType('bar'); setShowChartModal(true); }} />
+                  <ChartTypeButton type="column" label="Column Chart" onClick={() => { setSelectedChartType('column'); setShowChartModal(true); }} />
+                  <ChartTypeButton type="pie" label="Pie Chart" onClick={() => { setSelectedChartType('pie'); setShowChartModal(true); }} />
+                  <ChartTypeButton type="line" label="Line Chart" onClick={() => { setSelectedChartType('line'); setShowChartModal(true); }} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
 
       {/* Modals remain the same... */}
       <AnimatePresence>
