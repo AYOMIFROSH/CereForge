@@ -1,5 +1,5 @@
 // RichtextEditor.tsx - Complete Fixed Version
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory, HistoryEditor } from 'slate-history';
@@ -132,6 +132,10 @@ const CereforgeEditor: React.FC = () => {
       children: [{ text: '' }],
     } as CustomElement,
   ]);
+
+  useEffect(() => {
+    ReactEditor.focus(editor);
+  }, [editor]);
 
   // Helper function to ensure empty paragraph after void elements
   const ensureEmptyParagraphAfter = useCallback(() => {
