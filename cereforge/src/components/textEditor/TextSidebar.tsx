@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3, Plus, Minus, Loader2
+  X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3, Plus, Minus, Loader2, FileText, Mail
 } from 'lucide-react';
 import { giphyService, GiphyImage } from '../../services/giphyService';
 import data from '@emoji-mart/data';
@@ -15,6 +15,7 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 // Sidebar view types
 type SidebarView = 'main' | 'gif' | 'sticker' | 'clips' | 'emoji' | 'tables' | 'csv' | 'charts';
 type ChartType = 'bar' | 'line' | 'pie' | 'column';
+type EditorMode = 'email' | 'document';
 
 interface EditorSidebarProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ interface EditorSidebarProps {
   onInsertTable: (rows: number, cols: number) => void;
   onInsertChart: (type: ChartType, data: any) => void;
   onUploadCSV?: (file: File) => void;
+  editorMode: EditorMode;
+  onModeChange: (mode: EditorMode) => void;
 }
 
 // Transform Giphy data to our format
@@ -46,7 +49,9 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onInsertEmoji,
   onInsertTable,
   onInsertChart,
-  onUploadCSV
+  onUploadCSV,
+  editorMode,
+  onModeChange
 }) => {
   useDocumentTitle(
     "Cereforge - Editor",
@@ -287,6 +292,26 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         <div className="flex-1 overflow-y-auto">
           {sidebarView === 'main' && (
             <div className="p-4 space-y-6">
+              {/* MODE SECTION - FIRST */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Mode</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <ModeButton 
+                    active={editorMode === 'email'} 
+                    onClick={() => onModeChange('email')} 
+                    icon={<Mail size={20} />} 
+                    label="Email" 
+                  />
+                  <ModeButton 
+                    active={editorMode === 'document'} 
+                    onClick={() => onModeChange('document')} 
+                    icon={<FileText size={20} />} 
+                    label="Document" 
+                  />
+                </div>
+              </div>
+
+              {/* ANIMATIONS SECTION */}
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Animations</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -296,6 +321,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                   <SidebarButton onClick={() => navigateToView('emoji')} icon={<Smile size={20} />} label="Emoji" />
                 </div>
               </div>
+
+              {/* FORMAT SECTION */}
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Format</h3>
                 <div className="space-y-2">
@@ -307,6 +334,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             </div>
           )}
 
+          {/* Other views remain the same... */}
           {sidebarView === 'gif' && (
             <MediaView
               title="GIFs"
@@ -516,7 +544,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Chart Modal */}
+      {/* Chart Modal - keeping existing implementation */}
       <AnimatePresence>
         {showChartModal && selectedChartType && (
           <motion.div
@@ -648,6 +676,28 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
     </>
   );
 };
+
+// NEW: Mode Button Component
+const ModeButton: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}> = ({ icon, label, onClick, active }) => (
+  <motion.button
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+      active 
+        ? 'border-blue-500 bg-blue-50 text-blue-600' 
+        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 text-gray-600'
+    }`}
+  >
+    <div className="mb-1">{icon}</div>
+    <span className="text-xs font-medium">{label}</span>
+  </motion.button>
+);
 
 // Sub-components
 const SidebarButton: React.FC<{
@@ -842,4 +892,4 @@ const ChartTypeButton: React.FC<{
   );
 };
 
-export default EditorSidebar;
+export default EditorSidebar

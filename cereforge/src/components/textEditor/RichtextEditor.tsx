@@ -1,4 +1,4 @@
-// RichtextEditor.tsx - Updated with Emoji Insertion Handler
+// RichtextEditor.tsx - Updated with Email and Document Modes
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
@@ -46,6 +46,8 @@ type CustomText = {
   backgroundColor?: string;
 };
 
+type EditorMode = 'email' | 'document';
+
 declare module 'slate' {
   interface CustomTypes {
     Editor: BaseEditor & ReactEditor & HistoryEditor;
@@ -88,6 +90,9 @@ const withCustomElements = (editor: Editor) => {
 };
 
 const CereforgeEditor: React.FC = () => {
+  // Mode state - NEW
+  const [editorMode, setEditorMode] = useState<EditorMode>('email');
+  
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
@@ -123,7 +128,8 @@ const CereforgeEditor: React.FC = () => {
     labels: string[];
     values: number[];
   } | null>(null);
-  // Add these states around line 85-95
+  
+  // Table editing state
   const [showTableEditModal, setShowTableEditModal] = useState<boolean>(false);
   const [editingTablePath, setEditingTablePath] = useState<Path | null>(null);
   const [editingTableData, setEditingTableData] = useState<{
@@ -242,7 +248,6 @@ const CereforgeEditor: React.FC = () => {
     ReactEditor.focus(editor);
   }, [editor, ensureEmptyParagraphAfter]);
 
-  // NEW: Emoji insertion handler
   const handleInsertEmoji = useCallback((emoji: string) => {
     Transforms.insertText(editor, emoji);
     ReactEditor.focus(editor);
@@ -292,7 +297,7 @@ const CereforgeEditor: React.FC = () => {
       cols: element.cols,
       cellData: element.cellData || []
     });
-    setShowTableEditModal(true); // Use the new state
+    setShowTableEditModal(true);
   }, []);
 
   const handleSaveTableEdit = useCallback(() => {
@@ -1311,6 +1316,8 @@ const CereforgeEditor: React.FC = () => {
         onInsertTable={handleInsertTable}
         onInsertChart={handleInsertChart}
         onUploadCSV={handleUploadCSV}
+        editorMode={editorMode}
+        onModeChange={setEditorMode}
       />
 
       {/* Cereforge Logo Button */}
@@ -1413,10 +1420,10 @@ const CereforgeEditor: React.FC = () => {
           </div>
 
           {/* Editor Content */}
+          {/* Editor Content - EMAIL MODE vs DOCUMENT MODE */}
           <div
             className="flex-1 overflow-hidden px-4 py-6 flex justify-center"
             onClick={(e) => {
-              // Only focus editor if clicking on the container itself, not its children
               const target = e.target as HTMLElement;
               if (target === e.currentTarget || (target.closest('.editor-container') && !target.closest('input'))) {
                 try {
@@ -1430,33 +1437,57 @@ const CereforgeEditor: React.FC = () => {
               }
             }}
           >
-            <div
-              className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl editor-container ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+            {editorMode === 'email' ? (
+              // EMAIL MODE - Flat continuous editor
+              <div
+                className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl editor-container ${
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                 }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => {
-                try {
-                  ReactEditor.focus(editor);
-                  if (!editor.selection) {
-                    Transforms.select(editor, Editor.end(editor, []));
-                  }
-                } catch (err) {
-                  // Silent fail
-                }
-              }}
-            >
-              <div className="p-8 max-w-3xl mx-auto">
-                <Editable
-                  renderElement={renderElement}
-                  renderLeaf={renderLeaf}
-                  placeholder="Start typing or insert content from the sidebar..."
-                  className="outline-none min-h-full"
-                  spellCheck
-                />
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="p-8 max-w-3xl mx-auto">
+                  <Editable
+                    renderElement={renderElement}
+                    renderLeaf={renderLeaf}
+                    placeholder="Start typing your email..."
+                    className="outline-none min-h-full"
+                    spellCheck
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              // DOCUMENT MODE - Paginated A4 pages
+              <div className="h-full overflow-y-auto w-full flex justify-center bg-gray-100 py-8">
+                <div className="space-y-6">
+                  {/* Page 1 - A4 dimensions */}
+                  <div 
+                    className="bg-white shadow-2xl mx-auto editor-container"
+                    style={{
+                      width: '210mm', // A4 width
+                      minHeight: '297mm', // A4 height
+                      padding: '25mm 20mm', // A4 margins
+                      boxShadow: '0 0 10px rgba(0,0,0,0.1)'
+                    }}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <Editable
+                      renderElement={renderElement}
+                      renderLeaf={renderLeaf}
+                      placeholder="Start typing your document..."
+                      className="outline-none"
+                      spellCheck
+                    />
+                  </div>
+                  
+                  {/* Additional pages would be automatically added based on content overflow */}
+                  {/* This is a simplified version - full implementation would need content measurement */}
+                </div>
+              </div>
+            )}
           </div>
         </Slate>
       </div>
