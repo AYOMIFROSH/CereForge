@@ -123,6 +123,14 @@ const CereforgeEditor: React.FC = () => {
     labels: string[];
     values: number[];
   } | null>(null);
+  // Add these states around line 85-95
+  const [showTableEditModal, setShowTableEditModal] = useState<boolean>(false);
+  const [editingTablePath, setEditingTablePath] = useState<Path | null>(null);
+  const [editingTableData, setEditingTableData] = useState<{
+    rows: number;
+    cols: number;
+    cellData: string[][];
+  } | null>(null);
 
   const editor = useMemo(() => withCustomElements(withHistory(withReact(createEditor()))), []);
   const [value, setValue] = useState<Descendant[]>([
@@ -276,6 +284,45 @@ const CereforgeEditor: React.FC = () => {
     ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
   }, [editor, ensureEmptyParagraphAfter]);
+
+  const handleEditTable = useCallback((path: Path, element: Extract<CustomElement, { type: 'table' }>) => {
+    setEditingTablePath(path);
+    setEditingTableData({
+      rows: element.rows,
+      cols: element.cols,
+      cellData: element.cellData || []
+    });
+    setShowTableEditModal(true); // Use the new state
+  }, []);
+
+  const handleSaveTableEdit = useCallback(() => {
+    if (editingTablePath && editingTableData) {
+      const newCellData: string[][] = [];
+
+      for (let i = 0; i < editingTableData.rows; i++) {
+        newCellData[i] = [];
+        for (let j = 0; j < editingTableData.cols; j++) {
+          newCellData[i][j] = editingTableData.cellData[i]?.[j] ||
+            (i === 0 ? `Header ${j + 1}` : `Cell ${i + 1}-${j + 1}`);
+        }
+      }
+
+      Transforms.setNodes(
+        editor,
+        {
+          rows: editingTableData.rows,
+          cols: editingTableData.cols,
+          cellData: newCellData
+        } as Partial<CustomElement>,
+        { at: editingTablePath }
+      );
+
+      setShowTableEditModal(false);
+      setEditingTablePath(null);
+      setEditingTableData(null);
+      ReactEditor.focus(editor);
+    }
+  }, [editor, editingTablePath, editingTableData]);
 
   const handleUploadCSV = useCallback((file: File) => {
     console.log('CSV file uploaded:', file);
@@ -894,6 +941,14 @@ const CereforgeEditor: React.FC = () => {
                     >
                       <AlignRight size={16} />
                     </button>
+                    {/* THIS IS THE EDIT BUTTON WE ADDED */}
+                    <button
+                      onClick={() => handleEditTable(tablePath, tableElement)}
+                      className="p-1.5 rounded transition-colors text-gray-300 hover:bg-gray-700"
+                      title="Edit Table Size"
+                    >
+                      <Edit2 size={16} />
+                    </button>
                     <div className="w-px h-6 bg-gray-600 mx-1" />
                     <button
                       onClick={() => {
@@ -931,6 +986,13 @@ const CereforgeEditor: React.FC = () => {
                               }}
                               className={`w-full bg-transparent border-none outline-none focus:bg-blue-50 px-1 py-0.5 rounded ${isHeaderRow ? 'font-bold text-gray-900' : ''}`}
                               onMouseDown={(e) => {
+                                e.stopPropagation(); // THIS LINE ALREADY EXISTS
+                              }}
+                              // ADD THESE TWO EVENT HANDLERS:
+                              onClick={(e) => {
+                                e.stopPropagation();
+                              }}
+                              onFocus={(e) => {
                                 e.stopPropagation();
                               }}
                             />
@@ -1354,7 +1416,9 @@ const CereforgeEditor: React.FC = () => {
           <div
             className="flex-1 overflow-hidden px-4 py-6 flex justify-center"
             onClick={(e) => {
-              if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.editor-container')) {
+              // Only focus editor if clicking on the container itself, not its children
+              const target = e.target as HTMLElement;
+              if (target === e.currentTarget || (target.closest('.editor-container') && !target.closest('input'))) {
                 try {
                   ReactEditor.focus(editor);
                   if (!editor.selection) {
@@ -1693,9 +1757,99 @@ const CereforgeEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showTableEditModal && editingTableData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setShowTableEditModal(false);
+              setEditingTablePath(null);
+              setEditingTableData(null);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Table</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rows: {editingTableData.rows}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={editingTableData.rows}
+                    onChange={(e) => {
+                      setEditingTableData({
+                        ...editingTableData,
+                        rows: Number(e.target.value)
+                      });
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Columns: {editingTableData.cols}
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={editingTableData.cols}
+                    onChange={(e) => {
+                      setEditingTableData({
+                        ...editingTableData,
+                        cols: Number(e.target.value)
+                      });
+                    }}
+                    className="w-full"
+                  />
+                </div>
+                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs text-yellow-700">
+                    <strong>Note:</strong> Existing cell data will be preserved. New cells will be created with default values.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowTableEditModal(false);
+                    setEditingTablePath(null);
+                    setEditingTableData(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTableEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+
   );
 };
+
+
 
 // Toolbar Components
 const ToolbarButton: React.FC<{
