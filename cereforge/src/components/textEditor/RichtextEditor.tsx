@@ -1,4 +1,4 @@
-// RichtextEditor.tsx - Complete Fixed Version
+// RichtextEditor.tsx - Updated with Emoji Insertion Handler
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
@@ -8,7 +8,7 @@ import {
   Bold, Italic, Underline, Strikethrough, Subscript, Superscript,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Quote,
-  Image, Link2, Smile, Upload, X, Check,
+  Image, Link2, Upload, X, Check,
   Type, Paintbrush, Edit2, Trash2
 } from 'lucide-react';
 
@@ -17,7 +17,8 @@ import EditorSidebar from './TextSidebar';
 
 // Sample cereforge logo URL
 import cereforgeLogo from '../../assets/cereForge.png'
-// TypeScript types
+
+// TypeScript types (same as before)
 type CustomElement =
   | { type: 'paragraph'; align?: string; children: CustomText[] }
   | { type: 'heading1'; align?: string; children: CustomText[] }
@@ -53,7 +54,7 @@ declare module 'slate' {
   }
 }
 
-// Custom plugins
+// Custom plugins (same as before)
 const withCustomElements = (editor: Editor) => {
   const { isInline, isVoid, deleteBackward } = editor;
 
@@ -67,7 +68,6 @@ const withCustomElements = (editor: Editor) => {
       : isVoid(element);
   };
 
-  // Override deleteBackward to prevent table deletion when editing cells
   editor.deleteBackward = (...args) => {
     const { selection } = editor;
 
@@ -77,7 +77,6 @@ const withCustomElements = (editor: Editor) => {
       });
 
       if (cell) {
-        // We're inside a table, don't delete the table
         return;
       }
     }
@@ -143,7 +142,6 @@ const CereforgeEditor: React.FC = () => {
       const { selection } = editor;
       if (!selection) return;
 
-      // Get all the nodes to find the inserted element
       const [match] = Editor.nodes(editor, {
         match: n => !Editor.isEditor(n) && SlateElement.isElement(n) &&
           (n.type === 'image' || n.type === 'table' || n.type === 'chart'),
@@ -153,14 +151,11 @@ const CereforgeEditor: React.FC = () => {
       if (!match) return;
 
       const [, elementPath] = match;
-
-      // Try to get the next sibling
       const nextPath = Path.next(elementPath);
 
       try {
         const [nextNode] = Editor.node(editor, nextPath);
 
-        // If next node exists and is an empty paragraph, move cursor there
         if (
           SlateElement.isElement(nextNode) &&
           nextNode.type === 'paragraph' &&
@@ -170,7 +165,6 @@ const CereforgeEditor: React.FC = () => {
           return;
         }
 
-        // If next node exists but is not empty paragraph, insert one before moving
         const emptyParagraph: CustomElement = {
           type: 'paragraph',
           children: [{ text: '' }],
@@ -179,7 +173,6 @@ const CereforgeEditor: React.FC = () => {
         Transforms.select(editor, Editor.start(editor, nextPath));
 
       } catch (e) {
-        // No next sibling exists, insert at the end of parent
         const emptyParagraph: CustomElement = {
           type: 'paragraph',
           children: [{ text: '' }],
@@ -193,7 +186,6 @@ const CereforgeEditor: React.FC = () => {
       }
     } catch (error) {
       console.error('Error ensuring empty paragraph:', error);
-      // Fallback: just move the cursor forward
       try {
         Transforms.move(editor);
       } catch (e) {
@@ -241,6 +233,12 @@ const CereforgeEditor: React.FC = () => {
     ensureEmptyParagraphAfter();
     ReactEditor.focus(editor);
   }, [editor, ensureEmptyParagraphAfter]);
+
+  // NEW: Emoji insertion handler
+  const handleInsertEmoji = useCallback((emoji: string) => {
+    Transforms.insertText(editor, emoji);
+    ReactEditor.focus(editor);
+  }, [editor]);
 
   const handleInsertTable = useCallback((rows: number, cols: number) => {
     const cellData: string[][] = Array(rows).fill(null).map((_, rowIdx) =>
@@ -403,24 +401,19 @@ const CereforgeEditor: React.FC = () => {
     if (!url) return;
 
     if (editingLinkPath) {
-      // Update the URL
       Transforms.setNodes(
         editor,
         { url } as Partial<CustomElement>,
         { at: editingLinkPath }
       );
 
-      // If text changed, update the children
       if (text && text !== Editor.string(editor, editingLinkPath)) {
-        // Remove existing children
         const linkNode = Editor.node(editor, editingLinkPath)[0];
         if (SlateElement.isElement(linkNode) && linkNode.type === 'link') {
-          // Delete all existing text in the link
           for (let i = linkNode.children.length - 1; i >= 0; i--) {
             Transforms.removeNodes(editor, { at: [...editingLinkPath, i] });
           }
 
-          // Insert new text
           Transforms.insertNodes(
             editor,
             [{ text }],
@@ -1252,6 +1245,7 @@ const CereforgeEditor: React.FC = () => {
         onInsertGif={handleInsertGif}
         onInsertSticker={handleInsertSticker}
         onInsertClip={handleInsertClip}
+        onInsertEmoji={handleInsertEmoji}
         onInsertTable={handleInsertTable}
         onInsertChart={handleInsertChart}
         onUploadCSV={handleUploadCSV}
@@ -1271,7 +1265,7 @@ const CereforgeEditor: React.FC = () => {
       {/* Main Editor Area */}
       <div className="flex-1 flex flex-col overflow-hidden ">
         <Slate editor={editor} initialValue={value} onValueChange={setValue}>
-          {/* Toolbar */}
+          {/* Toolbar - EMOJI BUTTON REMOVED */}
           <div className="flex-shrink-0 px-4 pt-1 flex justify-center">
             <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 w-full max-w-4xl">
               <div className="bg-gray-700 px-4 py-3 rounded-xl">
@@ -1350,27 +1344,24 @@ const CereforgeEditor: React.FC = () => {
 
                   <ToolbarButton icon={<Link2 size={18} />} active={showLinkPopover || isLinkActive()} onClick={handleLinkClick} title="Insert Link" />
                   <ToolbarButton icon={<Image size={18} />} active={showImageModal} onClick={() => setShowImageModal(true)} title="Insert Image" />
-                  <ToolbarButton icon={<Smile size={18} />} onClick={() => alert('Emoji picker coming soon')} title="Insert Emoji" />
+                  {/* EMOJI BUTTON REMOVED - Now only in sidebar */}
                 </div>
               </div>
             </div>
           </div>
 
           {/* Editor Content */}
-          {/* Editor Content */}
           <div
             className="flex-1 overflow-hidden px-4 py-6 flex justify-center"
             onClick={(e) => {
-              // If clicking in the container but not on text, focus the editor
               if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.editor-container')) {
                 try {
                   ReactEditor.focus(editor);
-                  // Move cursor to end if no selection
                   if (!editor.selection) {
                     Transforms.select(editor, Editor.end(editor, []));
                   }
                 } catch (err) {
-                  // Silent fail if editor isn't ready
+                  // Silent fail
                 }
               }
             }}
@@ -1382,7 +1373,6 @@ const CereforgeEditor: React.FC = () => {
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => {
-                // Also handle clicks on the white container
                 try {
                   ReactEditor.focus(editor);
                   if (!editor.selection) {

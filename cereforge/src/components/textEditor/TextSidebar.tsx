@@ -4,6 +4,8 @@ import {
   X, ArrowLeft, Search, Image, Smile, Video, Table, BarChart3, Plus, Minus, Loader2
 } from 'lucide-react';
 import { giphyService, GiphyImage } from '../../services/giphyService';
+import data from '@emoji-mart/data';
+import Picker from '@emoji-mart/react';
 
 // cereforge logo
 import cereforeLogo from '../../assets/cereForge.png'
@@ -11,7 +13,7 @@ import cereforeLogo from '../../assets/cereForge.png'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Sidebar view types
-type SidebarView = 'main' | 'gif' | 'sticker' | 'clips' | 'tables' | 'csv' | 'charts';
+type SidebarView = 'main' | 'gif' | 'sticker' | 'clips' | 'emoji' | 'tables' | 'csv' | 'charts';
 type ChartType = 'bar' | 'line' | 'pie' | 'column';
 
 interface EditorSidebarProps {
@@ -20,6 +22,7 @@ interface EditorSidebarProps {
   onInsertGif: (url: string) => void;
   onInsertSticker: (url: string) => void;
   onInsertClip: (url: string) => void;
+  onInsertEmoji: (emoji: string) => void;
   onInsertTable: (rows: number, cols: number) => void;
   onInsertChart: (type: ChartType, data: any) => void;
   onUploadCSV?: (file: File) => void;
@@ -40,6 +43,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onInsertGif,
   onInsertSticker,
   onInsertClip,
+  onInsertEmoji,
   onInsertTable,
   onInsertChart,
   onUploadCSV
@@ -161,6 +165,10 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
     onInsertClip(url);
   };
 
+  const handleEmojiSelect = (emoji: any) => {
+    onInsertEmoji(emoji.native);
+  };
+
   const loadMoreContent = useCallback(() => {
     if (!isLoading && hasMore) {
       setOffset(prev => prev + 20);
@@ -245,7 +253,6 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
   return (
     <>
-
       <motion.div
         initial={false}
         animate={{
@@ -282,10 +289,11 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             <div className="p-4 space-y-6">
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Animations</h3>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <SidebarButton onClick={() => navigateToView('gif')} icon={<Image size={20} />} label="GIF" />
                   <SidebarButton onClick={() => navigateToView('sticker')} icon={<Smile size={20} />} label="Sticker" />
                   <SidebarButton onClick={() => navigateToView('clips')} icon={<Video size={20} />} label="Clips" />
+                  <SidebarButton onClick={() => navigateToView('emoji')} icon={<Smile size={20} />} label="Emoji" />
                 </div>
               </div>
               <div>
@@ -348,6 +356,29 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
               hasMore={hasMore}
               onLoadMore={loadMoreContent}
             />
+          )}
+
+          {sidebarView === 'emoji' && (
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <button onClick={goBackToMain} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+                    <ArrowLeft size={20} className="text-gray-600" />
+                  </button>
+                  <h3 className="text-lg font-bold text-gray-900">Emoji</h3>
+                </div>
+              </div>
+              <div className="flex-1 flex items-center justify-center p-2">
+                <Picker 
+                  data={data} 
+                  onEmojiSelect={handleEmojiSelect}
+                  theme="light"
+                  previewPosition="none"
+                  skinTonePosition="search"
+                  maxFrequentRows={2}
+                />
+              </div>
+            </div>
           )}
 
           {sidebarView === 'tables' && (
@@ -424,8 +455,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         </div>
       </motion.div>
 
-
-      {/* Modals remain the same... */}
+      {/* Table Modal */}
       <AnimatePresence>
         {showTableModal && (
           <motion.div
@@ -486,7 +516,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Chart Modal... */}
+      {/* Chart Modal */}
       <AnimatePresence>
         {showChartModal && selectedChartType && (
           <motion.div
