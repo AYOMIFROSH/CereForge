@@ -9,7 +9,8 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Quote,
   Image, Link2, Upload, X, Check,
-  Type, Paintbrush, Edit2, Trash2
+  Type, Paintbrush, Edit2, Trash2,
+  ChevronDown, ChevronUp, Download, FileText, File, Code
 } from 'lucide-react';
 
 // Import the independent sidebar
@@ -47,6 +48,7 @@ type CustomText = {
 };
 
 type EditorMode = 'email' | 'document';
+type ExportFormat = 'pdf' | 'docx' | 'txt' | 'html' | 'md';
 
 declare module 'slate' {
   interface CustomTypes {
@@ -55,6 +57,15 @@ declare module 'slate' {
     Text: CustomText;
   }
 }
+
+// Export format configurations
+const EXPORT_FORMATS = [
+  { value: 'pdf', label: 'PDF Document', icon: <FileText size={16} />, extension: '.pdf' },
+  { value: 'docx', label: 'Word Document', icon: <File size={16} />, extension: '.docx' },
+  { value: 'txt', label: 'Plain Text', icon: <FileText size={16} />, extension: '.txt' },
+  { value: 'html', label: 'HTML File', icon: <Code size={16} />, extension: '.html' },
+  { value: 'md', label: 'Markdown', icon: <FileText size={16} />, extension: '.md' },
+] as const;
 
 // Custom plugins (same as before)
 const withCustomElements = (editor: Editor) => {
@@ -92,7 +103,11 @@ const withCustomElements = (editor: Editor) => {
 const CereforgeEditor: React.FC = () => {
   // Mode state - NEW
   const [editorMode, setEditorMode] = useState<EditorMode>('email');
-  
+
+  // Save As dropdown state
+  const [showSaveAsDropdown, setShowSaveAsDropdown] = useState<boolean>(false);
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('pdf');
+
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
@@ -128,7 +143,7 @@ const CereforgeEditor: React.FC = () => {
     labels: string[];
     values: number[];
   } | null>(null);
-  
+
   // Table editing state
   const [showTableEditModal, setShowTableEditModal] = useState<boolean>(false);
   const [editingTablePath, setEditingTablePath] = useState<Path | null>(null);
@@ -207,6 +222,62 @@ const CereforgeEditor: React.FC = () => {
       }
     }
   }, [editor]);
+
+  // Export/Save handlers
+  const handleExportDocument = useCallback((format: ExportFormat) => {
+    const fileName = `document_${Date.now()}`;
+    
+    switch (format) {
+      case 'pdf':
+        // TODO: Implement PDF export using jsPDF
+        console.log('Exporting as PDF...');
+        alert('PDF export will be implemented with jsPDF library');
+        break;
+        
+      case 'docx':
+        // TODO: Implement DOCX export using docx library
+        console.log('Exporting as DOCX...');
+        alert('DOCX export will be implemented with docx library');
+        break;
+        
+      case 'txt':
+        // Plain text export - Extract all text from editor content
+        const plainText = value
+          .map(node => {
+            if ('children' in node) {
+              return node.children
+                .map(child => ('text' in child ? child.text : ''))
+                .join('');
+            }
+            return '';
+          })
+          .join('\n');
+        
+        // Create and download the text file
+        const txtBlob = new Blob([plainText], { type: 'text/plain' });
+        const txtUrl = URL.createObjectURL(txtBlob);
+        const txtLink = document.createElement('a');
+        txtLink.href = txtUrl;
+        txtLink.download = `${fileName}.txt`;
+        txtLink.click();
+        URL.revokeObjectURL(txtUrl);
+        break;
+        
+      case 'html':
+        // TODO: Implement HTML export
+        console.log('Exporting as HTML...');
+        alert('HTML export will be implemented');
+        break;
+        
+      case 'md':
+        // TODO: Implement Markdown export
+        console.log('Exporting as Markdown...');
+        alert('Markdown export will be implemented');
+        break;
+    }
+    
+    setShowSaveAsDropdown(false);
+  }, [value]);
 
   // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {
@@ -1339,6 +1410,56 @@ const CereforgeEditor: React.FC = () => {
             <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 w-full max-w-4xl">
               <div className="bg-gray-700 px-4 py-3 rounded-xl">
                 <div className="flex flex-wrap items-center gap-1">
+                  {/* Save As Dropdown - Only in Document Mode */}
+                  {editorMode === 'document' && (
+                    <>
+                      <div className="relative">
+                        <button
+                          onClick={() => setShowSaveAsDropdown(!showSaveAsDropdown)}
+                          className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                        >
+                          <Download size={16} />
+                          <span>Save As</span>
+                          {showSaveAsDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        <AnimatePresence>
+                          {showSaveAsDropdown && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px] z-50"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {EXPORT_FORMATS.map((format) => (
+                                <button
+                                  key={format.value}
+                                  onClick={() => {
+                                    setSelectedFormat(format.value as ExportFormat);
+                                    handleExportDocument(format.value as ExportFormat);
+                                  }}
+                                  className="w-full flex items-center space-x-3 px-4 py-2.5 hover:bg-gray-100 transition-colors text-left"
+                                >
+                                  <span className="text-gray-600">{format.icon}</span>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900">{format.label}</p>
+                                    <p className="text-xs text-gray-500">{format.extension}</p>
+                                  </div>
+                                  {selectedFormat === format.value && (
+                                    <Check size={16} className="text-blue-600" />
+                                  )}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      <ToolbarDivider />
+                    </>
+                  )}
+
                   <ToolbarButton icon={<Bold size={18} />} active={isFormatActive('bold')} onClick={() => toggleFormat('bold')} title="Bold" />
                   <ToolbarButton icon={<Italic size={18} />} active={isFormatActive('italic')} onClick={() => toggleFormat('italic')} title="Italic" />
                   <ToolbarButton icon={<Underline size={18} />} active={isFormatActive('underline')} onClick={() => toggleFormat('underline')} title="Underline" />
@@ -1440,9 +1561,8 @@ const CereforgeEditor: React.FC = () => {
             {editorMode === 'email' ? (
               // EMAIL MODE - Flat continuous editor
               <div
-                className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-4xl editor-container ${
-                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                }`}
+                className={`h-full bg-white rounded-xl shadow-lg border-2 transition-all duration-300 overflow-y-auto w-full max-w-3xl editor-container ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -1462,7 +1582,7 @@ const CereforgeEditor: React.FC = () => {
               <div className="h-full overflow-y-auto w-full flex justify-center bg-gray-100 py-8">
                 <div className="space-y-6">
                   {/* Page 1 - A4 dimensions */}
-                  <div 
+                  <div
                     className="bg-white shadow-2xl mx-auto editor-container"
                     style={{
                       width: '210mm', // A4 width
@@ -1482,7 +1602,7 @@ const CereforgeEditor: React.FC = () => {
                       spellCheck
                     />
                   </div>
-                  
+
                   {/* Additional pages would be automatically added based on content overflow */}
                   {/* This is a simplified version - full implementation would need content measurement */}
                 </div>
