@@ -226,20 +226,20 @@ const CereforgeEditor: React.FC = () => {
   // Export/Save handlers
   const handleExportDocument = useCallback((format: ExportFormat) => {
     const fileName = `document_${Date.now()}`;
-    
+
     switch (format) {
       case 'pdf':
         // TODO: Implement PDF export using jsPDF
         console.log('Exporting as PDF...');
         alert('PDF export will be implemented with jsPDF library');
         break;
-        
+
       case 'docx':
         // TODO: Implement DOCX export using docx library
         console.log('Exporting as DOCX...');
         alert('DOCX export will be implemented with docx library');
         break;
-        
+
       case 'txt':
         // Plain text export - Extract all text from editor content
         const plainText = value
@@ -252,7 +252,7 @@ const CereforgeEditor: React.FC = () => {
             return '';
           })
           .join('\n');
-        
+
         // Create and download the text file
         const txtBlob = new Blob([plainText], { type: 'text/plain' });
         const txtUrl = URL.createObjectURL(txtBlob);
@@ -262,20 +262,20 @@ const CereforgeEditor: React.FC = () => {
         txtLink.click();
         URL.revokeObjectURL(txtUrl);
         break;
-        
+
       case 'html':
         // TODO: Implement HTML export
         console.log('Exporting as HTML...');
         alert('HTML export will be implemented');
         break;
-        
+
       case 'md':
         // TODO: Implement Markdown export
         console.log('Exporting as Markdown...');
         alert('Markdown export will be implemented');
         break;
     }
-    
+
     setShowSaveAsDropdown(false);
   }, [value]);
 
@@ -1336,7 +1336,7 @@ const CereforgeEditor: React.FC = () => {
         );
       default:
         return (
-          <p {...props.attributes} style={style} className="min-h-[1.5em] my-1">
+          <p {...props.attributes} style={style} className="min-h-[1.5em] mb--1">
             {props.children}
           </p>
         );
@@ -1389,6 +1389,7 @@ const CereforgeEditor: React.FC = () => {
         onUploadCSV={handleUploadCSV}
         editorMode={editorMode}
         onModeChange={setEditorMode}
+        editor={editor}
       />
 
       {/* Cereforge Logo Button */}

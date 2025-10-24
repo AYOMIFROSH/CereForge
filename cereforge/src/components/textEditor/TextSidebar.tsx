@@ -6,6 +6,7 @@ import {
 import { giphyService, GiphyImage } from '../../services/giphyService';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import { ReactEditor } from 'slate-react';
 
 // cereforge logo
 import cereforeLogo from '../../assets/cereForge.png'
@@ -29,6 +30,7 @@ interface EditorSidebarProps {
   onUploadCSV?: (file: File) => void;
   editorMode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
+  editor: any;
 }
 
 // Transform Giphy data to our format
@@ -51,7 +53,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   onInsertChart,
   onUploadCSV,
   editorMode,
-  onModeChange
+  onModeChange,
+  editor
 }) => {
   useDocumentTitle(
     "Cereforge - Editor",
@@ -79,6 +82,17 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const [chartTitle, setChartTitle] = useState<string>('');
   const [chartLabels, setChartLabels] = useState<string[]>(['Label 1', 'Label 2', 'Label 3']);
   const [chartValues, setChartValues] = useState<number[]>([10, 20, 15]);
+
+  // Helper to refocus editor after sidebar actions
+  const refocusEditor = useCallback(() => {
+    requestAnimationFrame(() => {
+      try {
+        ReactEditor.focus(editor);
+      } catch (err) {
+        // Silent fail if editor unmounted
+      }
+    });
+  }, [editor]);
 
   // Fetch content with offset for infinite scroll
   useEffect(() => {
@@ -160,18 +174,22 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
   const handleInsertGif = (url: string) => {
     onInsertGif(url);
+    refocusEditor();
   };
 
   const handleInsertSticker = (url: string) => {
     onInsertSticker(url);
+    refocusEditor();
   };
 
   const handleInsertClip = (url: string) => {
     onInsertClip(url);
+    refocusEditor();
   };
 
   const handleEmojiSelect = (emoji: any) => {
     onInsertEmoji(emoji.native);
+    refocusEditor();
   };
 
   const loadMoreContent = useCallback(() => {
@@ -183,6 +201,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
   const handleInsertTable = () => {
     onInsertTable(tableRows, tableCols);
     setShowTableModal(false);
+    refocusEditor();
   };
 
   const handleInsertChart = () => {
@@ -194,6 +213,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
       };
       onInsertChart(selectedChartType, chartData);
       resetChartForm();
+      refocusEditor();
     }
   };
 
@@ -209,6 +229,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
     const file = e.target.files?.[0];
     if (file && onUploadCSV) {
       onUploadCSV(file);
+      refocusEditor();
     }
   };
 
@@ -296,17 +317,23 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
               <div>
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Mode</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <ModeButton 
-                    active={editorMode === 'email'} 
-                    onClick={() => onModeChange('email')} 
-                    icon={<Mail size={20} />} 
-                    label="Email" 
+                  <ModeButton
+                    active={editorMode === 'email'}
+                    onClick={() => {
+                      onModeChange('email');
+                      refocusEditor();
+                    }}
+                    icon={<Mail size={20} />}
+                    label="Email"
                   />
-                  <ModeButton 
-                    active={editorMode === 'document'} 
-                    onClick={() => onModeChange('document')} 
-                    icon={<FileText size={20} />} 
-                    label="Document" 
+                  <ModeButton
+                    active={editorMode === 'document'}
+                    onClick={() => {
+                      onModeChange('document');
+                      refocusEditor();
+                    }}
+                    icon={<FileText size={20} />}
+                    label="Document"
                   />
                 </div>
               </div>
@@ -397,8 +424,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                 </div>
               </div>
               <div className="flex-1 flex items-center justify-center p-2">
-                <Picker 
-                  data={data} 
+                <Picker
+                  data={data}
                   onEmojiSelect={handleEmojiSelect}
                   theme="light"
                   previewPosition="none"
@@ -688,11 +715,10 @@ const ModeButton: React.FC<{
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
-      active 
-        ? 'border-blue-500 bg-blue-50 text-blue-600' 
+    className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${active
+        ? 'border-blue-500 bg-blue-50 text-blue-600'
         : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 text-gray-600'
-    }`}
+      }`}
   >
     <div className="mb-1">{icon}</div>
     <span className="text-xs font-medium">{label}</span>
