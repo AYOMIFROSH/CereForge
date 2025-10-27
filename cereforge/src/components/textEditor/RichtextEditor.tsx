@@ -1,5 +1,5 @@
 // RichtextEditor.tsx - Updated with Email and Document Modes
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory, HistoryEditor } from 'slate-history';
@@ -15,7 +15,7 @@ import {
 
 // Import the independent sidebar
 import EditorSidebar from './TextSidebar';
-
+import DocumentEditor, { DocumentEditorHandle } from './DocumentEditor';
 // Sample cereforge logo URL
 import cereforgeLogo from '../../assets/cereForge.png'
 
@@ -153,6 +153,8 @@ const CereforgeEditor: React.FC = () => {
     cellData: string[][];
   } | null>(null);
 
+  const documentEditorRef = useRef<DocumentEditorHandle>(null);
+
   const editor = useMemo(() => withCustomElements(withHistory(withReact(createEditor()))), []);
   const [value, setValue] = useState<Descendant[]>([
     {
@@ -161,9 +163,11 @@ const CereforgeEditor: React.FC = () => {
     } as CustomElement,
   ]);
 
+
   useEffect(() => {
     ReactEditor.focus(editor);
   }, [editor]);
+
 
   // Helper function to ensure empty paragraph after void elements
   const ensureEmptyParagraphAfter = useCallback(() => {
@@ -227,57 +231,73 @@ const CereforgeEditor: React.FC = () => {
   const handleExportDocument = useCallback((format: ExportFormat) => {
     const fileName = `document_${Date.now()}`;
 
-    switch (format) {
-      case 'pdf':
-        // TODO: Implement PDF export using jsPDF
-        console.log('Exporting as PDF...');
-        alert('PDF export will be implemented with jsPDF library');
-        break;
+    if (editorMode === 'document') {
+      // TipTap exports
+      switch (format) {
+        case 'txt':
+          const plainText = documentEditorRef.current?.getText() || '';
+          const txtBlob = new Blob([plainText], { type: 'text/plain' });
+          const txtUrl = URL.createObjectURL(txtBlob);
+          const txtLink = document.createElement('a');
+          txtLink.href = txtUrl;
+          txtLink.download = `${fileName}.txt`;
+          txtLink.click();
+          URL.revokeObjectURL(txtUrl);
+          break;
 
-      case 'docx':
-        // TODO: Implement DOCX export using docx library
-        console.log('Exporting as DOCX...');
-        alert('DOCX export will be implemented with docx library');
-        break;
+        case 'html':
+          const htmlContent = documentEditorRef.current?.getHTML() || '';
+          const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+          const htmlUrl = URL.createObjectURL(htmlBlob);
+          const htmlLink = document.createElement('a');
+          htmlLink.href = htmlUrl;
+          htmlLink.download = `${fileName}.html`;
+          htmlLink.click();
+          URL.revokeObjectURL(htmlUrl);
+          break;
 
-      case 'txt':
-        // Plain text export - Extract all text from editor content
-        const plainText = value
-          .map(node => {
-            if ('children' in node) {
-              return node.children
-                .map(child => ('text' in child ? child.text : ''))
-                .join('');
-            }
-            return '';
-          })
-          .join('\n');
+        case 'pdf':
+          alert('PDF export will be implemented with jsPDF library');
+          break;
 
-        // Create and download the text file
-        const txtBlob = new Blob([plainText], { type: 'text/plain' });
-        const txtUrl = URL.createObjectURL(txtBlob);
-        const txtLink = document.createElement('a');
-        txtLink.href = txtUrl;
-        txtLink.download = `${fileName}.txt`;
-        txtLink.click();
-        URL.revokeObjectURL(txtUrl);
-        break;
+        case 'docx':
+          alert('DOCX export will be implemented with docx library');
+          break;
 
-      case 'html':
-        // TODO: Implement HTML export
-        console.log('Exporting as HTML...');
-        alert('HTML export will be implemented');
-        break;
+        case 'md':
+          alert('Markdown export will be implemented');
+          break;
+      }
+    } else {
+      // Existing Slate export logic for email mode
+      switch (format) {
+        case 'txt':
+          const plainText = value
+            .map(node => {
+              if ('children' in node) {
+                return node.children
+                  .map(child => ('text' in child ? child.text : ''))
+                  .join('');
+              }
+              return '';
+            })
+            .join('\n');
 
-      case 'md':
-        // TODO: Implement Markdown export
-        console.log('Exporting as Markdown...');
-        alert('Markdown export will be implemented');
-        break;
+          const txtBlob = new Blob([plainText], { type: 'text/plain' });
+          const txtUrl = URL.createObjectURL(txtBlob);
+          const txtLink = document.createElement('a');
+          txtLink.href = txtUrl;
+          txtLink.download = `${fileName}.txt`;
+          txtLink.click();
+          URL.revokeObjectURL(txtUrl);
+          break;
+
+        // ... other format cases
+      }
     }
 
     setShowSaveAsDropdown(false);
-  }, [value]);
+  }, [value, editorMode]);
 
   // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {
@@ -324,24 +344,31 @@ const CereforgeEditor: React.FC = () => {
     ReactEditor.focus(editor);
   }, [editor]);
 
+  // Update handleInsertTable to work for both
   const handleInsertTable = useCallback((rows: number, cols: number) => {
-    const cellData: string[][] = Array(rows).fill(null).map((_, rowIdx) =>
-      Array(cols).fill(null).map((_, colIdx) => `Cell ${rowIdx + 1}-${colIdx + 1}`)
-    );
+    if (editorMode === 'email') {
+      // Existing Slate table insertion logic
+      const cellData: string[][] = Array(rows).fill(null).map((_, rowIdx) =>
+        Array(cols).fill(null).map((_, colIdx) => `Cell ${rowIdx + 1}-${colIdx + 1}`)
+      );
 
-    const tableElement: CustomElement = {
-      type: 'table',
-      rows,
-      cols,
-      align: 'left',
-      width: 600,
-      cellData,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, tableElement);
-    ensureEmptyParagraphAfter();
+      const tableElement: CustomElement = {
+        type: 'table',
+        rows,
+        cols,
+        align: 'left',
+        width: 600,
+        cellData,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, tableElement);
+      ensureEmptyParagraphAfter();
+    } else {
+      // TipTap logic
+      documentEditorRef.current?.insertTable(rows, cols);
+    }
     ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const handleInsertChart = useCallback((type: 'bar' | 'line' | 'pie' | 'column', data: any) => {
     const chartElement: CustomElement = {
@@ -406,45 +433,105 @@ const CereforgeEditor: React.FC = () => {
     handleInsertTable(5, 4);
   }, [handleInsertTable]);
 
-  // Toggle mark formatting
+  // Toggle mark formatting - works for both Slate and TipTap
   const toggleFormat = useCallback((format: keyof Omit<CustomText, 'text'>) => {
-    const isActive = isFormatActive(format);
-    if (isActive) {
-      Editor.removeMark(editor, format);
+    if (editorMode === 'email') {
+      // Existing Slate logic
+      const isActive = isFormatActive(format);
+      if (isActive) {
+        Editor.removeMark(editor, format);
+      } else {
+        Editor.addMark(editor, format, true);
+      }
     } else {
-      Editor.addMark(editor, format, true);
+      // TipTap logic
+      const tiptapEditor = documentEditorRef.current?.editor;
+      if (!tiptapEditor) return;
+
+      switch (format) {
+        case 'bold':
+          tiptapEditor.chain().focus().toggleBold().run();
+          break;
+        case 'italic':
+          tiptapEditor.chain().focus().toggleItalic().run();
+          break;
+        case 'underline':
+          tiptapEditor.chain().focus().toggleUnderline().run();
+          break;
+        case 'strikethrough':
+          tiptapEditor.chain().focus().toggleStrike().run();
+          break;
+        case 'subscript':
+          tiptapEditor.chain().focus().toggleSubscript().run();
+          break;
+        case 'superscript':
+          tiptapEditor.chain().focus().toggleSuperscript().run();
+          break;
+      }
     }
-  }, [editor]);
+  }, [editor, editorMode]);
 
   const isFormatActive = (format: keyof Omit<CustomText, 'text'>): boolean => {
     const marks = Editor.marks(editor);
     return marks ? marks[format] === true : false;
   };
 
-  // Toggle block type
+  // Toggle block type - works for both Slate and TipTap
   const toggleBlock = useCallback((format: string) => {
-    const isActive = isBlockActive(format);
-    const isList = ['bulleted-list', 'numbered-list'].includes(format);
+    if (editorMode === 'email') {
+      // Existing Slate logic
+      const isActive = isBlockActive(format);
+      const isList = ['bulleted-list', 'numbered-list'].includes(format);
 
-    Transforms.unwrapNodes(editor, {
-      match: (n) =>
-        !Editor.isEditor(n) &&
-        SlateElement.isElement(n) &&
-        ['bulleted-list', 'numbered-list'].includes(n.type),
-      split: true,
-    });
+      Transforms.unwrapNodes(editor, {
+        match: (n) =>
+          !Editor.isEditor(n) &&
+          SlateElement.isElement(n) &&
+          ['bulleted-list', 'numbered-list'].includes(n.type),
+        split: true,
+      });
 
-    const newProperties: Partial<CustomElement> = {
-      type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
-    };
+      const newProperties: Partial<CustomElement> = {
+        type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
+      };
 
-    Transforms.setNodes<SlateElement>(editor, newProperties);
+      Transforms.setNodes<SlateElement>(editor, newProperties);
 
-    if (!isActive && isList) {
-      const block: CustomElement = { type: format as any, children: [] };
-      Transforms.wrapNodes(editor, block);
+      if (!isActive && isList) {
+        const block: CustomElement = { type: format as any, children: [] };
+        Transforms.wrapNodes(editor, block);
+      }
+    } else {
+      // TipTap logic
+      const tiptapEditor = documentEditorRef.current?.editor;
+      if (!tiptapEditor) return;
+
+      switch (format) {
+        case 'heading1':
+          tiptapEditor.chain().focus().toggleHeading({ level: 1 }).run();
+          break;
+        case 'heading2':
+          tiptapEditor.chain().focus().toggleHeading({ level: 2 }).run();
+          break;
+        case 'heading3':
+          tiptapEditor.chain().focus().toggleHeading({ level: 3 }).run();
+          break;
+        case 'bulleted-list':
+          tiptapEditor.chain().focus().toggleBulletList().run();
+          break;
+        case 'numbered-list':
+          tiptapEditor.chain().focus().toggleOrderedList().run();
+          break;
+        case 'block-quote':
+          tiptapEditor.chain().focus().toggleBlockquote().run();
+          break;
+        case 'paragraph':
+          tiptapEditor.chain().focus().setParagraph().run();
+          break;
+      }
     }
-  }, [editor]);
+  }, [editor, editorMode]);
+
 
   const isBlockActive = (format: string): boolean => {
     const [match] = Editor.nodes(editor, {
@@ -471,15 +558,25 @@ const CereforgeEditor: React.FC = () => {
     return 'left';
   }, [editor]);
 
+  // Set alignment - works for both
   const setAlignment = useCallback((align: string) => {
-    Transforms.setNodes<SlateElement>(
-      editor,
-      { align } as Partial<CustomElement>,
-      {
-        match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
-      }
-    );
-  }, [editor]);
+    if (editorMode === 'email') {
+      // Existing Slate logic
+      Transforms.setNodes<SlateElement>(
+        editor,
+        { align } as Partial<CustomElement>,
+        {
+          match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
+        }
+      );
+    } else {
+      // TipTap logic
+      const tiptapEditor = documentEditorRef.current?.editor;
+      if (!tiptapEditor) return;
+      tiptapEditor.chain().focus().setTextAlign(align).run();
+    }
+  }, [editor, editorMode]);
+
 
   const setElementAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
     Transforms.setNodes(
@@ -505,20 +602,26 @@ const CereforgeEditor: React.FC = () => {
     setShowBgColor(false);
   }, [editor]);
 
+  // Insert image - works for both
   const insertImage = useCallback((url: string) => {
-    const image: CustomElement = {
-      type: 'image',
-      url,
-      align: 'left',
-      width: 300,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, image);
-    ensureEmptyParagraphAfter();
+    if (editorMode === 'email') {
+      // Existing Slate logic
+      const image: CustomElement = {
+        type: 'image',
+        url,
+        align: 'left',
+        width: 300,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, image);
+      ensureEmptyParagraphAfter();
+    } else {
+      // TipTap logic
+      documentEditorRef.current?.insertImage(url);
+    }
     setShowImageModal(false);
     setImageUrl('');
-    ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const insertLink = useCallback((url: string, text: string) => {
     if (!url) return;
@@ -1579,35 +1682,8 @@ const CereforgeEditor: React.FC = () => {
                 </div>
               </div>
             ) : (
-              // DOCUMENT MODE - Paginated A4 pages
-              <div className="h-full overflow-y-auto w-full flex justify-center bg-gray-100 py-8">
-                <div className="space-y-6">
-                  {/* Page 1 - A4 dimensions */}
-                  <div
-                    className="bg-white shadow-2xl mx-auto editor-container"
-                    style={{
-                      width: '210mm', // A4 width
-                      minHeight: '297mm', // A4 height
-                      padding: '25mm 20mm', // A4 margins
-                      boxShadow: '0 0 10px rgba(0,0,0,0.1)'
-                    }}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <Editable
-                      renderElement={renderElement}
-                      renderLeaf={renderLeaf}
-                      placeholder="Start typing your document..."
-                      className="outline-none"
-                      spellCheck
-                    />
-                  </div>
-
-                  {/* Additional pages would be automatically added based on content overflow */}
-                  {/* This is a simplified version - full implementation would need content measurement */}
-                </div>
-              </div>
+              // TIPTAP DOCUMENT EDITOR (new)
+              <DocumentEditor ref={documentEditorRef} />
             )}
           </div>
         </Slate>
