@@ -15,7 +15,7 @@ import {
 
 // Import the independent sidebar
 import EditorSidebar from './TextSidebar';
-import DocumentEditor, { DocumentEditorHandle } from './DocumentEditor';
+import LexicalDocumentEditor, { LexicalDocumentEditorHandle } from './DocumentEditor';
 // Sample cereforge logo URL
 import cereforgeLogo from '../../assets/cereForge.png'
 
@@ -153,7 +153,7 @@ const CereforgeEditor: React.FC = () => {
     cellData: string[][];
   } | null>(null);
 
-  const documentEditorRef = useRef<DocumentEditorHandle>(null);
+  const documentEditorRef = useRef<LexicalDocumentEditorHandle>(null);
 
   const editor = useMemo(() => withCustomElements(withHistory(withReact(createEditor()))), []);
   const [value, setValue] = useState<Descendant[]>([
@@ -444,32 +444,9 @@ const CereforgeEditor: React.FC = () => {
         Editor.addMark(editor, format, true);
       }
     } else {
-      // TipTap logic
-      const tiptapEditor = documentEditorRef.current?.editor;
-      if (!tiptapEditor) return;
-
-      switch (format) {
-        case 'bold':
-          tiptapEditor.chain().focus().toggleBold().run();
-          break;
-        case 'italic':
-          tiptapEditor.chain().focus().toggleItalic().run();
-          break;
-        case 'underline':
-          tiptapEditor.chain().focus().toggleUnderline().run();
-          break;
-        case 'strikethrough':
-          tiptapEditor.chain().focus().toggleStrike().run();
-          break;
-        case 'subscript':
-          tiptapEditor.chain().focus().toggleSubscript().run();
-          break;
-        case 'superscript':
-          tiptapEditor.chain().focus().toggleSuperscript().run();
-          break;
-      }
+      Editor.addMark(editor, format, true);
     }
-  }, [editor, editorMode]);
+  }, [editor]);
 
   const isFormatActive = (format: keyof Omit<CustomText, 'text'>): boolean => {
     const marks = Editor.marks(editor);
@@ -478,60 +455,29 @@ const CereforgeEditor: React.FC = () => {
 
   // Toggle block type - works for both Slate and TipTap
   const toggleBlock = useCallback((format: string) => {
-    if (editorMode === 'email') {
-      // Existing Slate logic
-      const isActive = isBlockActive(format);
-      const isList = ['bulleted-list', 'numbered-list'].includes(format);
+    const isActive = isBlockActive(format);
+    const isList = ['bulleted-list', 'numbered-list'].includes(format);
 
-      Transforms.unwrapNodes(editor, {
-        match: (n) =>
-          !Editor.isEditor(n) &&
-          SlateElement.isElement(n) &&
-          ['bulleted-list', 'numbered-list'].includes(n.type),
-        split: true,
-      });
+    Transforms.unwrapNodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) &&
+        SlateElement.isElement(n) &&
+        ['bulleted-list', 'numbered-list'].includes(n.type),
+      split: true,
+    });
 
-      const newProperties: Partial<CustomElement> = {
-        type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
-      };
+    const newProperties: Partial<CustomElement> = {
+      type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
+    };
 
-      Transforms.setNodes<SlateElement>(editor, newProperties);
+    Transforms.setNodes<SlateElement>(editor, newProperties);
 
-      if (!isActive && isList) {
-        const block: CustomElement = { type: format as any, children: [] };
-        Transforms.wrapNodes(editor, block);
-      }
-    } else {
-      // TipTap logic
-      const tiptapEditor = documentEditorRef.current?.editor;
-      if (!tiptapEditor) return;
 
-      switch (format) {
-        case 'heading1':
-          tiptapEditor.chain().focus().toggleHeading({ level: 1 }).run();
-          break;
-        case 'heading2':
-          tiptapEditor.chain().focus().toggleHeading({ level: 2 }).run();
-          break;
-        case 'heading3':
-          tiptapEditor.chain().focus().toggleHeading({ level: 3 }).run();
-          break;
-        case 'bulleted-list':
-          tiptapEditor.chain().focus().toggleBulletList().run();
-          break;
-        case 'numbered-list':
-          tiptapEditor.chain().focus().toggleOrderedList().run();
-          break;
-        case 'block-quote':
-          tiptapEditor.chain().focus().toggleBlockquote().run();
-          break;
-        case 'paragraph':
-          tiptapEditor.chain().focus().setParagraph().run();
-          break;
-      }
+    if (!isActive && isList) {
+      const block: CustomElement = { type: format as any, children: [] };
+      Transforms.wrapNodes(editor, block);
     }
-  }, [editor, editorMode]);
-
+  }, [editor]);
 
   const isBlockActive = (format: string): boolean => {
     const [match] = Editor.nodes(editor, {
@@ -558,25 +504,16 @@ const CereforgeEditor: React.FC = () => {
     return 'left';
   }, [editor]);
 
-  // Set alignment - works for both
+  // Set alignment 
   const setAlignment = useCallback((align: string) => {
-    if (editorMode === 'email') {
-      // Existing Slate logic
-      Transforms.setNodes<SlateElement>(
-        editor,
-        { align } as Partial<CustomElement>,
-        {
-          match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
-        }
-      );
-    } else {
-      // TipTap logic
-      const tiptapEditor = documentEditorRef.current?.editor;
-      if (!tiptapEditor) return;
-      tiptapEditor.chain().focus().setTextAlign(align).run();
-    }
-  }, [editor, editorMode]);
-
+    Transforms.setNodes<SlateElement>(
+      editor,
+      { align } as Partial<CustomElement>,
+      {
+        match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
+      }
+    );
+  }, [editor]);
 
   const setElementAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
     Transforms.setNodes(
@@ -604,24 +541,19 @@ const CereforgeEditor: React.FC = () => {
 
   // Insert image - works for both
   const insertImage = useCallback((url: string) => {
-    if (editorMode === 'email') {
-      // Existing Slate logic
-      const image: CustomElement = {
-        type: 'image',
-        url,
-        align: 'left',
-        width: 300,
-        children: [{ text: '' }],
-      };
-      Transforms.insertNodes(editor, image);
-      ensureEmptyParagraphAfter();
-    } else {
-      // TipTap logic
-      documentEditorRef.current?.insertImage(url);
-    }
+    const image: CustomElement = {
+      type: 'image',
+      url,
+      align: 'left',
+      width: 300,
+      children: [{ text: '' }],
+    };
+    Transforms.insertNodes(editor, image);
+    ensureEmptyParagraphAfter();
     setShowImageModal(false);
     setImageUrl('');
-  }, [editor, editorMode, ensureEmptyParagraphAfter]);
+    ReactEditor.focus(editor);
+  }, [editor, ensureEmptyParagraphAfter]);
 
   const insertLink = useCallback((url: string, text: string) => {
     if (!url) return;
@@ -1683,7 +1615,7 @@ const CereforgeEditor: React.FC = () => {
               </div>
             ) : (
               // TIPTAP DOCUMENT EDITOR (new)
-              <DocumentEditor ref={documentEditorRef} />
+              <LexicalDocumentEditor ref={documentEditorRef} />
             )}
           </div>
         </Slate>
