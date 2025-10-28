@@ -1615,8 +1615,10 @@ const CereforgeEditor: React.FC = () => {
               </div>
             ) : (
               // TIPTAP DOCUMENT EDITOR (new)
-              <LexicalDocumentEditor ref={documentEditorRef} />
-            )}
+              <LexicalDocumentEditor
+                ref={documentEditorRef}
+                showPageGuides={true}  // or false to hide them
+              />)}
           </div>
         </Slate>
       </div>
