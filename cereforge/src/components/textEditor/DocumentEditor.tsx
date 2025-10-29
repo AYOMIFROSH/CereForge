@@ -171,9 +171,9 @@ class PageBreakNode extends DecoratorNode<JSX.Element> {
     div.style.cssText = `
       page-break-after: always;
       break-after: page;
-      height: 60px;
+      height: 120px;
       position: relative;
-      margin: 20px 0;
+      margin: 60px 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -196,12 +196,12 @@ class PageBreakNode extends DecoratorNode<JSX.Element> {
         position: 'relative'
       }}>
         <div style={{
-          position: 'absolute',
+          position: 'relative',
           top: '50%',
           left: 0,
           right: 0,
           height: '2px',
-          background: 'linear-gradient(to right, transparent, #3b82f6 20%, #3b82f6 80%, transparent)',
+          background: 'linear-gradient(to right, transparent, #3b82f6 40%, #3b82f6 80%, transparent)',
           transform: 'translateY(-50%)',
         }} />
         <div style={{
@@ -746,7 +746,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, LexicalDoc
                   }
                   placeholder={
                     <div className="absolute top-0 left-0 text-gray-400 pointer-events-none text-base z-0">
-                      Start typing your document... (Press Ctrl+Enter to insert a page break)
+                      Start typing your document... 
                     </div>
                   }
                   ErrorBoundary={LexicalErrorBoundary}
