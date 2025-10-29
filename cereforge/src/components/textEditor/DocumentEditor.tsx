@@ -385,7 +385,7 @@ function VisualPageGuidesPlugin() {
 
 // Editor Theme
 const editorTheme = {
-  paragraph: 'mb-3 leading-relaxed',
+  paragraph: 'mb--0.5 leading-relaxed',
   quote: 'border-l-4 border-blue-600 pl-4 italic my-4 text-gray-600',
   heading: {
     h1: 'text-3xl font-bold my-4 text-gray-900',
