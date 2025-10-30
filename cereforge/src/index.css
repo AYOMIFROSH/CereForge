@@ -7,18 +7,19 @@
   html {
     scroll-behavior: smooth;
   }
-  
+
   body {
     overflow-x: hidden;
   }
 }
 
 @layer utilities {
+
   /* Prevent horizontal scroll on all devices */
   .no-scrollbar-x {
     overflow-x: hidden;
   }
-  
+
   /* Better container constraints */
   .container-responsive {
     width: 100%;
@@ -28,7 +29,16 @@
     padding-left: 1rem;
     padding-right: 1rem;
   }
-  
+
+  .page-break+* {
+    margin-top: 10px !important;
+  }
+
+  .page-break {
+    margin-bottom: 10px !important;
+  }
+
+
   @media (min-width: 640px) {
     .container-responsive {
       max-width: 640px;
@@ -36,13 +46,13 @@
       padding-right: 1.5rem;
     }
   }
-  
+
   @media (min-width: 768px) {
     .container-responsive {
       max-width: 768px;
     }
   }
-  
+
   @media (min-width: 1024px) {
     .container-responsive {
       max-width: 1024px;
@@ -50,19 +60,19 @@
       padding-right: 2rem;
     }
   }
-  
+
   @media (min-width: 1280px) {
     .container-responsive {
       max-width: 1280px;
     }
   }
-  
+
   @media (min-width: 1536px) {
     .container-responsive {
       max-width: 1536px;
     }
   }
-  
+
   /* Fix navigation responsiveness */
   .nav-responsive {
     display: flex;
@@ -71,47 +81,47 @@
     flex-wrap: nowrap;
     gap: 1rem;
   }
-  
+
   @media (max-width: 768px) {
     .nav-responsive {
       gap: 0.5rem;
       font-size: 0.875rem;
     }
   }
-  
+
   @media (max-width: 640px) {
     .nav-responsive {
       flex-wrap: wrap;
       padding: 0.75rem;
     }
   }
-  
+
   /* Better grid responsiveness */
   .project-grid {
     display: grid;
     gap: 1.5rem;
     grid-template-columns: 1fr;
   }
-  
+
   @media (min-width: 640px) {
     .project-grid {
       grid-template-columns: repeat(2, 1fr);
     }
   }
-  
+
   @media (min-width: 1024px) {
     .project-grid {
       grid-template-columns: repeat(3, 1fr);
       gap: 2rem;
     }
   }
-  
+
   @media (min-width: 1280px) {
     .project-grid {
       grid-template-columns: repeat(4, 1fr);
     }
   }
-  
+
   /* Hero section responsiveness */
   .hero-grid {
     display: grid;
@@ -119,53 +129,53 @@
     align-items: center;
     grid-template-columns: 1fr;
   }
-  
+
   @media (min-width: 1024px) {
     .hero-grid {
       grid-template-columns: 1fr 1fr;
       gap: 3rem;
     }
   }
-  
+
   /* Typography scaling */
   .responsive-text-xl {
     font-size: 1.125rem;
     line-height: 1.75rem;
   }
-  
+
   @media (min-width: 640px) {
     .responsive-text-xl {
       font-size: 1.25rem;
       line-height: 1.75rem;
     }
   }
-  
+
   @media (min-width: 1024px) {
     .responsive-text-xl {
       font-size: 1.5rem;
       line-height: 2rem;
     }
   }
-  
+
   .responsive-text-4xl {
     font-size: 2rem;
     line-height: 2.5rem;
   }
-  
+
   @media (min-width: 640px) {
     .responsive-text-4xl {
       font-size: 2.5rem;
       line-height: 3rem;
     }
   }
-  
+
   @media (min-width: 1024px) {
     .responsive-text-4xl {
       font-size: 3.5rem;
       line-height: 1;
     }
   }
-  
+
   @media (min-width: 1280px) {
     .responsive-text-4xl {
       font-size: 4rem;
