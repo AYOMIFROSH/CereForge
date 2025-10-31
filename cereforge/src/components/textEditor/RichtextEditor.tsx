@@ -12,6 +12,7 @@ import {
   Type, Paintbrush, Edit2, Trash2,
   ChevronDown, ChevronUp, Download, FileText, File, Code
 } from 'lucide-react';
+import { $getSelection, $isRangeSelection } from 'lexical';
 
 // Import the independent sidebar
 import EditorSidebar from './TextSidebar';
@@ -153,6 +154,14 @@ const CereforgeEditor: React.FC = () => {
     cellData: string[][];
   } | null>(null);
 
+  // State to track Lexical editor formatting (for toolbar button highlights)
+  const [lexicalFormatState, setLexicalFormatState] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikethrough: false,
+  });
+
   const documentEditorRef = useRef<LexicalDocumentEditorHandle>(null);
 
   const editor = useMemo(() => withCustomElements(withHistory(withReact(createEditor()))), []);
@@ -167,6 +176,28 @@ const CereforgeEditor: React.FC = () => {
   useEffect(() => {
     ReactEditor.focus(editor);
   }, [editor]);
+
+  useEffect(() => {
+    if (editorMode !== 'document' || !documentEditorRef.current?.editor) return;
+
+    const updateFormatState = () => {
+      setLexicalFormatState({
+        bold: documentEditorRef.current?.isBoldActive() || false,
+        italic: documentEditorRef.current?.isItalicActive() || false,
+        underline: documentEditorRef.current?.isUnderlineActive() || false,
+        strikethrough: documentEditorRef.current?.isStrikethroughActive() || false,
+      });
+    };
+
+    const lexicalEditor = documentEditorRef.current.editor;
+    const unregister = lexicalEditor.registerUpdateListener(() => {
+      updateFormatState();
+    });
+
+    return () => {
+      unregister();
+    };
+  }, [editorMode]);
 
 
   // Helper function to ensure empty paragraph after void elements
@@ -301,48 +332,70 @@ const CereforgeEditor: React.FC = () => {
 
   // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {
-    const image: CustomElement = {
-      type: 'image',
-      url,
-      align: 'left',
-      width: 300,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, image);
-    ensureEmptyParagraphAfter();
+    if (editorMode === 'document') {
+      documentEditorRef.current?.insertImage(url, 400);
+    } else {
+      const image: CustomElement = {
+        type: 'image',
+        url,
+        align: 'left',
+        width: 300,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, image);
+      ensureEmptyParagraphAfter();
+    }
     ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const handleInsertSticker = useCallback((url: string) => {
-    const image: CustomElement = {
-      type: 'image',
-      url,
-      align: 'left',
-      width: 150,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, image);
-    ensureEmptyParagraphAfter();
+    if (editorMode === 'document') {
+      documentEditorRef.current?.insertImage(url, 150);
+    } else {
+      const image: CustomElement = {
+        type: 'image',
+        url,
+        align: 'left',
+        width: 150,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, image);
+      ensureEmptyParagraphAfter();
+    }
     ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const handleInsertClip = useCallback((url: string) => {
-    const image: CustomElement = {
-      type: 'image',
-      url,
-      align: 'center',
-      width: 400,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, image);
-    ensureEmptyParagraphAfter();
+    if (editorMode === 'document') {
+      documentEditorRef.current?.insertImage(url, 500);
+    } else {
+      const image: CustomElement = {
+        type: 'image',
+        url,
+        align: 'center',
+        width: 400,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, image);
+      ensureEmptyParagraphAfter();
+    }
     ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const handleInsertEmoji = useCallback((emoji: string) => {
-    Transforms.insertText(editor, emoji);
+    if (editorMode === 'document') {
+      // Emojis work natively in both editors
+      documentEditorRef.current?.editor?.update(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+          selection.insertText(emoji);
+        }
+      });
+    } else {
+      Transforms.insertText(editor, emoji);
+    }
     ReactEditor.focus(editor);
-  }, [editor]);
+  }, [editor, editorMode]);
 
   // Update handleInsertTable to work for both
   const handleInsertTable = useCallback((rows: number, cols: number) => {
@@ -371,22 +424,32 @@ const CereforgeEditor: React.FC = () => {
   }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const handleInsertChart = useCallback((type: 'bar' | 'line' | 'pie' | 'column', data: any) => {
-    const chartElement: CustomElement = {
-      type: 'chart',
-      chartType: type,
-      title: data.title || `${type.charAt(0).toUpperCase() + type.slice(1)} Chart`,
-      data: {
+    if (editorMode === 'document') {
+      // Insert chart in Lexical document editor
+      documentEditorRef.current?.insertChart(type, {
+        title: data.title || `${type.charAt(0).toUpperCase() + type.slice(1)} Chart`,
         labels: data.labels || [],
         values: data.values || []
-      },
-      align: 'left',
-      width: 600,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, chartElement);
-    ensureEmptyParagraphAfter();
+      });
+    } else {
+      // Insert chart in Slate email editor
+      const chartElement: CustomElement = {
+        type: 'chart',
+        chartType: type,
+        title: data.title || `${type.charAt(0).toUpperCase() + type.slice(1)} Chart`,
+        data: {
+          labels: data.labels || [],
+          values: data.values || []
+        },
+        align: 'left',
+        width: 600,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, chartElement);
+      ensureEmptyParagraphAfter();
+    }
     ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const handleEditTable = useCallback((path: Path, element: Extract<CustomElement, { type: 'table' }>) => {
     setEditingTablePath(path);
@@ -433,51 +496,99 @@ const CereforgeEditor: React.FC = () => {
     handleInsertTable(5, 4);
   }, [handleInsertTable]);
 
-  // Toggle mark formatting - works for both Slate and TipTap
   const toggleFormat = useCallback((format: keyof Omit<CustomText, 'text'>) => {
-    if (editorMode === 'email') {
-      // Existing Slate logic
+    if (editorMode === 'document') {
+      // Lexical commands
+      switch (format) {
+        case 'bold':
+          documentEditorRef.current?.toggleBold();
+          break;
+        case 'italic':
+          documentEditorRef.current?.toggleItalic();
+          break;
+        case 'underline':
+          documentEditorRef.current?.toggleUnderline();
+          break;
+        case 'strikethrough':
+          documentEditorRef.current?.toggleStrikethrough();
+          break;
+        // Note: subscript/superscript not implemented in Lexical yet
+        default:
+          console.warn(`Format ${format} not supported in document mode`);
+      }
+    } else {
+      // Slate logic (email mode)
       const isActive = isFormatActive(format);
       if (isActive) {
         Editor.removeMark(editor, format);
       } else {
         Editor.addMark(editor, format, true);
       }
-    } else {
-      Editor.addMark(editor, format, true);
     }
-  }, [editor]);
+  }, [editor, editorMode]);
 
   const isFormatActive = (format: keyof Omit<CustomText, 'text'>): boolean => {
-    const marks = Editor.marks(editor);
-    return marks ? marks[format] === true : false;
+    if (editorMode === 'document') {
+      // Use tracked Lexical state for better performance
+      return lexicalFormatState[format as keyof typeof lexicalFormatState] || false;
+    } else {
+      // Slate logic (email mode)
+      const marks = Editor.marks(editor);
+      return marks ? marks[format] === true : false;
+    }
   };
 
   // Toggle block type - works for both Slate and TipTap
   const toggleBlock = useCallback((format: string) => {
-    const isActive = isBlockActive(format);
-    const isList = ['bulleted-list', 'numbered-list'].includes(format);
+    if (editorMode === 'document') {
+      // Lexical commands
+      switch (format) {
+        case 'heading1':
+          documentEditorRef.current?.toggleHeading(1);
+          break;
+        case 'heading2':
+          documentEditorRef.current?.toggleHeading(2);
+          break;
+        case 'heading3':
+          documentEditorRef.current?.toggleHeading(3);
+          break;
+        case 'bulleted-list':
+          documentEditorRef.current?.toggleBulletList();
+          break;
+        case 'numbered-list':
+          documentEditorRef.current?.toggleNumberedList();
+          break;
+        case 'block-quote':
+          documentEditorRef.current?.toggleQuote();
+          break;
+        default:
+          console.warn(`Block type ${format} not supported in document mode`);
+      }
+    } else {
+      // Slate logic (email mode)
+      const isActive = isBlockActive(format);
+      const isList = ['bulleted-list', 'numbered-list'].includes(format);
 
-    Transforms.unwrapNodes(editor, {
-      match: (n) =>
-        !Editor.isEditor(n) &&
-        SlateElement.isElement(n) &&
-        ['bulleted-list', 'numbered-list'].includes(n.type),
-      split: true,
-    });
+      Transforms.unwrapNodes(editor, {
+        match: (n) =>
+          !Editor.isEditor(n) &&
+          SlateElement.isElement(n) &&
+          ['bulleted-list', 'numbered-list'].includes(n.type),
+        split: true,
+      });
 
-    const newProperties: Partial<CustomElement> = {
-      type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
-    };
+      const newProperties: Partial<CustomElement> = {
+        type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
+      };
 
-    Transforms.setNodes<SlateElement>(editor, newProperties);
+      Transforms.setNodes<SlateElement>(editor, newProperties);
 
-
-    if (!isActive && isList) {
-      const block: CustomElement = { type: format as any, children: [] };
-      Transforms.wrapNodes(editor, block);
+      if (!isActive && isList) {
+        const block: CustomElement = { type: format as any, children: [] };
+        Transforms.wrapNodes(editor, block);
+      }
     }
-  }, [editor]);
+  }, [editor, editorMode]);
 
   const isBlockActive = (format: string): boolean => {
     const [match] = Editor.nodes(editor, {
@@ -506,14 +617,20 @@ const CereforgeEditor: React.FC = () => {
 
   // Set alignment 
   const setAlignment = useCallback((align: string) => {
-    Transforms.setNodes<SlateElement>(
-      editor,
-      { align } as Partial<CustomElement>,
-      {
-        match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
-      }
-    );
-  }, [editor]);
+    if (editorMode === 'document') {
+      // Lexical alignment
+      documentEditorRef.current?.setAlignment(align as 'left' | 'center' | 'right' | 'justify');
+    } else {
+      // Slate alignment (email mode)
+      Transforms.setNodes<SlateElement>(
+        editor,
+        { align } as Partial<CustomElement>,
+        {
+          match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
+        }
+      );
+    }
+  }, [editor, editorMode]);
 
   const setElementAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
     Transforms.setNodes(
@@ -541,19 +658,23 @@ const CereforgeEditor: React.FC = () => {
 
   // Insert image - works for both
   const insertImage = useCallback((url: string) => {
-    const image: CustomElement = {
-      type: 'image',
-      url,
-      align: 'left',
-      width: 300,
-      children: [{ text: '' }],
-    };
-    Transforms.insertNodes(editor, image);
-    ensureEmptyParagraphAfter();
+    if (editorMode === 'document') {
+      documentEditorRef.current?.insertImage(url, 400);
+    } else {
+      const image: CustomElement = {
+        type: 'image',
+        url,
+        align: 'left',
+        width: 300,
+        children: [{ text: '' }],
+      };
+      Transforms.insertNodes(editor, image);
+      ensureEmptyParagraphAfter();
+    }
     setShowImageModal(false);
     setImageUrl('');
     ReactEditor.focus(editor);
-  }, [editor, ensureEmptyParagraphAfter]);
+  }, [editor, editorMode, ensureEmptyParagraphAfter]);
 
   const insertLink = useCallback((url: string, text: string) => {
     if (!url) return;
@@ -1410,7 +1531,7 @@ const CereforgeEditor: React.FC = () => {
   ];
 
   return (
-    <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-orange-50">
+    <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden">
       {/* Independent Sidebar Component */}
       <EditorSidebar
         isOpen={sidebarOpen}

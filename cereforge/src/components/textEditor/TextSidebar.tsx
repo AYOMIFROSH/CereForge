@@ -279,14 +279,9 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
 
   return (
     <>
-      <motion.div
-        initial={false}
-        animate={{
-          x: isOpen ? 0 : -320,
-          width: isOpen ? 320 : 0,
-        }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="bg-white border-r border-gray-200 shadow-xl flex flex-col h-full overflow-hidden"
+      <div
+        className={`bg-white border-r border-gray-200 shadow-xl flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0 w-80' : '-translate-x-full w-0'
+          }`}
         style={{ flexShrink: 0 }}
       >
         {/* Header */}
@@ -508,7 +503,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Table Modal */}
       <AnimatePresence>
@@ -716,8 +711,8 @@ const ModeButton: React.FC<{
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
     className={`flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${active
-        ? 'border-blue-500 bg-blue-50 text-blue-600'
-        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 text-gray-600'
+      ? 'border-blue-500 bg-blue-50 text-blue-600'
+      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 text-gray-600'
       }`}
   >
     <div className="mb-1">{icon}</div>
