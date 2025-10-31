@@ -8,13 +8,13 @@ import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@l
 import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list';
 import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { TableCellNode, TableNode, TableRowNode, INSERT_TABLE_COMMAND } from '@lexical/table';
-import {
-  $getRoot,
-  LexicalEditor,
-  $getSelection,
-  $isRangeSelection,
-  FORMAT_TEXT_COMMAND,
-  FORMAT_ELEMENT_COMMAND,
+import { 
+  $getRoot, 
+  LexicalEditor, 
+  $getSelection, 
+  $isRangeSelection, 
+  FORMAT_TEXT_COMMAND, 
+  FORMAT_ELEMENT_COMMAND, 
   ElementFormatType,
   DecoratorNode,
   NodeKey,
@@ -41,7 +41,7 @@ const A4_HEIGHT_MM = 297;
 const MARGIN_MM = '25mm 20mm';
 
 const editorTheme = {
-  paragraph: ' leading-relaxed min-h-[1.5em] mb--0.5',
+  paragraph: 'mb--1 leading-relaxed min-h-[1.5em]',
   quote: 'border-l-4 border-blue-600 pl-4 italic my-4 text-gray-600',
   heading: {
     h1: 'text-3xl font-bold my-4 text-gray-900',
@@ -126,6 +126,12 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     };
   }
 
+  // Add method to update width without replacing node
+  setWidth(width: number): void {
+    const writable = this.getWritable();
+    writable.__width = width;
+  }
+
   decorate(_editor: LexicalEditor, _config: any): JSX.Element {
     return (
       <ImageComponent
@@ -140,49 +146,55 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-// Image Component with Resize Handle
-function ImageComponent({
-  src,
-  altText,
-  width,
+// Image Component with Resize Handle - FIXED
+function ImageComponent({ 
+  src, 
+  altText, 
+  width, 
   nodeKey,
-  editor
-}: {
-  src: string;
-  altText: string;
-  width?: number;
+  editor 
+}: { 
+  src: string; 
+  altText: string; 
+  width?: number; 
   height?: number;
   nodeKey: NodeKey;
   editor: LexicalEditor;
 }) {
   const [isResizing, setIsResizing] = useState(false);
-  const [currentWidth, setCurrentWidth] = useState(width || 400);
+  const [currentWidth, setCurrentWidth] = useState(width || 300);
   const imageRef = useRef<HTMLImageElement>(null);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = currentWidth;
   };
 
   useEffect(() => {
     if (!isResizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (imageRef.current) {
-        const newWidth = Math.max(100, Math.min(800, e.clientX - imageRef.current.getBoundingClientRect().left));
-        setCurrentWidth(newWidth);
-      }
+      const deltaX = e.clientX - startXRef.current;
+      const newWidth = Math.max(100, Math.min(800, startWidthRef.current + deltaX));
+      setCurrentWidth(newWidth);
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
-      // Update the node with new width
+      
+      // Update the node's width using setWidth method
       editor.update(() => {
-        const node = $getNodeByKey(nodeKey) as ImageNode;
-        if (node) {
-          const newNode = new ImageNode(node.__src, node.__altText, currentWidth, node.__height, nodeKey);
-          node.replace(newNode);
+        const node = $getNodeByKey(nodeKey);
+        if ($isImageNode(node)) {
+          node.setWidth(currentWidth);
         }
+      }, {
+        discrete: true, // Don't trigger history or selection changes
       });
     };
 
@@ -203,7 +215,7 @@ function ImageComponent({
         alt={altText}
         style={{
           width: `${currentWidth}px`,
-          height: 'auto',
+          height: '100',
           borderRadius: '0.5rem',
           display: 'block',
           margin: '0.5rem 0',
@@ -219,11 +231,11 @@ function ImageComponent({
   );
 }
 
-export function $createImageNode({ src, altText, width, height }: {
-  src: string;
-  altText: string;
-  width?: number;
-  height?: number;
+export function $createImageNode({ src, altText, width, height }: { 
+  src: string; 
+  altText: string; 
+  width?: number; 
+  height?: number; 
 }): ImageNode {
   return new ImageNode(src, altText, width, height);
 }
@@ -508,7 +520,7 @@ export function $isChartNode(node: LexicalNode | null | undefined): node is Char
 }
 
 // Commands
-export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number }> =
+export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number }> = 
   createCommand('INSERT_IMAGE_COMMAND');
 
 export const INSERT_CHART_COMMAND: LexicalCommand<{
@@ -572,7 +584,7 @@ function PageCounterPlugin() {
 
     const calculatePages = () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
+      
       timeoutRef.current = setTimeout(() => {
         const contentHeight = editorContent.scrollHeight;
         const pageHeightPx = (A4_HEIGHT_MM * 96) / 25.4;
@@ -641,6 +653,7 @@ interface Props {
 const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
   ({ showPageGuides = true }, ref) => {
     const [editor, setEditor] = useState<LexicalEditor | null>(null);
+    const hasInitialFocusRef = useRef(false);
 
     const initialConfig = {
       namespace: 'CereforgeDocumentEditor',
@@ -664,9 +677,9 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
       editor,
       insertTable: (rows: number, cols: number) => {
         if (editor) {
-          editor.dispatchCommand(INSERT_TABLE_COMMAND, {
-            rows: String(rows),
-            columns: String(cols)
+          editor.dispatchCommand(INSERT_TABLE_COMMAND, { 
+            rows: String(rows), 
+            columns: String(cols) 
           });
         }
       },
@@ -706,7 +719,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         });
         return text;
       },
-      // Text formatting
       toggleBold: () => {
         if (editor) {
           editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
@@ -727,7 +739,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
         }
       },
-      // Block formatting
       toggleHeading: (level: 1 | 2 | 3) => {
         if (!editor) return;
         editor.update(() => {
@@ -756,19 +767,16 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           }
         });
       },
-      // Alignment
       setAlignment: (alignment: 'left' | 'center' | 'right' | 'justify') => {
         if (editor) {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment as ElementFormatType);
         }
       },
-      // Link
       insertLink: (url: string) => {
         if (editor) {
           editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
         }
       },
-      // Check active states
       isBoldActive: () => {
         if (!editor) return false;
         let isBold = false;
@@ -819,7 +827,11 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
       const [localEditor] = useLexicalComposerContext();
       useEffect(() => {
         setEditor(localEditor);
-        setTimeout(() => localEditor.focus(), 0);
+        // Only focus on initial mount, not on every update
+        if (!hasInitialFocusRef.current) {
+          setTimeout(() => localEditor.focus(), 0);
+          hasInitialFocusRef.current = true;
+        }
       }, [localEditor]);
       return null;
     };
@@ -880,7 +892,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
               <EditorCapture />
               <RichTextPlugin
                 contentEditable={
-                  <ContentEditable
+                  <ContentEditable 
                     className="editor-content outline-none prose prose-sm max-w-none focus:outline-none"
                     style={{
                       fontSize: '16px',
