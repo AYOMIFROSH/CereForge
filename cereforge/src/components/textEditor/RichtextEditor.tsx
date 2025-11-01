@@ -154,12 +154,20 @@ const CereforgeEditor: React.FC = () => {
     cellData: string[][];
   } | null>(null);
 
-  // State to track Lexical editor formatting (for toolbar button highlights)
   const [lexicalFormatState, setLexicalFormatState] = useState({
     bold: false,
     italic: false,
     underline: false,
     strikethrough: false,
+    heading1: false,
+    heading2: false,
+    heading3: false,
+    bulletList: false,
+    numberedList: false,
+    blockQuote: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
   });
 
   const documentEditorRef = useRef<LexicalDocumentEditorHandle>(null);
@@ -181,11 +189,24 @@ const CereforgeEditor: React.FC = () => {
     if (editorMode !== 'document' || !documentEditorRef.current?.editor) return;
 
     const updateFormatState = () => {
+      if (!documentEditorRef.current) return;
+
+      const alignment = documentEditorRef.current.getAlignment();
+
       setLexicalFormatState({
         bold: documentEditorRef.current?.isBoldActive() || false,
         italic: documentEditorRef.current?.isItalicActive() || false,
         underline: documentEditorRef.current?.isUnderlineActive() || false,
         strikethrough: documentEditorRef.current?.isStrikethroughActive() || false,
+        heading1: documentEditorRef.current?.isHeadingActive?.(1) || false,
+        heading2: documentEditorRef.current?.isHeadingActive?.(2) || false,
+        heading3: documentEditorRef.current?.isHeadingActive?.(3) || false,
+        bulletList: documentEditorRef.current?.isBulletListActive?.() || false,
+        numberedList: documentEditorRef.current?.isNumberedListActive?.() || false,
+        blockQuote: documentEditorRef.current?.isQuoteActive?.() || false,
+        alignLeft: alignment === 'left',
+        alignCenter: alignment === 'center',
+        alignRight: alignment === 'right',
       });
     };
 
@@ -193,6 +214,9 @@ const CereforgeEditor: React.FC = () => {
     const unregister = lexicalEditor.registerUpdateListener(() => {
       updateFormatState();
     });
+
+    // Initial update
+    updateFormatState();
 
     return () => {
       unregister();
@@ -537,7 +561,6 @@ const CereforgeEditor: React.FC = () => {
       return marks ? marks[format] === true : false;
     }
   };
-
   // Toggle block type - works for both Slate and TipTap
   const toggleBlock = useCallback((format: string) => {
     if (editorMode === 'document') {
@@ -591,35 +614,64 @@ const CereforgeEditor: React.FC = () => {
   }, [editor, editorMode]);
 
   const isBlockActive = (format: string): boolean => {
-    const [match] = Editor.nodes(editor, {
-      match: (n) =>
-        !Editor.isEditor(n) &&
-        SlateElement.isElement(n) &&
-        n.type === format,
-    });
-    return !!match;
+    if (editorMode === 'document') {
+      // Map Slate block types to Lexical state
+      switch (format) {
+        case 'heading1':
+          return lexicalFormatState.heading1;
+        case 'heading2':
+          return lexicalFormatState.heading2;
+        case 'heading3':
+          return lexicalFormatState.heading3;
+        case 'bulleted-list':
+          return lexicalFormatState.bulletList;
+        case 'numbered-list':
+          return lexicalFormatState.numberedList;
+        case 'block-quote':
+          return lexicalFormatState.blockQuote;
+        default:
+          return false;
+      }
+    } else {
+      // Slate logic (email mode)
+      const [match] = Editor.nodes(editor, {
+        match: (n) =>
+          !Editor.isEditor(n) &&
+          SlateElement.isElement(n) &&
+          n.type === format,
+      });
+      return !!match;
+    }
   };
 
   const getCurrentAlignment = useCallback((): string => {
-    const [match] = Editor.nodes(editor, {
-      match: (n) =>
-        !Editor.isEditor(n) &&
-        SlateElement.isElement(n) &&
-        Editor.isBlock(editor, n),
-    });
+    if (editorMode === 'document') {
+      // Return current alignment from Lexical state
+      if (lexicalFormatState.alignCenter) return 'center';
+      if (lexicalFormatState.alignRight) return 'right';
+      return 'left';
+    } else {
+      // Slate logic (email mode)
+      const [match] = Editor.nodes(editor, {
+        match: (n) =>
+          !Editor.isEditor(n) &&
+          SlateElement.isElement(n) &&
+          Editor.isBlock(editor, n),
+      });
 
-    if (match) {
-      const [node] = match;
-      return (node as any).align || 'left';
+      if (match) {
+        const [node] = match;
+        return (node as any).align || 'left';
+      }
+      return 'left';
     }
-    return 'left';
-  }, [editor]);
+  }, [editor, editorMode, lexicalFormatState]);
 
   // Set alignment 
   const setAlignment = useCallback((align: string) => {
     if (editorMode === 'document') {
       // Lexical alignment
-      documentEditorRef.current?.setAlignment(align as 'left' | 'center' | 'right' | 'justify');
+      documentEditorRef.current?.setAlignment(align as 'left' | 'center' | 'right' );
     } else {
       // Slate alignment (email mode)
       Transforms.setNodes<SlateElement>(
@@ -679,53 +731,59 @@ const CereforgeEditor: React.FC = () => {
   const insertLink = useCallback((url: string, text: string) => {
     if (!url) return;
 
-    if (editingLinkPath) {
-      Transforms.setNodes(
-        editor,
-        { url } as Partial<CustomElement>,
-        { at: editingLinkPath }
-      );
-
-      if (text && text !== Editor.string(editor, editingLinkPath)) {
-        const linkNode = Editor.node(editor, editingLinkPath)[0];
-        if (SlateElement.isElement(linkNode) && linkNode.type === 'link') {
-          for (let i = linkNode.children.length - 1; i >= 0; i--) {
-            Transforms.removeNodes(editor, { at: [...editingLinkPath, i] });
-          }
-
-          Transforms.insertNodes(
-            editor,
-            [{ text }],
-            { at: [...editingLinkPath, 0] }
-          );
-        }
-      }
+    if (editorMode === 'document') {
+      // Lexical link insertion with custom text
+      documentEditorRef.current?.insertLink(url, text);
     } else {
-      const { selection } = editor;
-      const isCollapsed = selection && Range.isCollapsed(selection);
-
-      if (isCollapsed) {
-        const link: CustomElement = {
-          type: 'link',
-          url,
-          children: [{ text: text || url }],
-        };
-        Transforms.insertNodes(editor, link);
-      } else {
-        Transforms.wrapNodes(
+      // Slate link insertion (email mode)
+      if (editingLinkPath) {
+        Transforms.setNodes(
           editor,
-          {
+          { url } as Partial<CustomElement>,
+          { at: editingLinkPath }
+        );
+
+        if (text && text !== Editor.string(editor, editingLinkPath)) {
+          const linkNode = Editor.node(editor, editingLinkPath)[0];
+          if (SlateElement.isElement(linkNode) && linkNode.type === 'link') {
+            for (let i = linkNode.children.length - 1; i >= 0; i--) {
+              Transforms.removeNodes(editor, { at: [...editingLinkPath, i] });
+            }
+
+            Transforms.insertNodes(
+              editor,
+              [{ text }],
+              { at: [...editingLinkPath, 0] }
+            );
+          }
+        }
+      } else {
+        const { selection } = editor;
+        const isCollapsed = selection && Range.isCollapsed(selection);
+
+        if (isCollapsed) {
+          const link: CustomElement = {
             type: 'link',
             url,
-            children: [],
-          } as CustomElement,
-          { split: true }
-        );
-      }
+            children: [{ text: text || url }],
+          };
+          Transforms.insertNodes(editor, link);
+        } else {
+          Transforms.wrapNodes(
+            editor,
+            {
+              type: 'link',
+              url,
+              children: [],
+            } as CustomElement,
+            { split: true }
+          );
+        }
 
-      Transforms.move(editor, { distance: 1, unit: 'offset' });
-      Transforms.insertText(editor, ' ');
-      Transforms.move(editor, { distance: 1, unit: 'offset' });
+        Transforms.move(editor, { distance: 1, unit: 'offset' });
+        Transforms.insertText(editor, ' ');
+        Transforms.move(editor, { distance: 1, unit: 'offset' });
+      }
     }
 
     setShowLinkPopover(false);
@@ -733,7 +791,7 @@ const CereforgeEditor: React.FC = () => {
     setLinkText('');
     setEditingLinkPath(null);
     ReactEditor.focus(editor);
-  }, [editor, editingLinkPath]);
+  }, [editor, editorMode, editingLinkPath]);
 
   const removeLink = useCallback(() => {
     Transforms.unwrapNodes(editor, {
@@ -751,6 +809,16 @@ const CereforgeEditor: React.FC = () => {
   }, [editor]);
 
   const handleLinkClick = useCallback(() => {
+    if (editorMode === 'document') {
+      // For document mode, just show the popover with empty fields
+      setLinkUrl('');
+      setLinkText('');
+      setShowLinkPopover(true);
+      setLinkPopoverPosition({ top: 100, left: 400 }); // Fixed position for document mode
+      return;
+    }
+
+    // Existing Slate logic for email mode...
     const { selection } = editor;
     if (!selection) return;
 
@@ -782,7 +850,7 @@ const CereforgeEditor: React.FC = () => {
     }
 
     setShowLinkPopover(true);
-  }, [editor]);
+  }, [editor, editorMode]);
 
   const handleEditLink = useCallback((path: Path, element: Extract<CustomElement, { type: 'link' }>) => {
     const domNode = ReactEditor.toDOMNode(editor, element);

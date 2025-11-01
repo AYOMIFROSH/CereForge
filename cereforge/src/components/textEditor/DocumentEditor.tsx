@@ -4,17 +4,17 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
-import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
-import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list';
+import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
+import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, $isListNode } from '@lexical/list';
 import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { TableCellNode, TableNode, TableRowNode, INSERT_TABLE_COMMAND } from '@lexical/table';
-import { 
-  $getRoot, 
-  LexicalEditor, 
-  $getSelection, 
-  $isRangeSelection, 
-  FORMAT_TEXT_COMMAND, 
-  FORMAT_ELEMENT_COMMAND, 
+import {
+  $getRoot,
+  LexicalEditor,
+  $getSelection,
+  $isRangeSelection,
+  FORMAT_TEXT_COMMAND,
+  FORMAT_ELEMENT_COMMAND,
   ElementFormatType,
   DecoratorNode,
   NodeKey,
@@ -26,7 +26,9 @@ import {
   COMMAND_PRIORITY_EDITOR,
   createCommand,
   LexicalCommand,
-  $getNodeByKey
+  $getNodeByKey,
+  $isElementNode,
+  $isTextNode
 } from 'lexical';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $generateHtmlFromNodes } from '@lexical/html';
@@ -34,6 +36,7 @@ import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { $setBlocksType } from '@lexical/selection';
+
 
 // A4 Page Constants
 const A4_WIDTH_MM = 210;
@@ -126,7 +129,6 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     };
   }
 
-  // Add method to update width without replacing node
   setWidth(width: number): void {
     const writable = this.getWritable();
     writable.__width = width;
@@ -146,17 +148,16 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-// Image Component with Resize Handle - FIXED
-function ImageComponent({ 
-  src, 
-  altText, 
-  width, 
+function ImageComponent({
+  src,
+  altText,
+  width,
   nodeKey,
-  editor 
-}: { 
-  src: string; 
-  altText: string; 
-  width?: number; 
+  editor
+}: {
+  src: string;
+  altText: string;
+  width?: number;
   height?: number;
   nodeKey: NodeKey;
   editor: LexicalEditor;
@@ -186,15 +187,14 @@ function ImageComponent({
 
     const handleMouseUp = () => {
       setIsResizing(false);
-      
-      // Update the node's width using setWidth method
+
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if ($isImageNode(node)) {
           node.setWidth(currentWidth);
         }
       }, {
-        discrete: true, // Don't trigger history or selection changes
+        discrete: true,
       });
     };
 
@@ -215,7 +215,7 @@ function ImageComponent({
         alt={altText}
         style={{
           width: `${currentWidth}px`,
-          height: '100',
+          height: 'auto',
           borderRadius: '0.5rem',
           display: 'block',
           margin: '0.5rem 0',
@@ -231,11 +231,11 @@ function ImageComponent({
   );
 }
 
-export function $createImageNode({ src, altText, width, height }: { 
-  src: string; 
-  altText: string; 
-  width?: number; 
-  height?: number; 
+export function $createImageNode({ src, altText, width, height }: {
+  src: string;
+  altText: string;
+  width?: number;
+  height?: number;
 }): ImageNode {
   return new ImageNode(src, altText, width, height);
 }
@@ -335,7 +335,6 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-// Chart Component
 function ChartComponent({
   chartType,
   title,
@@ -520,7 +519,7 @@ export function $isChartNode(node: LexicalNode | null | undefined): node is Char
 }
 
 // Commands
-export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number }> = 
+export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number }> =
   createCommand('INSERT_IMAGE_COMMAND');
 
 export const INSERT_CHART_COMMAND: LexicalCommand<{
@@ -584,7 +583,7 @@ function PageCounterPlugin() {
 
     const calculatePages = () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      
+
       timeoutRef.current = setTimeout(() => {
         const contentHeight = editorContent.scrollHeight;
         const pageHeightPx = (A4_HEIGHT_MM * 96) / 25.4;
@@ -636,14 +635,19 @@ export interface LexicalDocumentEditorHandle {
   toggleNumberedList: () => void;
   toggleQuote: () => void;
   // Alignment
-  setAlignment: (alignment: 'left' | 'center' | 'right' | 'justify') => void;
-  // Link
-  insertLink: (url: string) => void;
+  setAlignment: (alignment: 'left' | 'center' | 'right' ) => void;
+  getAlignment: () => string;
+  // Link - UPDATED
+  insertLink: (url: string, text?: string) => void;
   // Check active states
   isBoldActive: () => boolean;
   isItalicActive: () => boolean;
   isUnderlineActive: () => boolean;
   isStrikethroughActive: () => boolean;
+  isHeadingActive: (level: 1 | 2 | 3) => boolean;
+  isBulletListActive: () => boolean;
+  isNumberedListActive: () => boolean;
+  isQuoteActive: () => boolean;
 }
 
 interface Props {
@@ -677,9 +681,9 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
       editor,
       insertTable: (rows: number, cols: number) => {
         if (editor) {
-          editor.dispatchCommand(INSERT_TABLE_COMMAND, { 
-            rows: String(rows), 
-            columns: String(cols) 
+          editor.dispatchCommand(INSERT_TABLE_COMMAND, {
+            rows: String(rows),
+            columns: String(cols)
           });
         }
       },
@@ -767,13 +771,54 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           }
         });
       },
-      setAlignment: (alignment: 'left' | 'center' | 'right' | 'justify') => {
+      setAlignment: (alignment: 'left' | 'center' | 'right' ) => {
         if (editor) {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment as ElementFormatType);
         }
       },
-      insertLink: (url: string) => {
+      getAlignment: () => {
+        if (!editor) return 'left';
+        let alignment = 'left';
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor.getNode();
+            const element = anchor.getKey() === 'root'
+              ? anchor
+              : anchor.getTopLevelElementOrThrow();
+
+            if ($isElementNode(element)) {
+              const formatType = element.getFormatType();
+              alignment = formatType || 'left';
+            }
+          }
+        });
+        return alignment;
+      },
+      insertLink: (url: string, text?: string) => {
         if (editor) {
+          editor.update(() => {
+            const selection = $getSelection();
+
+            if ($isRangeSelection(selection)) {
+              if (text && selection.isCollapsed()) {
+                selection.insertText(text);
+
+                const node = selection.anchor.getNode();
+                const anchorOffset = selection.anchor.offset;
+
+                if ($isTextNode(node)) {
+                  selection.setTextNodeRange(
+                    node,
+                    anchorOffset - text.length,
+                    node,
+                    anchorOffset
+                  );
+                }
+              }
+            }
+          });
+
           editor.dispatchCommand(TOGGLE_LINK_COMMAND, url);
         }
       },
@@ -821,13 +866,82 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         });
         return isStrike;
       },
+      isHeadingActive: (level: 1 | 2 | 3) => {
+        if (!editor) return false;
+        let isHeading = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor.getNode();
+            const element = anchor.getKey() === 'root'
+              ? anchor
+              : anchor.getTopLevelElementOrThrow();
+
+            if ($isHeadingNode(element)) {
+              isHeading = element.getTag() === `h${level}`;
+            }
+          }
+        });
+        return isHeading;
+      },
+      isBulletListActive: () => {
+        if (!editor) return false;
+        let isList = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor.getNode();
+            const element = anchor.getKey() === 'root'
+              ? anchor
+              : anchor.getTopLevelElementOrThrow();
+
+            if ($isListNode(element)) {
+              isList = element.getListType() === 'bullet';
+            }
+          }
+        });
+        return isList;
+      },
+      isNumberedListActive: () => {
+        if (!editor) return false;
+        let isList = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor.getNode();
+            const element = anchor.getKey() === 'root'
+              ? anchor
+              : anchor.getTopLevelElementOrThrow();
+
+            if ($isListNode(element)) {
+              isList = element.getListType() === 'number';
+            }
+          }
+        });
+        return isList;
+      },
+      isQuoteActive: () => {
+        if (!editor) return false;
+        let isQuote = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor.getNode();
+            const element = anchor.getKey() === 'root'
+              ? anchor
+              : anchor.getTopLevelElementOrThrow();
+
+            isQuote = $isQuoteNode(element);
+          }
+        });
+        return isQuote;
+      },
     }), [editor]);
 
     const EditorCapture = () => {
       const [localEditor] = useLexicalComposerContext();
       useEffect(() => {
         setEditor(localEditor);
-        // Only focus on initial mount, not on every update
         if (!hasInitialFocusRef.current) {
           setTimeout(() => localEditor.focus(), 0);
           hasInitialFocusRef.current = true;
@@ -892,7 +1006,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
               <EditorCapture />
               <RichTextPlugin
                 contentEditable={
-                  <ContentEditable 
+                  <ContentEditable
                     className="editor-content outline-none prose prose-sm max-w-none focus:outline-none"
                     style={{
                       fontSize: '16px',
