@@ -5,7 +5,7 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
-import { ListItemNode, ListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, $isListNode } from '@lexical/list';
+import { ListNode, ListItemNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, $isListNode } from '@lexical/list';
 import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
 import { TableCellNode, TableNode, TableRowNode, INSERT_TABLE_COMMAND } from '@lexical/table';
 import {
@@ -28,7 +28,7 @@ import {
   LexicalCommand,
   $getNodeByKey,
   $isElementNode,
-  $isTextNode
+  $isTextNode,
 } from 'lexical';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $generateHtmlFromNodes } from '@lexical/html';
@@ -37,6 +37,7 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { $setBlocksType } from '@lexical/selection';
 
+/* @refresh reset */
 
 // A4 Page Constants
 const A4_WIDTH_MM = 210;
@@ -629,21 +630,33 @@ export interface LexicalDocumentEditorHandle {
   toggleItalic: () => void;
   toggleUnderline: () => void;
   toggleStrikethrough: () => void;
+  // NEW: Add these missing format commands
+  toggleSubscript: () => void;
+  toggleSuperscript: () => void;
+  setFontSize: (size: string) => void;
+  setTextColor: (color: string) => void;
+  setBackgroundColor: (color: string) => void;
   // Block commands
   toggleHeading: (level: 1 | 2 | 3) => void;
   toggleBulletList: () => void;
   toggleNumberedList: () => void;
   toggleQuote: () => void;
   // Alignment
-  setAlignment: (alignment: 'left' | 'center' | 'right' ) => void;
+  setAlignment: (alignment: 'left' | 'center' | 'right') => void;
   getAlignment: () => string;
-  // Link - UPDATED
+  // Link
   insertLink: (url: string, text?: string) => void;
   // Check active states
   isBoldActive: () => boolean;
   isItalicActive: () => boolean;
   isUnderlineActive: () => boolean;
   isStrikethroughActive: () => boolean;
+  // NEW: Add these checks
+  isSubscriptActive: () => boolean;
+  isSuperscriptActive: () => boolean;
+  getCurrentFontSize: () => string;
+  getCurrentTextColor: () => string;
+  getCurrentBackgroundColor: () => string;
   isHeadingActive: (level: 1 | 2 | 3) => boolean;
   isBulletListActive: () => boolean;
   isNumberedListActive: () => boolean;
@@ -771,13 +784,158 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           }
         });
       },
-      setAlignment: (alignment: 'left' | 'center' | 'right' ) => {
+
+      // NEW: Subscript/Superscript
+      toggleSubscript: () => {
+        if (editor) {
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'subscript');
+        }
+      },
+      toggleSuperscript: () => {
+        if (editor) {
+          editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'superscript');
+        }
+      },
+
+      // NEW: Font Size
+      setFontSize: (size: string) => {
+        if (editor) {
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              // Apply style instead of format
+              selection.getNodes().forEach(node => {
+                if ($isTextNode(node)) {
+                  node.setStyle(`font-size: ${size}`);
+                }
+              });
+            }
+          });
+        }
+      },
+
+      // NEW: Text Color
+      setTextColor: (color: string) => {
+        if (editor) {
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              // Apply style instead of format
+              selection.getNodes().forEach(node => {
+                if ($isTextNode(node)) {
+                  const currentStyle = node.getStyle() || '';
+                  const newStyle = currentStyle.replace(/color:[^;]+;?/g, '') + `color: ${color};`;
+                  node.setStyle(newStyle.trim());
+                }
+              });
+            }
+          });
+        }
+      },
+
+
+      // NEW: Background Color
+      setBackgroundColor: (color: string) => {
+        if (editor) {
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              // Apply style instead of format
+              selection.getNodes().forEach(node => {
+                if ($isTextNode(node)) {
+                  const currentStyle = node.getStyle() || '';
+                  const newStyle = currentStyle.replace(/background-color:[^;]+;?/g, '') + `background-color: ${color};`;
+                  node.setStyle(newStyle.trim());
+                }
+              });
+            }
+          });
+        }
+      },
+      // NEW: Check active states
+      isSubscriptActive: () => {
+        if (!editor) return false;
+        let isActive = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            isActive = selection.hasFormat('subscript');
+          }
+        });
+        return isActive;
+      },
+
+      isSuperscriptActive: () => {
+        if (!editor) return false;
+        let isActive = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            isActive = selection.hasFormat('superscript');
+          }
+        });
+        return isActive;
+      },
+
+      getCurrentFontSize: () => {
+        if (!editor) return '16px';
+        let fontSize = '16px';
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const node = selection.anchor.getNode();
+            if ($isTextNode(node)) {
+              const style = node.getStyle() || '';
+              const match = style.match(/font-size:\s*([^;]+)/);
+              if (match) fontSize = match[1].trim();
+            }
+          }
+        });
+        return fontSize;
+      },
+
+      getCurrentTextColor: () => {
+        if (!editor) return '#000000';
+        let color = '#000000';
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const node = selection.anchor.getNode();
+            if ($isTextNode(node)) {
+              const style = node.getStyle() || '';
+              const match = style.match(/color:\s*([^;]+)/);
+              if (match) color = match[1].trim();
+            }
+          }
+        });
+        return color;
+      },
+
+
+      getCurrentBackgroundColor: () => {
+        if (!editor) return 'transparent';
+        let bgColor = 'transparent';
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const node = selection.anchor.getNode();
+            if ($isTextNode(node)) {
+              const style = node.getStyle() || '';
+              const match = style.match(/background-color:\s*([^;]+)/);
+              if (match) bgColor = match[1].trim();
+            }
+          }
+        });
+        return bgColor;
+      },
+      setAlignment: (alignment: 'left' | 'center' | 'right') => {
         if (editor) {
           editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment as ElementFormatType);
         }
       },
       getAlignment: () => {
         if (!editor) return 'left';
+
         let alignment = 'left';
         editor.getEditorState().read(() => {
           const selection = $getSelection();
@@ -793,6 +951,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
             }
           }
         });
+
         return alignment;
       },
       insertLink: (url: string, text?: string) => {
@@ -885,40 +1044,34 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         return isHeading;
       },
       isBulletListActive: () => {
-        if (!editor) return false;
-        let isList = false;
-        editor.getEditorState().read(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            const anchor = selection.anchor.getNode();
-            const element = anchor.getKey() === 'root'
-              ? anchor
-              : anchor.getTopLevelElementOrThrow();
-
-            if ($isListNode(element)) {
-              isList = element.getListType() === 'bullet';
-            }
-          }
-        });
-        return isList;
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return false;
+        const anchorNode = selection.anchor.getNode();
+        const parent = anchorNode.getParent();
+        return !!(parent && $isListNode(parent) && parent.getListType() === "bullet");
       },
       isNumberedListActive: () => {
         if (!editor) return false;
-        let isList = false;
+        let isActive = false;
         editor.getEditorState().read(() => {
           const selection = $getSelection();
           if ($isRangeSelection(selection)) {
             const anchor = selection.anchor.getNode();
-            const element = anchor.getKey() === 'root'
-              ? anchor
-              : anchor.getTopLevelElementOrThrow();
+            let node = anchor;
 
-            if ($isListNode(element)) {
-              isList = element.getListType() === 'number';
+            // Traverse up to find list node
+            while (node) {
+              if ($isListNode(node)) {
+                isActive = node.getListType() === 'number';
+                break;
+              }
+              const parent = node.getParent();
+              if (!parent) break;
+              node = parent;
             }
           }
         });
-        return isList;
+        return isActive;
       },
       isQuoteActive: () => {
         if (!editor) return false;
@@ -940,13 +1093,24 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
 
     const EditorCapture = () => {
       const [localEditor] = useLexicalComposerContext();
+
       useEffect(() => {
         setEditor(localEditor);
-        if (!hasInitialFocusRef.current) {
-          setTimeout(() => localEditor.focus(), 0);
-          hasInitialFocusRef.current = true;
+
+        // ✅ BETTER: Use requestAnimationFrame instead of setTimeout(0)
+        if (!hasInitialFocusRef.current && localEditor) {
+          requestAnimationFrame(() => {
+            try {
+              localEditor.focus();
+              hasInitialFocusRef.current = true;
+            } catch (err) {
+              // Silent fail if editor unmounted
+              console.warn('Could not focus editor:', err);
+            }
+          });
         }
       }, [localEditor]);
+
       return null;
     };
 

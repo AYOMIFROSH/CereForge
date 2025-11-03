@@ -13,6 +13,7 @@ export default defineConfig(({ command, mode }) => {
       react(),
     ],
 
+
     resolve: {
       alias: {
         '@': '/src',
@@ -29,6 +30,9 @@ export default defineConfig(({ command, mode }) => {
       port: parseInt(env.VITE_DEV_PORT) || 5173,
       host: true, // Allow external connections
       strictPort: true,
+      hmr: {
+        overlay: true, // Show errors in browser
+      },
       headers: {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
@@ -122,12 +126,14 @@ export default defineConfig(({ command, mode }) => {
 
     // Optimization
     optimizeDeps: {
+      force: true,
       include: [
         'react',
         'react-dom',
         'react/jsx-runtime',
       ],
     },
+
 
     // Security headers for development (production should be handled by your server)
     // Note: Headers are already included in the server config above

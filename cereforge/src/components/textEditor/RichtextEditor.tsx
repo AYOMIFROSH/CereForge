@@ -1,4 +1,3 @@
-// RichtextEditor.tsx - Updated with Email and Document Modes
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createEditor, Transforms, Editor, Element as SlateElement, BaseEditor, Descendant, Path, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
@@ -6,13 +5,21 @@ import { withHistory, HistoryEditor } from 'slate-history';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bold, Italic, Underline, Strikethrough, Subscript, Superscript,
-  AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  AlignLeft, AlignCenter, AlignRight, 
   List, ListOrdered, Quote,
   Image, Link2, Upload, X, Check,
   Type, Paintbrush, Edit2, Trash2,
   ChevronDown, ChevronUp, Download, FileText, File, Code
 } from 'lucide-react';
-import { $getSelection, $isRangeSelection } from 'lexical';
+import { 
+  $getSelection, 
+  $isRangeSelection,
+  $isElementNode,
+  COMMAND_PRIORITY_LOW,
+  SELECTION_CHANGE_COMMAND 
+} from 'lexical';
+import { $isListNode } from '@lexical/list';
+import { $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 
 // Import the independent sidebar
 import EditorSidebar from './TextSidebar';
@@ -184,45 +191,108 @@ const CereforgeEditor: React.FC = () => {
   useEffect(() => {
     ReactEditor.focus(editor);
   }, [editor]);
+  
 
   useEffect(() => {
-    if (editorMode !== 'document' || !documentEditorRef.current?.editor) return;
+  if (editorMode !== 'document' || !documentEditorRef.current?.editor) return;
 
-    const updateFormatState = () => {
-      if (!documentEditorRef.current) return;
+  const lexicalEditor = documentEditorRef.current.editor;
+  const docEditorRef = documentEditorRef.current; // ✅ Capture ref in closure
 
-      const alignment = documentEditorRef.current.getAlignment();
+  const updateFormatState = () => {
+    if (!docEditorRef) return;
 
-      setLexicalFormatState({
-        bold: documentEditorRef.current?.isBoldActive() || false,
-        italic: documentEditorRef.current?.isItalicActive() || false,
-        underline: documentEditorRef.current?.isUnderlineActive() || false,
-        strikethrough: documentEditorRef.current?.isStrikethroughActive() || false,
-        heading1: documentEditorRef.current?.isHeadingActive?.(1) || false,
-        heading2: documentEditorRef.current?.isHeadingActive?.(2) || false,
-        heading3: documentEditorRef.current?.isHeadingActive?.(3) || false,
-        bulletList: documentEditorRef.current?.isBulletListActive?.() || false,
-        numberedList: documentEditorRef.current?.isNumberedListActive?.() || false,
-        blockQuote: documentEditorRef.current?.isQuoteActive?.() || false,
-        alignLeft: alignment === 'left',
-        alignCenter: alignment === 'center',
-        alignRight: alignment === 'right',
+    try {
+      // ✅ PRODUCTION: Read directly from editor state
+      lexicalEditor.getEditorState().read(() => {
+        const selection = $getSelection();
+        
+        if (!$isRangeSelection(selection)) {
+          return;
+        }
+
+        const anchor = selection.anchor.getNode();
+        const element = anchor.getKey() === 'root'
+          ? anchor
+          : anchor.getTopLevelElementOrThrow();
+
+        // Get alignment
+        const alignment = $isElementNode(element) 
+          ? (element.getFormatType() || 'left')
+          : 'left';
+
+        // Check for lists
+        let bulletActive = false;
+        let numberedActive = false;
+        let node = anchor;
+        
+        while (node) {
+          if ($isListNode(node)) {
+            const listType = node.getListType();
+            bulletActive = listType === 'bullet';
+            numberedActive = listType === 'number';
+            break;
+          }
+          const parent = node.getParent();
+          if (!parent) break;
+          node = parent;
+        }
+
+        // Check for headings
+        const heading1 = $isHeadingNode(element) && element.getTag() === 'h1';
+        const heading2 = $isHeadingNode(element) && element.getTag() === 'h2';
+        const heading3 = $isHeadingNode(element) && element.getTag() === 'h3';
+
+        // Check for quote
+        const blockQuote = $isQuoteNode(element);
+
+        // ✅ Single state update with all data
+        setLexicalFormatState({
+          bold: selection.hasFormat('bold'),
+          italic: selection.hasFormat('italic'),
+          underline: selection.hasFormat('underline'),
+          strikethrough: selection.hasFormat('strikethrough'),
+          heading1,
+          heading2,
+          heading3,
+          bulletList: bulletActive,
+          numberedList: numberedActive,
+          blockQuote,
+          alignLeft: alignment === 'left',
+          alignCenter: alignment === 'center',
+          alignRight: alignment === 'right',
+        });
       });
-    };
+    } catch (error) {
+      console.warn('Format state update failed:', error);
+    }
+  };
 
-    const lexicalEditor = documentEditorRef.current.editor;
-    const unregister = lexicalEditor.registerUpdateListener(() => {
+  // ✅ PRODUCTION: Direct update on selection change
+  const removeSelectionListener = lexicalEditor.registerCommand(
+    SELECTION_CHANGE_COMMAND,
+    () => {
+      updateFormatState();
+      return false;
+    },
+    COMMAND_PRIORITY_LOW
+  );
+
+  // ✅ PRODUCTION: Update on editor state changes
+  const unregister = lexicalEditor.registerUpdateListener(({ editorState }) => {
+    editorState.read(() => {
       updateFormatState();
     });
+  });
 
-    // Initial update
-    updateFormatState();
+  // ✅ Initial update
+  updateFormatState();
 
-    return () => {
-      unregister();
-    };
-  }, [editorMode]);
-
+  return () => {
+    unregister();
+    removeSelectionListener();
+  };
+}, [editorMode]);
 
   // Helper function to ensure empty paragraph after void elements
   const ensureEmptyParagraphAfter = useCallback(() => {
@@ -522,7 +592,6 @@ const CereforgeEditor: React.FC = () => {
 
   const toggleFormat = useCallback((format: keyof Omit<CustomText, 'text'>) => {
     if (editorMode === 'document') {
-      // Lexical commands
       switch (format) {
         case 'bold':
           documentEditorRef.current?.toggleBold();
@@ -536,12 +605,14 @@ const CereforgeEditor: React.FC = () => {
         case 'strikethrough':
           documentEditorRef.current?.toggleStrikethrough();
           break;
-        // Note: subscript/superscript not implemented in Lexical yet
-        default:
-          console.warn(`Format ${format} not supported in document mode`);
+        case 'subscript':
+          documentEditorRef.current?.toggleSubscript();
+          break;
+        case 'superscript':
+          documentEditorRef.current?.toggleSuperscript();
+          break;
       }
     } else {
-      // Slate logic (email mode)
       const isActive = isFormatActive(format);
       if (isActive) {
         Editor.removeMark(editor, format);
@@ -550,6 +621,7 @@ const CereforgeEditor: React.FC = () => {
       }
     }
   }, [editor, editorMode]);
+
 
   const isFormatActive = (format: keyof Omit<CustomText, 'text'>): boolean => {
     if (editorMode === 'document') {
@@ -561,57 +633,58 @@ const CereforgeEditor: React.FC = () => {
       return marks ? marks[format] === true : false;
     }
   };
+  // Toggle block type 
   // Toggle block type - works for both Slate and TipTap
-  const toggleBlock = useCallback((format: string) => {
-    if (editorMode === 'document') {
-      // Lexical commands
-      switch (format) {
-        case 'heading1':
-          documentEditorRef.current?.toggleHeading(1);
-          break;
-        case 'heading2':
-          documentEditorRef.current?.toggleHeading(2);
-          break;
-        case 'heading3':
-          documentEditorRef.current?.toggleHeading(3);
-          break;
-        case 'bulleted-list':
-          documentEditorRef.current?.toggleBulletList();
-          break;
-        case 'numbered-list':
-          documentEditorRef.current?.toggleNumberedList();
-          break;
-        case 'block-quote':
-          documentEditorRef.current?.toggleQuote();
-          break;
-        default:
-          console.warn(`Block type ${format} not supported in document mode`);
-      }
-    } else {
-      // Slate logic (email mode)
-      const isActive = isBlockActive(format);
-      const isList = ['bulleted-list', 'numbered-list'].includes(format);
-
-      Transforms.unwrapNodes(editor, {
-        match: (n) =>
-          !Editor.isEditor(n) &&
-          SlateElement.isElement(n) &&
-          ['bulleted-list', 'numbered-list'].includes(n.type),
-        split: true,
-      });
-
-      const newProperties: Partial<CustomElement> = {
-        type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
-      };
-
-      Transforms.setNodes<SlateElement>(editor, newProperties);
-
-      if (!isActive && isList) {
-        const block: CustomElement = { type: format as any, children: [] };
-        Transforms.wrapNodes(editor, block);
-      }
+const toggleBlock = useCallback((format: string) => {
+  if (editorMode === 'document') {
+    // ✅ Lexical commands - state updates via listener
+    switch (format) {
+      case 'heading1':
+        documentEditorRef.current?.toggleHeading(1);
+        break;
+      case 'heading2':
+        documentEditorRef.current?.toggleHeading(2);
+        break;
+      case 'heading3':
+        documentEditorRef.current?.toggleHeading(3);
+        break;
+      case 'bulleted-list':
+        documentEditorRef.current?.toggleBulletList();
+        break;
+      case 'numbered-list':
+        documentEditorRef.current?.toggleNumberedList();
+        break;
+      case 'block-quote':
+        documentEditorRef.current?.toggleQuote();
+        break;
+      default:
+        console.warn(`Block type ${format} not supported in document mode`);
     }
-  }, [editor, editorMode]);
+  } else {
+    // Slate logic (email mode)
+    const isActive = isBlockActive(format);
+    const isList = ['bulleted-list', 'numbered-list'].includes(format);
+
+    Transforms.unwrapNodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) &&
+        SlateElement.isElement(n) &&
+        ['bulleted-list', 'numbered-list'].includes(n.type),
+      split: true,
+    });
+
+    const newProperties: Partial<CustomElement> = {
+      type: (isActive ? 'paragraph' : isList ? 'list-item' : format) as any,
+    };
+
+    Transforms.setNodes<SlateElement>(editor, newProperties);
+
+    if (!isActive && isList) {
+      const block: CustomElement = { type: format as any, children: [] };
+      Transforms.wrapNodes(editor, block);
+    }
+  }
+}, [editor, editorMode]);
 
   const isBlockActive = (format: string): boolean => {
     if (editorMode === 'document') {
@@ -645,44 +718,43 @@ const CereforgeEditor: React.FC = () => {
   };
 
   const getCurrentAlignment = useCallback((): string => {
-    if (editorMode === 'document') {
-      // Return current alignment from Lexical state
-      if (lexicalFormatState.alignCenter) return 'center';
-      if (lexicalFormatState.alignRight) return 'right';
-      return 'left';
-    } else {
-      // Slate logic (email mode)
-      const [match] = Editor.nodes(editor, {
-        match: (n) =>
-          !Editor.isEditor(n) &&
-          SlateElement.isElement(n) &&
-          Editor.isBlock(editor, n),
-      });
+  if (editorMode === 'document') {
+    // ✅ Return current alignment from tracked Lexical state
+    if (lexicalFormatState.alignCenter) return 'center';
+    if (lexicalFormatState.alignRight) return 'right';
+    return 'left';
+  } else {
+    // Slate logic (email mode)
+    const [match] = Editor.nodes(editor, {
+      match: (n) =>
+        !Editor.isEditor(n) &&
+        SlateElement.isElement(n) &&
+        Editor.isBlock(editor, n),
+    });
 
-      if (match) {
-        const [node] = match;
-        return (node as any).align || 'left';
-      }
-      return 'left';
+    if (match) {
+      const [node] = match;
+      return (node as any).align || 'left';
     }
-  }, [editor, editorMode, lexicalFormatState]);
-
+    return 'left';
+  }
+}, [editor, editorMode, lexicalFormatState]);
   // Set alignment 
-  const setAlignment = useCallback((align: string) => {
-    if (editorMode === 'document') {
-      // Lexical alignment
-      documentEditorRef.current?.setAlignment(align as 'left' | 'center' | 'right' );
-    } else {
-      // Slate alignment (email mode)
-      Transforms.setNodes<SlateElement>(
-        editor,
-        { align } as Partial<CustomElement>,
-        {
-          match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
-        }
-      );
-    }
-  }, [editor, editorMode]);
+const setAlignment = useCallback((align: string) => {
+  if (editorMode === 'document') {
+    // ✅ Lexical alignment - state updates via listener automatically
+    documentEditorRef.current?.setAlignment(align as 'left' | 'center' | 'right');
+  } else {
+    // Slate alignment (email mode)
+    Transforms.setNodes<SlateElement>(
+      editor,
+      { align } as Partial<CustomElement>,
+      {
+        match: (n) => !Editor.isEditor(n) && SlateElement.isElement(n) && Editor.isBlock(editor, n)
+      }
+    );
+  }
+}, [editor, editorMode]);
 
   const setElementAlignment = useCallback((path: Path, align: 'left' | 'center' | 'right') => {
     Transforms.setNodes(
@@ -694,19 +766,32 @@ const CereforgeEditor: React.FC = () => {
   }, [editor]);
 
   const setFontSize = useCallback((size: string) => {
-    Editor.addMark(editor, 'fontSize', size);
+    if (editorMode === 'document') {
+      documentEditorRef.current?.setFontSize(size);
+    } else {
+      Editor.addMark(editor, 'fontSize', size);
+    }
     setShowFontSize(false);
-  }, [editor]);
+  }, [editor, editorMode]);
 
   const setTextColor = useCallback((color: string) => {
-    Editor.addMark(editor, 'color', color);
+    if (editorMode === 'document') {
+      documentEditorRef.current?.setTextColor(color);
+    } else {
+      Editor.addMark(editor, 'color', color);
+    }
     setShowTextColor(false);
-  }, [editor]);
+  }, [editor, editorMode]);
+
 
   const setBgColor = useCallback((color: string) => {
-    Editor.addMark(editor, 'backgroundColor', color);
+    if (editorMode === 'document') {
+      documentEditorRef.current?.setBackgroundColor(color);
+    } else {
+      Editor.addMark(editor, 'backgroundColor', color);
+    }
     setShowBgColor(false);
-  }, [editor]);
+  }, [editor, editorMode]);
 
   // Insert image - works for both
   const insertImage = useCallback((url: string) => {
@@ -1753,7 +1838,6 @@ const CereforgeEditor: React.FC = () => {
                   <ToolbarButton icon={<AlignLeft size={18} />} active={getCurrentAlignment() === 'left'} onClick={() => setAlignment('left')} title="Align Left" />
                   <ToolbarButton icon={<AlignCenter size={18} />} active={getCurrentAlignment() === 'center'} onClick={() => setAlignment('center')} title="Align Center" />
                   <ToolbarButton icon={<AlignRight size={18} />} active={getCurrentAlignment() === 'right'} onClick={() => setAlignment('right')} title="Align Right" />
-                  <ToolbarButton icon={<AlignJustify size={18} />} active={getCurrentAlignment() === 'justify'} onClick={() => setAlignment('justify')} title="Align Justify" />
 
                   <ToolbarDivider />
 
