@@ -36,6 +36,8 @@ import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { $setBlocksType } from '@lexical/selection';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlignLeft, AlignCenter, AlignRight,  Trash2 } from 'lucide-react';
 
 /* @refresh reset */
 
@@ -69,13 +71,14 @@ const editorTheme = {
   tableCellHeader: 'border border-gray-300 p-2 min-w-[100px] bg-gray-50 font-bold',
 };
 
-// Custom Image Node with Resizing
+// Custom Image Node with Resizing and Hover Controls
 export type SerializedImageNode = Spread<
   {
     src: string;
     altText: string;
     width?: number;
     height?: number;
+    align?: 'left' | 'center' | 'right';
   },
   SerializedLexicalNode
 >;
@@ -85,21 +88,23 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
   __altText: string;
   __width?: number;
   __height?: number;
+  __align?: 'left' | 'center' | 'right';
 
   static getType(): string {
     return 'image';
   }
 
   static clone(node: ImageNode): ImageNode {
-    return new ImageNode(node.__src, node.__altText, node.__width, node.__height, node.__key);
+    return new ImageNode(node.__src, node.__altText, node.__width, node.__height, node.__align, node.__key);
   }
 
-  constructor(src: string, altText: string, width?: number, height?: number, key?: NodeKey) {
+  constructor(src: string, altText: string, width?: number, height?: number, align?: 'left' | 'center' | 'right', key?: NodeKey) {
     super(key);
     this.__src = src;
     this.__altText = altText;
     this.__width = width;
     this.__height = height;
+    this.__align = align || 'left';
   }
 
   createDOM(): HTMLElement {
@@ -115,8 +120,8 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
   }
 
   static importJSON(serializedNode: SerializedImageNode): ImageNode {
-    const { src, altText, width, height } = serializedNode;
-    return $createImageNode({ src, altText, width, height });
+    const { src, altText, width, height, align } = serializedNode;
+    return $createImageNode({ src, altText, width, height, align });
   }
 
   exportJSON(): SerializedImageNode {
@@ -125,6 +130,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
       altText: this.__altText,
       width: this.__width,
       height: this.__height,
+      align: this.__align,
       type: 'image',
       version: 1,
     };
@@ -135,6 +141,11 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     writable.__width = width;
   }
 
+  setAlign(align: 'left' | 'center' | 'right'): void {
+    const writable = this.getWritable();
+    writable.__align = align;
+  }
+
   decorate(_editor: LexicalEditor, _config: any): JSX.Element {
     return (
       <ImageComponent
@@ -142,6 +153,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
         altText={this.__altText}
         width={this.__width}
         height={this.__height}
+        align={this.__align}
         nodeKey={this.__key}
         editor={_editor}
       />
@@ -153,6 +165,7 @@ function ImageComponent({
   src,
   altText,
   width,
+  align = 'left',
   nodeKey,
   editor
 }: {
@@ -160,11 +173,13 @@ function ImageComponent({
   altText: string;
   width?: number;
   height?: number;
+  align?: 'left' | 'center' | 'right';
   nodeKey: NodeKey;
   editor: LexicalEditor;
 }) {
   const [isResizing, setIsResizing] = useState(false);
   const [currentWidth, setCurrentWidth] = useState(width || 300);
+  const [isHovered, setIsHovered] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
@@ -208,44 +223,122 @@ function ImageComponent({
     };
   }, [isResizing, currentWidth, editor, nodeKey]);
 
+  const handleAlignChange = (newAlign: 'left' | 'center' | 'right') => {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isImageNode(node)) {
+        node.setAlign(newAlign);
+      }
+    });
+  };
+
+  const handleDelete = () => {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if (node) {
+        node.remove();
+      }
+    });
+  };
+
+  const getAlignmentStyle = () => {
+    switch (align) {
+      case 'center':
+        return { display: 'flex', justifyContent: 'center', width: '100%' };
+      case 'right':
+        return { display: 'flex', justifyContent: 'flex-end', width: '100%' };
+      default:
+        return { display: 'inline-block' };
+    }
+  };
+
   return (
-    <div className="relative inline-block group">
-      <img
-        ref={imageRef}
-        src={src}
-        alt={altText}
-        style={{
-          width: `${currentWidth}px`,
-          height: 'auto',
-          borderRadius: '0.5rem',
-          display: 'block',
-          margin: '0.5rem 0',
-        }}
-        draggable={false}
-      />
-      <div
-        className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
-        onMouseDown={handleMouseDown}
-        style={{ cursor: 'nwse-resize' }}
-      />
+    <div
+      style={getAlignmentStyle()}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="relative inline-block group">
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+              contentEditable={false}
+            >
+              <button
+                onClick={() => handleAlignChange('left')}
+                className={`p-1.5 rounded transition-colors ${align === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                title="Align Left"
+              >
+                <AlignLeft size={16} />
+              </button>
+              <button
+                onClick={() => handleAlignChange('center')}
+                className={`p-1.5 rounded transition-colors ${align === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                title="Align Center"
+              >
+                <AlignCenter size={16} />
+              </button>
+              <button
+                onClick={() => handleAlignChange('right')}
+                className={`p-1.5 rounded transition-colors ${align === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                title="Align Right"
+              >
+                <AlignRight size={16} />
+              </button>
+              <div className="w-px h-6 bg-gray-600 mx-1" />
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                title="Delete Image"
+              >
+                <Trash2 size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <img
+          ref={imageRef}
+          src={src}
+          alt={altText}
+          style={{
+            width: `${currentWidth}px`,
+            height: 'auto',
+            borderRadius: '0.5rem',
+            display: 'block',
+            margin: '0.5rem 0',
+          }}
+          draggable={false}
+        />
+        <div
+          className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          onMouseDown={handleMouseDown}
+          style={{ cursor: 'nwse-resize' }}
+        />
+      </div>
     </div>
   );
 }
 
-export function $createImageNode({ src, altText, width, height }: {
+export function $createImageNode({ src, altText, width, height, align }: {
   src: string;
   altText: string;
   width?: number;
   height?: number;
+  align?: 'left' | 'center' | 'right';
 }): ImageNode {
-  return new ImageNode(src, altText, width, height);
+  return new ImageNode(src, altText, width, height, align);
 }
 
 export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
   return node instanceof ImageNode;
 }
 
-// Custom Chart Node
+// Custom Chart Node with Hover Controls
 export type SerializedChartNode = Spread<
   {
     chartType: 'bar' | 'line' | 'pie' | 'column';
@@ -253,6 +346,7 @@ export type SerializedChartNode = Spread<
     labels: string[];
     values: number[];
     width?: number;
+    align?: 'left' | 'center' | 'right';
   },
   SerializedLexicalNode
 >;
@@ -263,6 +357,7 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
   __labels: string[];
   __values: number[];
   __width?: number;
+  __align?: 'left' | 'center' | 'right';
 
   static getType(): string {
     return 'chart';
@@ -275,6 +370,7 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
       node.__labels,
       node.__values,
       node.__width,
+      node.__align,
       node.__key
     );
   }
@@ -285,6 +381,7 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
     labels: string[],
     values: number[],
     width?: number,
+    align?: 'left' | 'center' | 'right',
     key?: NodeKey
   ) {
     super(key);
@@ -293,6 +390,7 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
     this.__labels = labels;
     this.__values = values;
     this.__width = width;
+    this.__align = align || 'left';
   }
 
   createDOM(): HTMLElement {
@@ -307,8 +405,8 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
   }
 
   static importJSON(serializedNode: SerializedChartNode): ChartNode {
-    const { chartType, title, labels, values, width } = serializedNode;
-    return $createChartNode({ chartType, title, labels, values, width });
+    const { chartType, title, labels, values, width, align } = serializedNode;
+    return $createChartNode({ chartType, title, labels, values, width, align });
   }
 
   exportJSON(): SerializedChartNode {
@@ -318,9 +416,27 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
       labels: this.__labels,
       values: this.__values,
       width: this.__width,
+      align: this.__align,
       type: 'chart',
       version: 1,
     };
+  }
+
+  setWidth(width: number): void {
+    const writable = this.getWritable();
+    writable.__width = width;
+  }
+
+  setAlign(align: 'left' | 'center' | 'right'): void {
+    const writable = this.getWritable();
+    writable.__align = align;
+  }
+
+  updateData(title: string, labels: string[], values: number[]): void {
+    const writable = this.getWritable();
+    writable.__title = title;
+    writable.__labels = labels;
+    writable.__values = values;
   }
 
   decorate(): JSX.Element {
@@ -331,6 +447,8 @@ export class ChartNode extends DecoratorNode<JSX.Element> {
         labels={this.__labels}
         values={this.__values}
         width={this.__width}
+        align={this.__align}
+        nodeKey={this.__key}
       />
     );
   }
@@ -342,159 +460,294 @@ function ChartComponent({
   labels,
   values,
   width = 600,
+  align = 'left',
+  nodeKey,
 }: {
   chartType: 'bar' | 'line' | 'pie' | 'column';
   title: string;
   labels: string[];
   values: number[];
   width?: number;
+  align?: 'left' | 'center' | 'right';
+  nodeKey: NodeKey;
 }) {
+  const [editor] = useLexicalComposerContext();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [currentWidth, setCurrentWidth] = useState(width);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
+
   const maxValue = Math.max(...values, 1);
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = currentWidth;
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startXRef.current;
+      const newWidth = Math.max(300, Math.min(800, startWidthRef.current + deltaX));
+      setCurrentWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+
+      editor.update(() => {
+        const node = $getNodeByKey(nodeKey);
+        if ($isChartNode(node)) {
+          node.setWidth(currentWidth);
+        }
+      }, {
+        discrete: true,
+      });
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, currentWidth, editor, nodeKey]);
+
+  const handleAlignChange = (newAlign: 'left' | 'center' | 'right') => {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isChartNode(node)) {
+        node.setAlign(newAlign);
+      }
+    });
+  };
+
+  const handleDelete = () => {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if (node) {
+        node.remove();
+      }
+    });
+  };
+
+  const getAlignmentStyle = () => {
+    switch (align) {
+      case 'center':
+        return { display: 'flex', justifyContent: 'center', width: '100%' };
+      case 'right':
+        return { display: 'flex', justifyContent: 'flex-end', width: '100%' };
+      default:
+        return { display: 'inline-block' };
+    }
+  };
+
   return (
-    <div className="p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm my-4" style={{ width: `${width}px` }}>
-      <div className="mb-4">
-        <h4 className="font-bold text-gray-900 text-lg">{title}</h4>
-        <p className="text-sm text-gray-500 capitalize">{chartType} Chart</p>
-      </div>
+    <div
+      style={getAlignmentStyle()}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="relative inline-block group" style={{ width: `${currentWidth}px`, maxWidth: '100%' }}>
+        <AnimatePresence>
+          {isHovered && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+              contentEditable={false}
+            >
+              <button
+                onClick={() => handleAlignChange('left')}
+                className={`p-1.5 rounded transition-colors ${align === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                title="Align Left"
+              >
+                <AlignLeft size={16} />
+              </button>
+              <button
+                onClick={() => handleAlignChange('center')}
+                className={`p-1.5 rounded transition-colors ${align === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                title="Align Center"
+              >
+                <AlignCenter size={16} />
+              </button>
+              <button
+                onClick={() => handleAlignChange('right')}
+                className={`p-1.5 rounded transition-colors ${align === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                title="Align Right"
+              >
+                <AlignRight size={16} />
+              </button>
+              <div className="w-px h-6 bg-gray-600 mx-1" />
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                title="Delete Chart"
+              >
+                <Trash2 size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {chartType === 'bar' && (
-        <div className="space-y-3">
-          {labels.map((label, idx) => {
-            const value = values[idx] || 0;
-            const percentage = (value / maxValue) * 100;
-            return (
-              <div key={idx} className="flex items-center space-x-3">
-                <div className="w-24 text-sm font-medium text-gray-700 truncate">{label}</div>
-                <div className="flex-1 bg-gray-200 rounded-full h-8">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full flex items-center justify-end pr-2"
-                    style={{ width: `${percentage}%` }}
-                  >
-                    <span className="text-white text-xs font-semibold">{value}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+        <div className="p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+          <div className="mb-4">
+            <h4 className="font-bold text-gray-900 text-lg">{title}</h4>
+            <p className="text-sm text-gray-500 capitalize">{chartType} Chart</p>
+          </div>
 
-      {chartType === 'column' && (
-        <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
-          {labels.map((label, idx) => {
-            const value = values[idx] || 0;
-            const height = (value / maxValue) * 100;
-            return (
-              <div key={idx} className="flex flex-col items-center space-y-2">
-                <div className="relative group">
-                  <div
-                    className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t"
-                    style={{ height: `${height * 2}px` }}
-                  >
-                    <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                      {value}
+          {chartType === 'bar' && (
+            <div className="space-y-3">
+              {labels.map((label, idx) => {
+                const value = values[idx] || 0;
+                const percentage = (value / maxValue) * 100;
+                return (
+                  <div key={idx} className="flex items-center space-x-3">
+                    <div className="w-24 text-sm font-medium text-gray-700 truncate">{label}</div>
+                    <div className="flex-1 bg-gray-200 rounded-full h-8">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full flex items-center justify-end pr-2"
+                        style={{ width: `${percentage}%` }}
+                      >
+                        <span className="text-white text-xs font-semibold">{value}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate">{label}</span>
+                );
+              })}
+            </div>
+          )}
+
+          {chartType === 'column' && (
+            <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
+              {labels.map((label, idx) => {
+                const value = values[idx] || 0;
+                const height = (value / maxValue) * 100;
+                return (
+                  <div key={idx} className="flex flex-col items-center space-y-2">
+                    <div className="relative group">
+                      <div
+                        className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t"
+                        style={{ height: `${height * 2}px` }}
+                      >
+                        <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2 py-1 rounded">
+                          {value}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate">{label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {chartType === 'pie' && (
+            <div className="flex items-center justify-center">
+              <div className="relative w-64 h-64">
+                <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                  {(() => {
+                    const total = values.reduce((a, b) => a + b, 0);
+                    let currentAngle = 0;
+                    const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+
+                    return values.map((value, idx) => {
+                      const percentage = (value / total) * 100;
+                      const angle = (percentage / 100) * 360;
+                      const startAngle = currentAngle;
+                      currentAngle += angle;
+
+                      const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
+                      const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
+                      const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
+                      const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
+
+                      const largeArc = angle > 180 ? 1 : 0;
+
+                      return (
+                        <path
+                          key={idx}
+                          d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                          fill={colors[idx % colors.length]}
+                          className="hover:opacity-80"
+                        />
+                      );
+                    });
+                  })()}
+                </svg>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {chartType === 'pie' && (
-        <div className="flex items-center justify-center">
-          <div className="relative w-64 h-64">
-            <svg viewBox="0 0 100 100" className="transform -rotate-90">
-              {(() => {
-                const total = values.reduce((a, b) => a + b, 0);
-                let currentAngle = 0;
-                const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-
-                return values.map((value, idx) => {
-                  const percentage = (value / total) * 100;
-                  const angle = (percentage / 100) * 360;
-                  const startAngle = currentAngle;
-                  currentAngle += angle;
-
-                  const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
-                  const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
-                  const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
-                  const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
-
-                  const largeArc = angle > 180 ? 1 : 0;
+              <div className="ml-6 space-y-2">
+                {labels.map((label, idx) => {
+                  const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                  const value = values[idx];
+                  const total = values.reduce((a, b) => a + b, 0);
+                  const percentage = ((value / total) * 100).toFixed(1);
 
                   return (
-                    <path
-                      key={idx}
-                      d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                      fill={colors[idx % colors.length]}
-                      className="hover:opacity-80"
-                    />
+                    <div key={idx} className="flex items-center space-x-2">
+                      <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[idx % colors.length] }} />
+                      <span className="text-sm font-medium text-gray-700">
+                        {label}: {value} ({percentage}%)
+                      </span>
+                    </div>
                   );
-                });
-              })()}
-            </svg>
-          </div>
-          <div className="ml-6 space-y-2">
-            {labels.map((label, idx) => {
-              const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-              const value = values[idx];
-              const total = values.reduce((a, b) => a + b, 0);
-              const percentage = ((value / total) * 100).toFixed(1);
+                })}
+              </div>
+            </div>
+          )}
 
-              return (
-                <div key={idx} className="flex items-center space-x-2">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[idx % colors.length] }} />
-                  <span className="text-sm font-medium text-gray-700">
-                    {label}: {value} ({percentage}%)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {chartType === 'line' && (
-        <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
-          <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-            <polyline
-              points={values
-                .map((value, idx) => {
+          {chartType === 'line' && (
+            <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
+              <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                <polyline
+                  points={values
+                    .map((value, idx) => {
+                      const x = (idx / (values.length - 1)) * 380 + 10;
+                      const y = 190 - (value / maxValue) * 180;
+                      return `${x},${y}`;
+                    })
+                    .join(' ')}
+                  fill="none"
+                  stroke="#3b82f6"
+                  strokeWidth="2"
+                />
+                {values.map((value, idx) => {
                   const x = (idx / (values.length - 1)) * 380 + 10;
                   const y = 190 - (value / maxValue) * 180;
-                  return `${x},${y}`;
-                })
-                .join(' ')}
-              fill="none"
-              stroke="#3b82f6"
-              strokeWidth="2"
-            />
-            {values.map((value, idx) => {
-              const x = (idx / (values.length - 1)) * 380 + 10;
-              const y = 190 - (value / maxValue) * 180;
-              return (
-                <g key={idx}>
-                  <circle cx={x} cy={y} r="4" fill="#3b82f6" />
-                  <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
-                    {value}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-          <div className="flex justify-around mt-2">
-            {labels.map((label, idx) => (
-              <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / labels.length}%` }}>
-                {label}
-              </span>
-            ))}
-          </div>
+                  return (
+                    <g key={idx}>
+                      <circle cx={x} cy={y} r="4" fill="#3b82f6" />
+                      <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
+                        {value}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+              <div className="flex justify-around mt-2">
+                {labels.map((label, idx) => (
+                  <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / labels.length}%` }}>
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        <div
+          className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+          onMouseDown={handleMouseDown}
+          style={{ cursor: 'nwse-resize' }}
+        />
+      </div>
     </div>
   );
 }
@@ -505,14 +758,16 @@ export function $createChartNode({
   labels,
   values,
   width,
+  align,
 }: {
   chartType: 'bar' | 'line' | 'pie' | 'column';
   title: string;
   labels: string[];
   values: number[];
   width?: number;
+  align?: 'left' | 'center' | 'right';
 }): ChartNode {
-  return new ChartNode(chartType, title, labels, values, width);
+  return new ChartNode(chartType, title, labels, values, width, align);
 }
 
 export function $isChartNode(node: LexicalNode | null | undefined): node is ChartNode {
@@ -520,7 +775,7 @@ export function $isChartNode(node: LexicalNode | null | undefined): node is Char
 }
 
 // Commands
-export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number }> =
+export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number; align?: 'left' | 'center' | 'right' }> =
   createCommand('INSERT_IMAGE_COMMAND');
 
 export const INSERT_CHART_COMMAND: LexicalCommand<{
@@ -529,6 +784,7 @@ export const INSERT_CHART_COMMAND: LexicalCommand<{
   labels: string[];
   values: number[];
   width?: number;
+  align?: 'left' | 'center' | 'right';
 }> = createCommand('INSERT_CHART_COMMAND');
 
 // Image Plugin
@@ -630,7 +886,6 @@ export interface LexicalDocumentEditorHandle {
   toggleItalic: () => void;
   toggleUnderline: () => void;
   toggleStrikethrough: () => void;
-  // NEW: Add these missing format commands
   toggleSubscript: () => void;
   toggleSuperscript: () => void;
   setFontSize: (size: string) => void;
@@ -651,7 +906,6 @@ export interface LexicalDocumentEditorHandle {
   isItalicActive: () => boolean;
   isUnderlineActive: () => boolean;
   isStrikethroughActive: () => boolean;
-  // NEW: Add these checks
   isSubscriptActive: () => boolean;
   isSuperscriptActive: () => boolean;
   getCurrentFontSize: () => string;
@@ -706,6 +960,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
             src: url,
             altText: 'Inserted image',
             width: width || 400,
+            align: 'left',
           });
         }
       },
@@ -717,6 +972,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
             labels: data.labels,
             values: data.values,
             width: 600,
+            align: 'left',
           });
         }
       },
@@ -784,8 +1040,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           }
         });
       },
-
-      // NEW: Subscript/Superscript
       toggleSubscript: () => {
         if (editor) {
           editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'subscript');
@@ -796,14 +1050,11 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'superscript');
         }
       },
-
-      // NEW: Font Size
       setFontSize: (size: string) => {
         if (editor) {
           editor.update(() => {
             const selection = $getSelection();
             if ($isRangeSelection(selection)) {
-              // Apply style instead of format
               selection.getNodes().forEach(node => {
                 if ($isTextNode(node)) {
                   node.setStyle(`font-size: ${size}`);
@@ -813,14 +1064,11 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           });
         }
       },
-
-      // NEW: Text Color
       setTextColor: (color: string) => {
         if (editor) {
           editor.update(() => {
             const selection = $getSelection();
             if ($isRangeSelection(selection)) {
-              // Apply style instead of format
               selection.getNodes().forEach(node => {
                 if ($isTextNode(node)) {
                   const currentStyle = node.getStyle() || '';
@@ -832,15 +1080,11 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           });
         }
       },
-
-
-      // NEW: Background Color
       setBackgroundColor: (color: string) => {
         if (editor) {
           editor.update(() => {
             const selection = $getSelection();
             if ($isRangeSelection(selection)) {
-              // Apply style instead of format
               selection.getNodes().forEach(node => {
                 if ($isTextNode(node)) {
                   const currentStyle = node.getStyle() || '';
@@ -852,7 +1096,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
           });
         }
       },
-      // NEW: Check active states
       isSubscriptActive: () => {
         if (!editor) return false;
         let isActive = false;
@@ -864,7 +1107,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         });
         return isActive;
       },
-
       isSuperscriptActive: () => {
         if (!editor) return false;
         let isActive = false;
@@ -876,7 +1118,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         });
         return isActive;
       },
-
       getCurrentFontSize: () => {
         if (!editor) return '16px';
         let fontSize = '16px';
@@ -893,7 +1134,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         });
         return fontSize;
       },
-
       getCurrentTextColor: () => {
         if (!editor) return '#000000';
         let color = '#000000';
@@ -910,8 +1150,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         });
         return color;
       },
-
-
       getCurrentBackgroundColor: () => {
         if (!editor) return 'transparent';
         let bgColor = 'transparent';
@@ -1044,11 +1282,26 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         return isHeading;
       },
       isBulletListActive: () => {
-        const selection = $getSelection();
-        if (!$isRangeSelection(selection)) return false;
-        const anchorNode = selection.anchor.getNode();
-        const parent = anchorNode.getParent();
-        return !!(parent && $isListNode(parent) && parent.getListType() === "bullet");
+        if (!editor) return false;
+        let isActive = false;
+        editor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor.getNode();
+            let node = anchor;
+
+            while (node) {
+              if ($isListNode(node)) {
+                isActive = node.getListType() === 'bullet';
+                break;
+              }
+              const parent = node.getParent();
+              if (!parent) break;
+              node = parent;
+            }
+          }
+        });
+        return isActive;
       },
       isNumberedListActive: () => {
         if (!editor) return false;
@@ -1059,7 +1312,6 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
             const anchor = selection.anchor.getNode();
             let node = anchor;
 
-            // Traverse up to find list node
             while (node) {
               if ($isListNode(node)) {
                 isActive = node.getListType() === 'number';
@@ -1097,14 +1349,12 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
       useEffect(() => {
         setEditor(localEditor);
 
-        // ✅ BETTER: Use requestAnimationFrame instead of setTimeout(0)
         if (!hasInitialFocusRef.current && localEditor) {
           requestAnimationFrame(() => {
             try {
               localEditor.focus();
               hasInitialFocusRef.current = true;
             } catch (err) {
-              // Silent fail if editor unmounted
               console.warn('Could not focus editor:', err);
             }
           });
@@ -1203,4 +1453,4 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
 
 LexicalDocumentEditor.displayName = 'LexicalDocumentEditor';
 
-export default LexicalDocumentEditor;
+export default LexicalDocumentEditor
