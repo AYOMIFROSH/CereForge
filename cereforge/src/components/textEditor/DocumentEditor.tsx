@@ -7,7 +7,7 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, $isListNode } from '@lexical/list';
 import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
-import { TableCellNode, TableNode, TableRowNode, INSERT_TABLE_COMMAND } from '@lexical/table';
+import { TableCellNode, TableNode, TableRowNode} from '@lexical/table';
 import {
   $getRoot,
   LexicalEditor,
@@ -37,7 +37,7 @@ import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { $setBlocksType } from '@lexical/selection';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlignLeft, AlignCenter, AlignRight,  Trash2 } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Trash2, Edit2, Plus, Minus } from 'lucide-react';
 
 /* @refresh reset */
 
@@ -47,7 +47,7 @@ const A4_HEIGHT_MM = 297;
 const MARGIN_MM = '25mm 20mm';
 
 const editorTheme = {
-  paragraph: 'mb--1 leading-relaxed min-h-[1.5em]',
+  paragraph: 'mb-1 leading-relaxed min-h-[1.5em]',
   quote: 'border-l-4 border-blue-600 pl-4 italic my-4 text-gray-600',
   heading: {
     h1: 'text-3xl font-bold my-4 text-gray-900',
@@ -71,7 +71,7 @@ const editorTheme = {
   tableCellHeader: 'border border-gray-300 p-2 min-w-[100px] bg-gray-50 font-bold',
 };
 
-// Custom Image Node with Resizing and Hover Controls
+// Custom Image Node (existing implementation)
 export type SerializedImageNode = Spread<
   {
     src: string;
@@ -146,7 +146,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     writable.__align = align;
   }
 
-  decorate(_editor: LexicalEditor, _config: any): JSX.Element {
+  decorate(_editor: LexicalEditor): JSX.Element {
     return (
       <ImageComponent
         src={this.__src}
@@ -203,15 +203,12 @@ function ImageComponent({
 
     const handleMouseUp = () => {
       setIsResizing(false);
-
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if ($isImageNode(node)) {
           node.setWidth(currentWidth);
         }
-      }, {
-        discrete: true,
-      });
+      }, { discrete: true });
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -338,7 +335,447 @@ export function $isImageNode(node: LexicalNode | null | undefined): node is Imag
   return node instanceof ImageNode;
 }
 
-// Custom Chart Node with Hover Controls
+// Enhanced Table Node with Edit functionality
+export type SerializedTableNode = Spread<
+  {
+    rows: number;
+    cols: number;
+    cellData: string[][];
+    width?: number;
+    align?: 'left' | 'center' | 'right';
+  },
+  SerializedLexicalNode
+>;
+
+export class CustomTableNode extends DecoratorNode<JSX.Element> {
+  __rows: number;
+  __cols: number;
+  __cellData: string[][];
+  __width?: number;
+  __align?: 'left' | 'center' | 'right';
+
+  static getType(): string {
+    return 'custom-table';
+  }
+
+  static clone(node: CustomTableNode): CustomTableNode {
+    return new CustomTableNode(
+      node.__rows,
+      node.__cols,
+      node.__cellData,
+      node.__width,
+      node.__align,
+      node.__key
+    );
+  }
+
+  constructor(
+    rows: number,
+    cols: number,
+    cellData: string[][],
+    width?: number,
+    align?: 'left' | 'center' | 'right',
+    key?: NodeKey
+  ) {
+    super(key);
+    this.__rows = rows;
+    this.__cols = cols;
+    this.__cellData = cellData;
+    this.__width = width;
+    this.__align = align || 'left';
+  }
+
+  createDOM(): HTMLElement {
+    const div = document.createElement('div');
+    div.style.display = 'block';
+    div.style.margin = '1rem 0';
+    return div;
+  }
+
+  updateDOM(): false {
+    return false;
+  }
+
+  static importJSON(serializedNode: SerializedTableNode): CustomTableNode {
+    const { rows, cols, cellData, width, align } = serializedNode;
+    return $createTableNode({ rows, cols, cellData, width, align });
+  }
+
+  exportJSON(): SerializedTableNode {
+    return {
+      rows: this.__rows,
+      cols: this.__cols,
+      cellData: this.__cellData,
+      width: this.__width,
+      align: this.__align,
+      type: 'custom-table',
+      version: 1,
+    };
+  }
+
+  setWidth(width: number): void {
+    const writable = this.getWritable();
+    writable.__width = width;
+  }
+
+  setAlign(align: 'left' | 'center' | 'right'): void {
+    const writable = this.getWritable();
+    writable.__align = align;
+  }
+
+  updateData(rows: number, cols: number, cellData: string[][]): void {
+    const writable = this.getWritable();
+    writable.__rows = rows;
+    writable.__cols = cols;
+    writable.__cellData = cellData;
+  }
+
+  decorate(): JSX.Element {
+    return (
+      <TableComponent
+        rows={this.__rows}
+        cols={this.__cols}
+        cellData={this.__cellData}
+        width={this.__width}
+        align={this.__align}
+        nodeKey={this.__key}
+      />
+    );
+  }
+}
+
+function TableComponent({
+  rows,
+  cols,
+  cellData,
+  width = 600,
+  align = 'left',
+  nodeKey,
+}: {
+  rows: number;
+  cols: number;
+  cellData: string[][];
+  width?: number;
+  align?: 'left' | 'center' | 'right';
+  nodeKey: NodeKey;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [currentWidth, setCurrentWidth] = useState(width);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editRows, setEditRows] = useState(rows);
+  const [editCols, setEditCols] = useState(cols);
+  const [editCellData, setEditCellData] = useState(cellData);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = currentWidth;
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startXRef.current;
+      const newWidth = Math.max(300, Math.min(800, startWidthRef.current + deltaX));
+      setCurrentWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      editor.update(() => {
+        const node = $getNodeByKey(nodeKey);
+        if ($isTableNode(node)) {
+          node.setWidth(currentWidth);
+        }
+      }, { discrete: true });
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, currentWidth, editor, nodeKey]);
+
+  const handleAlignChange = (newAlign: 'left' | 'center' | 'right') => {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isTableNode(node)) {
+        node.setAlign(newAlign);
+      }
+    });
+  };
+
+  const handleDelete = () => {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if (node) {
+        node.remove();
+      }
+    });
+  };
+
+  const handleEdit = () => {
+    setEditRows(rows);
+    setEditCols(cols);
+    setEditCellData(cellData);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    const newCellData: string[][] = [];
+    for (let i = 0; i < editRows; i++) {
+      newCellData[i] = [];
+      for (let j = 0; j < editCols; j++) {
+        newCellData[i][j] = editCellData[i]?.[j] || (i === 0 ? `Header ${j + 1}` : `Cell ${i + 1}-${j + 1}`);
+      }
+    }
+
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isTableNode(node)) {
+        node.updateData(editRows, editCols, newCellData);
+      }
+    });
+    setShowEditModal(false);
+  };
+
+  const updateCellData = (rowIdx: number, colIdx: number, value: string) => {
+    const newData = [...editCellData];
+    if (!newData[rowIdx]) newData[rowIdx] = [];
+    newData[rowIdx][colIdx] = value;
+    setEditCellData(newData);
+  };
+
+  const getAlignmentStyle = () => {
+    switch (align) {
+      case 'center':
+        return { display: 'flex', justifyContent: 'center', width: '100%' };
+      case 'right':
+        return { display: 'flex', justifyContent: 'flex-end', width: '100%' };
+      default:
+        return { display: 'inline-block' };
+    }
+  };
+
+  return (
+    <>
+      <div
+        style={getAlignmentStyle()}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="relative inline-block group" style={{ width: `${currentWidth}px`, maxWidth: '100%' }}>
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+                contentEditable={false}
+              >
+                <button
+                  onClick={() => handleAlignChange('left')}
+                  className={`p-1.5 rounded transition-colors ${align === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                  title="Align Left"
+                >
+                  <AlignLeft size={16} />
+                </button>
+                <button
+                  onClick={() => handleAlignChange('center')}
+                  className={`p-1.5 rounded transition-colors ${align === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                  title="Align Center"
+                >
+                  <AlignCenter size={16} />
+                </button>
+                <button
+                  onClick={() => handleAlignChange('right')}
+                  className={`p-1.5 rounded transition-colors ${align === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                  title="Align Right"
+                >
+                  <AlignRight size={16} />
+                </button>
+                <button
+                  onClick={handleEdit}
+                  className="p-1.5 rounded transition-colors text-gray-300 hover:bg-gray-700"
+                  title="Edit Table"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <div className="w-px h-6 bg-gray-600 mx-1" />
+                <button
+                  onClick={handleDelete}
+                  className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                  title="Delete Table"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <table className="border-collapse border border-gray-300 w-full">
+            <tbody>
+              {Array.from({ length: rows }).map((_, rowIdx) => (
+                <tr key={rowIdx}>
+                  {Array.from({ length: cols }).map((_, colIdx) => {
+                    const isHeaderRow = rowIdx === 0;
+                    const CellTag = isHeaderRow ? 'th' : 'td';
+                    return (
+                      <CellTag
+                        key={colIdx}
+                        className={`border border-gray-300 p-2 min-w-[100px] min-h-[40px] ${isHeaderRow ? 'bg-gray-50 font-bold' : ''}`}
+                      >
+                        {cellData[rowIdx]?.[colIdx] || (isHeaderRow ? `Header ${colIdx + 1}` : `Cell ${rowIdx + 1}-${colIdx + 1}`)}
+                      </CellTag>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            onMouseDown={handleMouseDown}
+            style={{ cursor: 'nwse-resize' }}
+          />
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+            onClick={() => setShowEditModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Table</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Rows: {editRows}
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={editRows}
+                      onChange={(e) => setEditRows(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Columns: {editCols}
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="10"
+                      value={editCols}
+                      onChange={(e) => setEditCols(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Table Data</label>
+                  <div className="border rounded-lg overflow-x-auto max-h-64">
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        {Array.from({ length: editRows }).map((_, rowIdx) => (
+                          <tr key={rowIdx}>
+                            {Array.from({ length: editCols }).map((_, colIdx) => (
+                              <td key={colIdx} className="border p-1">
+                                <input
+                                  type="text"
+                                  value={editCellData[rowIdx]?.[colIdx] || ''}
+                                  onChange={(e) => updateCellData(rowIdx, colIdx, e.target.value)}
+                                  placeholder={rowIdx === 0 ? `Header ${colIdx + 1}` : `Cell ${rowIdx + 1}-${colIdx + 1}`}
+                                  className="w-full px-2 py-1 text-sm border-none focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+export function $createTableNode({
+  rows,
+  cols,
+  cellData,
+  width,
+  align,
+}: {
+  rows: number;
+  cols: number;
+  cellData?: string[][];
+  width?: number;
+  align?: 'left' | 'center' | 'right';
+}): CustomTableNode {
+  const defaultData: string[][] = [];
+  for (let i = 0; i < rows; i++) {
+    defaultData[i] = [];
+    for (let j = 0; j < cols; j++) {
+      defaultData[i][j] = cellData?.[i]?.[j] || (i === 0 ? `Header ${j + 1}` : `Cell ${i + 1}-${j + 1}`);
+    }
+  }
+  return new CustomTableNode(rows, cols, defaultData, width, align);
+}
+
+export function $isTableNode(node: LexicalNode | null | undefined): node is CustomTableNode {
+  return node instanceof CustomTableNode;
+}
+
+// Enhanced Chart Node with Edit functionality
 export type SerializedChartNode = Spread<
   {
     chartType: 'bar' | 'line' | 'pie' | 'column';
@@ -475,6 +912,10 @@ function ChartComponent({
   const [isHovered, setIsHovered] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [currentWidth, setCurrentWidth] = useState(width);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState(title);
+  const [editLabels, setEditLabels] = useState(labels);
+  const [editValues, setEditValues] = useState(values);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -499,15 +940,12 @@ function ChartComponent({
 
     const handleMouseUp = () => {
       setIsResizing(false);
-
       editor.update(() => {
         const node = $getNodeByKey(nodeKey);
         if ($isChartNode(node)) {
           node.setWidth(currentWidth);
         }
-      }, {
-        discrete: true,
-      });
+      }, { discrete: true });
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -537,6 +975,50 @@ function ChartComponent({
     });
   };
 
+  const handleEdit = () => {
+    setEditTitle(title);
+    setEditLabels([...labels]);
+    setEditValues([...values]);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    const filteredLabels = editLabels.filter(label => label.trim() !== '');
+    const filteredValues = editValues.slice(0, filteredLabels.length);
+
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isChartNode(node)) {
+        node.updateData(editTitle, filteredLabels, filteredValues);
+      }
+    });
+    setShowEditModal(false);
+  };
+
+  const addChartRow = () => {
+    setEditLabels([...editLabels, `Label ${editLabels.length + 1}`]);
+    setEditValues([...editValues, 0]);
+  };
+
+  const removeChartRow = (index: number) => {
+    if (editLabels.length > 1) {
+      setEditLabels(editLabels.filter((_, i) => i !== index));
+      setEditValues(editValues.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateLabel = (index: number, value: string) => {
+    const newLabels = [...editLabels];
+    newLabels[index] = value;
+    setEditLabels(newLabels);
+  };
+
+  const updateValue = (index: number, value: number) => {
+    const newValues = [...editValues];
+    newValues[index] = value;
+    setEditValues(newValues);
+  };
+
   const getAlignmentStyle = () => {
     switch (align) {
       case 'center':
@@ -549,206 +1031,315 @@ function ChartComponent({
   };
 
   return (
-    <div
-      style={getAlignmentStyle()}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <div className="relative inline-block group" style={{ width: `${currentWidth}px`, maxWidth: '100%' }}>
-        <AnimatePresence>
-          {isHovered && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
-              contentEditable={false}
-            >
-              <button
-                onClick={() => handleAlignChange('left')}
-                className={`p-1.5 rounded transition-colors ${align === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                title="Align Left"
+    <>
+      <div
+        style={getAlignmentStyle()}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="relative inline-block group" style={{ width: `${currentWidth}px`, maxWidth: '100%' }}>
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
+                contentEditable={false}
               >
-                <AlignLeft size={16} />
-              </button>
-              <button
-                onClick={() => handleAlignChange('center')}
-                className={`p-1.5 rounded transition-colors ${align === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                title="Align Center"
-              >
-                <AlignCenter size={16} />
-              </button>
-              <button
-                onClick={() => handleAlignChange('right')}
-                className={`p-1.5 rounded transition-colors ${align === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                title="Align Right"
-              >
-                <AlignRight size={16} />
-              </button>
-              <div className="w-px h-6 bg-gray-600 mx-1" />
-              <button
-                onClick={handleDelete}
-                className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
-                title="Delete Chart"
-              >
-                <Trash2 size={16} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <button
+                  onClick={() => handleAlignChange('left')}
+                  className={`p-1.5 rounded transition-colors ${align === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                  title="Align Left"
+                >
+                  <AlignLeft size={16} />
+                </button>
+                <button
+                  onClick={() => handleAlignChange('center')}
+                  className={`p-1.5 rounded transition-colors ${align === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                  title="Align Center"
+                >
+                  <AlignCenter size={16} />
+                </button>
+                <button
+                  onClick={() => handleAlignChange('right')}
+                  className={`p-1.5 rounded transition-colors ${align === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+                  title="Align Right"
+                >
+                  <AlignRight size={16} />
+                </button>
+                <button
+                  onClick={handleEdit}
+                  className="p-1.5 rounded transition-colors text-gray-300 hover:bg-gray-700"
+                  title="Edit Chart"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <div className="w-px h-6 bg-gray-600 mx-1" />
+                <button
+                  onClick={handleDelete}
+                  className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
+                  title="Delete Chart"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <div className="p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
-          <div className="mb-4">
-            <h4 className="font-bold text-gray-900 text-lg">{title}</h4>
-            <p className="text-sm text-gray-500 capitalize">{chartType} Chart</p>
-          </div>
-
-          {chartType === 'bar' && (
-            <div className="space-y-3">
-              {labels.map((label, idx) => {
-                const value = values[idx] || 0;
-                const percentage = (value / maxValue) * 100;
-                return (
-                  <div key={idx} className="flex items-center space-x-3">
-                    <div className="w-24 text-sm font-medium text-gray-700 truncate">{label}</div>
-                    <div className="flex-1 bg-gray-200 rounded-full h-8">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full flex items-center justify-end pr-2"
-                        style={{ width: `${percentage}%` }}
-                      >
-                        <span className="text-white text-xs font-semibold">{value}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="p-4 bg-white rounded-lg border-2 border-gray-300 shadow-sm">
+            <div className="mb-4">
+              <h4 className="font-bold text-gray-900 text-lg">{title}</h4>
+              <p className="text-sm text-gray-500 capitalize">{chartType} Chart</p>
             </div>
-          )}
 
-          {chartType === 'column' && (
-            <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
-              {labels.map((label, idx) => {
-                const value = values[idx] || 0;
-                const height = (value / maxValue) * 100;
-                return (
-                  <div key={idx} className="flex flex-col items-center space-y-2">
-                    <div className="relative group">
-                      <div
-                        className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t"
-                        style={{ height: `${height * 2}px` }}
-                      >
-                        <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                          {value}
+            {chartType === 'bar' && (
+              <div className="space-y-3">
+                {labels.map((label, idx) => {
+                  const value = values[idx] || 0;
+                  const percentage = (value / maxValue) * 100;
+                  return (
+                    <div key={idx} className="flex items-center space-x-3">
+                      <div className="w-24 text-sm font-medium text-gray-700 truncate">{label}</div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-8">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full flex items-center justify-end pr-2"
+                          style={{ width: `${percentage}%` }}
+                        >
+                          <span className="text-white text-xs font-semibold">{value}</span>
                         </div>
                       </div>
                     </div>
-                    <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate">{label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {chartType === 'pie' && (
-            <div className="flex items-center justify-center">
-              <div className="relative w-64 h-64">
-                <svg viewBox="0 0 100 100" className="transform -rotate-90">
-                  {(() => {
-                    const total = values.reduce((a, b) => a + b, 0);
-                    let currentAngle = 0;
-                    const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-
-                    return values.map((value, idx) => {
-                      const percentage = (value / total) * 100;
-                      const angle = (percentage / 100) * 360;
-                      const startAngle = currentAngle;
-                      currentAngle += angle;
-
-                      const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
-                      const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
-                      const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
-                      const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
-
-                      const largeArc = angle > 180 ? 1 : 0;
-
-                      return (
-                        <path
-                          key={idx}
-                          d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                          fill={colors[idx % colors.length]}
-                          className="hover:opacity-80"
-                        />
-                      );
-                    });
-                  })()}
-                </svg>
+                  );
+                })}
               </div>
-              <div className="ml-6 space-y-2">
-                {labels.map((label, idx) => {
-                  const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-                  const value = values[idx];
-                  const total = values.reduce((a, b) => a + b, 0);
-                  const percentage = ((value / total) * 100).toFixed(1);
+            )}
 
+            {chartType === 'column' && (
+              <div className="flex items-end justify-around h-64 border-b-2 border-l-2 border-gray-300 p-4">
+                {labels.map((label, idx) => {
+                  const value = values[idx] || 0;
+                  const height = (value / maxValue) * 100;
                   return (
-                    <div key={idx} className="flex items-center space-x-2">
-                      <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[idx % colors.length] }} />
-                      <span className="text-sm font-medium text-gray-700">
-                        {label}: {value} ({percentage}%)
-                      </span>
+                    <div key={idx} className="flex flex-col items-center space-y-2">
+                      <div className="relative group">
+                        <div
+                          className="w-16 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t"
+                          style={{ height: `${height * 2}px` }}
+                        >
+                          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-gray-800 text-white text-xs px-2 py-1 rounded">
+                            {value}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-gray-700 text-center max-w-[60px] truncate">{label}</span>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
 
-          {chartType === 'line' && (
-            <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
-              <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
-                <polyline
-                  points={values
-                    .map((value, idx) => {
-                      const x = (idx / (values.length - 1)) * 380 + 10;
-                      const y = 190 - (value / maxValue) * 180;
-                      return `${x},${y}`;
-                    })
-                    .join(' ')}
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                />
-                {values.map((value, idx) => {
-                  const x = (idx / (values.length - 1)) * 380 + 10;
-                  const y = 190 - (value / maxValue) * 180;
-                  return (
-                    <g key={idx}>
-                      <circle cx={x} cy={y} r="4" fill="#3b82f6" />
-                      <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
-                        {value}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-              <div className="flex justify-around mt-2">
-                {labels.map((label, idx) => (
-                  <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / labels.length}%` }}>
-                    {label}
-                  </span>
-                ))}
+            {chartType === 'pie' && (
+              <div className="flex items-center justify-center">
+                <div className="relative w-64 h-64">
+                  <svg viewBox="0 0 100 100" className="transform -rotate-90">
+                    {(() => {
+                      const total = values.reduce((a, b) => a + b, 0);
+                      let currentAngle = 0;
+                      const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+
+                      return values.map((value, idx) => {
+                        const percentage = (value / total) * 100;
+                        const angle = (percentage / 100) * 360;
+                        const startAngle = currentAngle;
+                        currentAngle += angle;
+
+                        const x1 = 50 + 40 * Math.cos((startAngle * Math.PI) / 180);
+                        const y1 = 50 + 40 * Math.sin((startAngle * Math.PI) / 180);
+                        const x2 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
+                        const y2 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
+
+                        const largeArc = angle > 180 ? 1 : 0;
+
+                        return (
+                          <path
+                            key={idx}
+                            d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                            fill={colors[idx % colors.length]}
+                            className="hover:opacity-80"
+                          />
+                        );
+                      });
+                    })()}
+                  </svg>
+                </div>
+                <div className="ml-6 space-y-2">
+                  {labels.map((label, idx) => {
+                    const colors = ['#3b82f6', '#f97316', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+                    const value = values[idx];
+                    const total = values.reduce((a, b) => a + b, 0);
+                    const percentage = ((value / total) * 100).toFixed(1);
+
+                    return (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[idx % colors.length] }} />
+                        <span className="text-sm font-medium text-gray-700">
+                          {label}: {value} ({percentage}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
-          onMouseDown={handleMouseDown}
-          style={{ cursor: 'nwse-resize' }}
-        />
+            {chartType === 'line' && (
+              <div className="relative h-64 border-b-2 border-l-2 border-gray-300 p-4">
+                <svg className="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                  <polyline
+                    points={values
+                      .map((value, idx) => {
+                        const x = (idx / (values.length - 1)) * 380 + 10;
+                        const y = 190 - (value / maxValue) * 180;
+                        return `${x},${y}`;
+                      })
+                      .join(' ')}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="2"
+                  />
+                  {values.map((value, idx) => {
+                    const x = (idx / (values.length - 1)) * 380 + 10;
+                    const y = 190 - (value / maxValue) * 180;
+                    return (
+                      <g key={idx}>
+                        <circle cx={x} cy={y} r="4" fill="#3b82f6" />
+                        <text x={x} y={y - 10} textAnchor="middle" fontSize="10" fill="#374151">
+                          {value}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+                <div className="flex justify-around mt-2">
+                  {labels.map((label, idx) => (
+                    <span key={idx} className="text-xs font-medium text-gray-700 text-center" style={{ width: `${100 / labels.length}%` }}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
+            onMouseDown={handleMouseDown}
+            style={{ cursor: 'nwse-resize' }}
+          />
+        </div>
       </div>
-    </div>
+
+      {/* Edit Modal */}
+      <AnimatePresence>
+        {showEditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+            onClick={() => setShowEditModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-4 capitalize">
+                Edit {chartType} Chart
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chart Title
+                  </label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Chart Title"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Chart Data
+                    </label>
+                    <button
+                      onClick={addChartRow}
+                      className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    >
+                      <Plus size={14} />
+                      <span>Add Row</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {editLabels.map((label, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={label}
+                          onChange={(e) => updateLabel(index, e.target.value)}
+                          placeholder="Label"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <input
+                          type="number"
+                          value={editValues[index]}
+                          onChange={(e) => updateValue(index, Number(e.target.value))}
+                          placeholder="Value"
+                          className="w-24 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        {editLabels.length > 1 && (
+                          <button
+                            onClick={() => removeChartRow(index)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remove row"
+                          >
+                            <Minus size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -778,6 +1369,14 @@ export function $isChartNode(node: LexicalNode | null | undefined): node is Char
 export const INSERT_IMAGE_COMMAND: LexicalCommand<{ src: string; altText: string; width?: number; height?: number; align?: 'left' | 'center' | 'right' }> =
   createCommand('INSERT_IMAGE_COMMAND');
 
+export const INSERT_CUSTOM_TABLE_COMMAND: LexicalCommand<{
+  rows: number;
+  cols: number;
+  cellData?: string[][];
+  width?: number;
+  align?: 'left' | 'center' | 'right';
+}> = createCommand('INSERT_CUSTOM_TABLE_COMMAND');
+
 export const INSERT_CHART_COMMAND: LexicalCommand<{
   chartType: 'bar' | 'line' | 'pie' | 'column';
   title: string;
@@ -797,6 +1396,27 @@ function ImagePlugin(): null {
       (payload) => {
         const imageNode = $createImageNode(payload);
         $insertNodes([imageNode]);
+        const paragraphNode = $createParagraphNode();
+        $insertNodes([paragraphNode]);
+        return true;
+      },
+      COMMAND_PRIORITY_EDITOR
+    );
+  }, [editor]);
+
+  return null;
+}
+
+// Custom Table Plugin
+function CustomTablePlugin(): null {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerCommand(
+      INSERT_CUSTOM_TABLE_COMMAND,
+      (payload) => {
+        const tableNode = $createTableNode(payload);
+        $insertNodes([tableNode]);
         const paragraphNode = $createParagraphNode();
         $insertNodes([paragraphNode]);
         return true;
@@ -881,7 +1501,6 @@ export interface LexicalDocumentEditorHandle {
   insertChart: (type: 'bar' | 'line' | 'pie' | 'column', data: { title: string; labels: string[]; values: number[] }) => void;
   getHTML: () => string;
   getText: () => string;
-  // Formatting commands
   toggleBold: () => void;
   toggleItalic: () => void;
   toggleUnderline: () => void;
@@ -891,17 +1510,13 @@ export interface LexicalDocumentEditorHandle {
   setFontSize: (size: string) => void;
   setTextColor: (color: string) => void;
   setBackgroundColor: (color: string) => void;
-  // Block commands
   toggleHeading: (level: 1 | 2 | 3) => void;
   toggleBulletList: () => void;
   toggleNumberedList: () => void;
   toggleQuote: () => void;
-  // Alignment
   setAlignment: (alignment: 'left' | 'center' | 'right') => void;
   getAlignment: () => string;
-  // Link
   insertLink: (url: string, text?: string) => void;
-  // Check active states
   isBoldActive: () => boolean;
   isItalicActive: () => boolean;
   isUnderlineActive: () => boolean;
@@ -940,6 +1555,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         TableRowNode,
         TableCellNode,
         ImageNode,
+        CustomTableNode,
         ChartNode,
       ],
     };
@@ -948,9 +1564,11 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
       editor,
       insertTable: (rows: number, cols: number) => {
         if (editor) {
-          editor.dispatchCommand(INSERT_TABLE_COMMAND, {
-            rows: String(rows),
-            columns: String(cols)
+          editor.dispatchCommand(INSERT_CUSTOM_TABLE_COMMAND, {
+            rows,
+            cols,
+            width: 600,
+            align: 'left',
           });
         }
       },
@@ -1441,6 +2059,7 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
               <LinkPlugin />
               <TablePlugin />
               <ImagePlugin />
+              <CustomTablePlugin />
               <ChartPlugin />
               {showPageGuides && <PageCounterPlugin />}
             </div>
@@ -1453,4 +2072,4 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
 
 LexicalDocumentEditor.displayName = 'LexicalDocumentEditor';
 
-export default LexicalDocumentEditor
+export default LexicalDocumentEditor;
