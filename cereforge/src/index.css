@@ -30,13 +30,6 @@
     padding-right: 1rem;
   }
 
-  .page-break+* {
-    margin-top: 10px !important;
-  }
-
-  .page-break {
-    margin-bottom: 10px !important;
-  }
 
 
   @media (min-width: 640px) {

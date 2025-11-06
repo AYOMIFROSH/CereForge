@@ -15,8 +15,6 @@ import {
   $getSelection, 
   $isRangeSelection,
   $isElementNode,
-  COMMAND_PRIORITY_LOW,
-  SELECTION_CHANGE_COMMAND 
 } from 'lexical';
 import { $isListNode } from '@lexical/list';
 import { $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
@@ -161,21 +159,21 @@ const CereforgeEditor: React.FC = () => {
     cellData: string[][];
   } | null>(null);
 
-  const [lexicalFormatState, setLexicalFormatState] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    strikethrough: false,
-    heading1: false,
-    heading2: false,
-    heading3: false,
-    bulletList: false,
-    numberedList: false,
-    blockQuote: false,
-    alignLeft: false,
-    alignCenter: false,
-    alignRight: false,
-  });
+ const [lexicalFormatState, setLexicalFormatState] = useState({
+  bold: false,
+  italic: false,
+  underline: false,
+  strikethrough: false,
+  heading1: false,
+  heading2: false,
+  heading3: false,
+  bulletList: false,
+  numberedList: false,
+  blockQuote: false,
+  alignLeft: true,  // ✅ Changed from false to true
+  alignCenter: false,
+  alignRight: false,
+});
 
   const documentEditorRef = useRef<LexicalDocumentEditorHandle>(null);
 
@@ -197,17 +195,29 @@ const CereforgeEditor: React.FC = () => {
   if (editorMode !== 'document' || !documentEditorRef.current?.editor) return;
 
   const lexicalEditor = documentEditorRef.current.editor;
-  const docEditorRef = documentEditorRef.current; // ✅ Capture ref in closure
 
   const updateFormatState = () => {
-    if (!docEditorRef) return;
-
     try {
-      // ✅ PRODUCTION: Read directly from editor state
       lexicalEditor.getEditorState().read(() => {
         const selection = $getSelection();
         
         if (!$isRangeSelection(selection)) {
+          // ✅ Even with no selection, reset to defaults
+          setLexicalFormatState({
+            bold: false,
+            italic: false,
+            underline: false,
+            strikethrough: false,
+            heading1: false,
+            heading2: false,
+            heading3: false,
+            bulletList: false,
+            numberedList: false,
+            blockQuote: false,
+            alignLeft: true, // Default to left
+            alignCenter: false,
+            alignRight: false,
+          });
           return;
         }
 
@@ -246,7 +256,7 @@ const CereforgeEditor: React.FC = () => {
         // Check for quote
         const blockQuote = $isQuoteNode(element);
 
-        // ✅ Single state update with all data
+        // ✅ Update state with current alignment
         setLexicalFormatState({
           bold: selection.hasFormat('bold'),
           italic: selection.hasFormat('italic'),
@@ -268,29 +278,28 @@ const CereforgeEditor: React.FC = () => {
     }
   };
 
-  // ✅ PRODUCTION: Direct update on selection change
-  const removeSelectionListener = lexicalEditor.registerCommand(
-    SELECTION_CHANGE_COMMAND,
-    () => {
+  // ✅ Wait for editor to be fully ready
+  const checkEditorReady = () => {
+    if (lexicalEditor.isEditable()) {
       updateFormatState();
-      return false;
-    },
-    COMMAND_PRIORITY_LOW
-  );
+    } else {
+      // Retry if editor not ready yet
+      setTimeout(checkEditorReady, 50);
+    }
+  };
 
-  // ✅ PRODUCTION: Update on editor state changes
-  const unregister = lexicalEditor.registerUpdateListener(({ editorState }) => {
+  // ✅ Register update listener - fires AFTER state changes
+  const unregisterUpdate = lexicalEditor.registerUpdateListener(({ editorState }) => {
     editorState.read(() => {
       updateFormatState();
     });
   });
 
-  // ✅ Initial update
-  updateFormatState();
+  // ✅ Initial update with ready check
+  checkEditorReady();
 
   return () => {
-    unregister();
-    removeSelectionListener();
+    unregisterUpdate();
   };
 }, [editorMode]);
 
@@ -591,36 +600,56 @@ const CereforgeEditor: React.FC = () => {
   }, [handleInsertTable]);
 
   const toggleFormat = useCallback((format: keyof Omit<CustomText, 'text'>) => {
-    if (editorMode === 'document') {
-      switch (format) {
-        case 'bold':
-          documentEditorRef.current?.toggleBold();
-          break;
-        case 'italic':
-          documentEditorRef.current?.toggleItalic();
-          break;
-        case 'underline':
-          documentEditorRef.current?.toggleUnderline();
-          break;
-        case 'strikethrough':
-          documentEditorRef.current?.toggleStrikethrough();
-          break;
-        case 'subscript':
-          documentEditorRef.current?.toggleSubscript();
-          break;
-        case 'superscript':
-          documentEditorRef.current?.toggleSuperscript();
-          break;
-      }
-    } else {
-      const isActive = isFormatActive(format);
-      if (isActive) {
-        Editor.removeMark(editor, format);
-      } else {
-        Editor.addMark(editor, format, true);
-      }
+  if (editorMode === 'document') {
+    switch (format) {
+      case 'bold':
+        documentEditorRef.current?.toggleBold();
+        break;
+      case 'italic':
+        documentEditorRef.current?.toggleItalic();
+        break;
+      case 'underline':
+        documentEditorRef.current?.toggleUnderline();
+        break;
+      case 'strikethrough':
+        documentEditorRef.current?.toggleStrikethrough();
+        break;
+      case 'subscript':
+        documentEditorRef.current?.toggleSubscript();
+        break;
+      case 'superscript':
+        documentEditorRef.current?.toggleSuperscript();
+        break;
     }
-  }, [editor, editorMode]);
+
+    // 🔥 CRITICAL FIX: Force immediate state sync after format toggle
+    requestAnimationFrame(() => {
+      if (documentEditorRef.current?.editor) {
+        const lexicalEditor = documentEditorRef.current.editor;
+        lexicalEditor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection)) return;
+
+          // Update format state immediately
+          setLexicalFormatState(prev => ({
+            ...prev,
+            bold: selection.hasFormat('bold'),
+            italic: selection.hasFormat('italic'),
+            underline: selection.hasFormat('underline'),
+            strikethrough: selection.hasFormat('strikethrough'),
+          }));
+        });
+      }
+    });
+  } else {
+    const isActive = isFormatActive(format);
+    if (isActive) {
+      Editor.removeMark(editor, format);
+    } else {
+      Editor.addMark(editor, format, true);
+    }
+  }
+}, [editor, editorMode]);
 
 
   const isFormatActive = (format: keyof Omit<CustomText, 'text'>): boolean => {
@@ -633,11 +662,11 @@ const CereforgeEditor: React.FC = () => {
       return marks ? marks[format] === true : false;
     }
   };
-  // Toggle block type 
+
   // Toggle block type - works for both Slate and TipTap
 const toggleBlock = useCallback((format: string) => {
   if (editorMode === 'document') {
-    // ✅ Lexical commands - state updates via listener
+    // ✅ Lexical commands with IMMEDIATE state sync
     switch (format) {
       case 'heading1':
         documentEditorRef.current?.toggleHeading(1);
@@ -660,6 +689,64 @@ const toggleBlock = useCallback((format: string) => {
       default:
         console.warn(`Block type ${format} not supported in document mode`);
     }
+
+    // 🔥 CRITICAL FIX: Force immediate state sync after block toggle
+    requestAnimationFrame(() => {
+      if (documentEditorRef.current?.editor) {
+        const lexicalEditor = documentEditorRef.current.editor;
+        lexicalEditor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection)) return;
+
+          const anchor = selection.anchor.getNode();
+          const element = anchor.getKey() === 'root' ? anchor : anchor.getTopLevelElementOrThrow();
+
+          // Check for lists
+          let bulletActive = false;
+          let numberedActive = false;
+          let node = anchor;
+          
+          while (node) {
+            if ($isListNode(node)) {
+              const listType = node.getListType();
+              bulletActive = listType === 'bullet';
+              numberedActive = listType === 'number';
+              break;
+            }
+            const parent = node.getParent();
+            if (!parent) break;
+            node = parent;
+          }
+
+          // Check for headings
+          const heading1 = $isHeadingNode(element) && element.getTag() === 'h1';
+          const heading2 = $isHeadingNode(element) && element.getTag() === 'h2';
+          const heading3 = $isHeadingNode(element) && element.getTag() === 'h3';
+
+          // Check for quote
+          const blockQuote = $isQuoteNode(element);
+
+          // Get alignment
+          const alignment = $isElementNode(element) 
+            ? (element.getFormatType() || 'left')
+            : 'left';
+
+          // Immediate state update
+          setLexicalFormatState(prev => ({
+            ...prev,
+            heading1,
+            heading2,
+            heading3,
+            bulletList: bulletActive,
+            numberedList: numberedActive,
+            blockQuote,
+            alignLeft: alignment === 'left',
+            alignCenter: alignment === 'center',
+            alignRight: alignment === 'right',
+          }));
+        });
+      }
+    });
   } else {
     // Slate logic (email mode)
     const isActive = isBlockActive(format);
@@ -742,8 +829,30 @@ const toggleBlock = useCallback((format: string) => {
   // Set alignment 
 const setAlignment = useCallback((align: string) => {
   if (editorMode === 'document') {
-    // ✅ Lexical alignment - state updates via listener automatically
     documentEditorRef.current?.setAlignment(align as 'left' | 'center' | 'right');
+    
+    // ✅ FORCE immediate state sync after alignment change
+    requestAnimationFrame(() => {
+      if (documentEditorRef.current?.editor) {
+        const lexicalEditor = documentEditorRef.current.editor;
+        lexicalEditor.getEditorState().read(() => {
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection)) return;
+          
+          const anchor = selection.anchor.getNode();
+          const element = anchor.getKey() === 'root' ? anchor : anchor.getTopLevelElementOrThrow();
+          const currentAlign = $isElementNode(element) ? (element.getFormatType() || 'left') : 'left';
+          
+          // Immediate state update
+          setLexicalFormatState(prev => ({
+            ...prev,
+            alignLeft: currentAlign === 'left',
+            alignCenter: currentAlign === 'center',
+            alignRight: currentAlign === 'right',
+          }));
+        });
+      }
+    });
   } else {
     // Slate alignment (email mode)
     Transforms.setNodes<SlateElement>(
