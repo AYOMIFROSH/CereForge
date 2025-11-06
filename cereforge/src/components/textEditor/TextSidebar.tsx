@@ -318,7 +318,8 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                       onModeChange('email');
                       refocusEditor();
                     }}
-                    icon={<Mail size={20} />}
+                    
+                    icon={<Mail size={10} />}
                     label="Email"
                   />
                   <ModeButton
@@ -327,7 +328,7 @@ const EditorSidebar: React.FC<EditorSidebarProps> = ({
                       onModeChange('document');
                       refocusEditor();
                     }}
-                    icon={<FileText size={20} />}
+                    icon={<FileText size={10} />}
                     label="Document"
                   />
                 </div>

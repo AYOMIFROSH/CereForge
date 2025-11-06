@@ -15,6 +15,8 @@ import {
   $getSelection,
   $isRangeSelection,
   $isElementNode,
+  SELECTION_CHANGE_COMMAND,
+  COMMAND_PRIORITY_CRITICAL
 } from 'lexical';
 import { $isListNode } from '@lexical/list';
 import { $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
@@ -214,7 +216,7 @@ const CereforgeEditor: React.FC = () => {
               bulletList: false,
               numberedList: false,
               blockQuote: false,
-              alignLeft: true, // Default to left
+              alignLeft: true,
               alignCenter: false,
               alignRight: false,
             });
@@ -231,21 +233,48 @@ const CereforgeEditor: React.FC = () => {
             ? (element.getFormatType() || 'left')
             : 'left';
 
-          // Check for lists
+          // ✅ CRITICAL FIX: Check for lists by traversing UP from anchor node
           let bulletActive = false;
           let numberedActive = false;
-          let node = anchor;
+          let currentNode = anchor;
 
-          while (node) {
-            if ($isListNode(node)) {
-              const listType = node.getListType();
+          try {
+            if (documentEditorRef.current) {
+              // these methods read the editor state internally and return a boolean
+              bulletActive = documentEditorRef.current.isBulletListActive();
+              numberedActive = documentEditorRef.current.isNumberedListActive();
+            } else {
+              // fallback: traverse up (keeps backward compatibility)
+              let currentNode = anchor;
+              while (currentNode) {
+                if ($isListNode(currentNode)) {
+                  const listType = currentNode.getListType();
+                  bulletActive = listType === 'bullet';
+                  numberedActive = listType === 'number';
+                  break;
+                }
+                const parent = currentNode.getParent();
+                if (!parent) break;
+                currentNode = parent;
+              }
+            }
+          } catch (e) {
+            // safe fallback - keep toolbar off if anything goes wrong
+            bulletActive = false;
+            numberedActive = false;
+          }
+
+          // Traverse up the tree to find any list node
+          while (currentNode) {
+            if ($isListNode(currentNode)) {
+              const listType = currentNode.getListType();
               bulletActive = listType === 'bullet';
               numberedActive = listType === 'number';
               break;
             }
-            const parent = node.getParent();
+            const parent = currentNode.getParent();
             if (!parent) break;
-            node = parent;
+            currentNode = parent;
           }
 
           // Check for headings
@@ -256,7 +285,7 @@ const CereforgeEditor: React.FC = () => {
           // Check for quote
           const blockQuote = $isQuoteNode(element);
 
-          // ✅ Update state with current alignment
+          // ✅ Update state
           setLexicalFormatState({
             bold: selection.hasFormat('bold'),
             italic: selection.hasFormat('italic'),
@@ -278,16 +307,6 @@ const CereforgeEditor: React.FC = () => {
       }
     };
 
-    // ✅ Wait for editor to be fully ready
-    const checkEditorReady = () => {
-      if (lexicalEditor.isEditable()) {
-        updateFormatState();
-      } else {
-        // Retry if editor not ready yet
-        setTimeout(checkEditorReady, 50);
-      }
-    };
-
     // ✅ Register update listener - fires AFTER state changes
     const unregisterUpdate = lexicalEditor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
@@ -295,11 +314,22 @@ const CereforgeEditor: React.FC = () => {
       });
     });
 
-    // ✅ Initial update with ready check
-    checkEditorReady();
+    // ✅ Register selection change listener for immediate updates
+    const unregisterSelection = lexicalEditor.registerCommand(
+      SELECTION_CHANGE_COMMAND,
+      () => {
+        requestAnimationFrame(updateFormatState);
+        return false; // Allow other handlers to run
+      },
+      COMMAND_PRIORITY_CRITICAL
+    );
+
+    // ✅ Initial update
+    requestAnimationFrame(updateFormatState);
 
     return () => {
       unregisterUpdate();
+      unregisterSelection();
     };
   }, [editorMode]);
 
