@@ -132,12 +132,10 @@ const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
   // Scroll to current month when year view opens
   useEffect(() => {
     if (showYearView && yearViewRef.current) {
-      setTimeout(() => {
         const currentMonthElement = document.getElementById(`month-${dayjs().month()}`);
         if (currentMonthElement) {
           currentMonthElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-      }, 150);
     }
   }, [showYearView]);
 
@@ -172,7 +170,7 @@ const MobileCalendarView: React.FC<MobileCalendarViewProps> = ({
   return (
     <div className="h-screen bg-black text-white flex flex-col">
       {/* Top Navigation Bar */}
-      <header className="bg-black border-b border-gray-800 px-4 py-3">
+      <header className="bg-black border-b border-gray-800 px-4 py-3 rounded-full">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-3">
             <motion.button

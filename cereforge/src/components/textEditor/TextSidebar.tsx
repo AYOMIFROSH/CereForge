@@ -803,7 +803,7 @@ const MediaView: React.FC<{
             </div>
             <p className="text-red-600 font-medium">{error}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => searchQuery}
               className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Retry

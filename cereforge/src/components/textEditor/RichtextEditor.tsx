@@ -27,6 +27,15 @@ import LexicalDocumentEditor, { LexicalDocumentEditorHandle } from './DocumentEd
 // Sample cereforge logo URL
 import cereforgeLogo from '../../assets/cereForge.png'
 
+// Add this after the other imports, before the cereforgeLogo import
+import { 
+  exportDocument, 
+  generateFileName, 
+  exportToTXT, 
+  exportToHTML,
+  type ExportFormat 
+} from '../../utils/exportDocument';
+
 // TypeScript types (same as before)
 type CustomElement =
   | { type: 'paragraph'; align?: string; children: CustomText[] }
@@ -56,7 +65,6 @@ type CustomText = {
 };
 
 type EditorMode = 'email' | 'document';
-type ExportFormat = 'pdf' | 'docx' | 'txt' | 'html' | 'md';
 
 declare module 'slate' {
   interface CustomTypes {
@@ -392,76 +400,83 @@ const CereforgeEditor: React.FC = () => {
   }, [editor]);
 
   // Export/Save handlers
-  const handleExportDocument = useCallback((format: ExportFormat) => {
-    const fileName = `document_${Date.now()}`;
+  const handleExportDocument = useCallback(async (format: ExportFormat) => {
+  if (editorMode === 'document') {
+    // Document mode exports using Lexical
+    if (!documentEditorRef.current) {
+      console.error('Document editor ref not available');
+      return;
+    }
 
-    if (editorMode === 'document') {
-      // TipTap exports
+    try {
+      await exportDocument({
+        format,
+        getHTML: () => documentEditorRef.current?.getHTML() || '',
+        getText: () => documentEditorRef.current?.getText() || '',
+        documentTitle: undefined, // Auto-generate timestamped name
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to export document. Please try again.');
+    }
+  } else {
+    // Email mode exports using Slate
+    const plainText = value
+      .map(node => {
+        if ('children' in node) {
+          return node.children
+            .map(child => ('text' in child ? child.text : ''))
+            .join('');
+        }
+        return '';
+      })
+      .join('\n');
+
+    try {
       switch (format) {
         case 'txt':
-          const plainText = documentEditorRef.current?.getText() || '';
-          const txtBlob = new Blob([plainText], { type: 'text/plain' });
-          const txtUrl = URL.createObjectURL(txtBlob);
-          const txtLink = document.createElement('a');
-          txtLink.href = txtUrl;
-          txtLink.download = `${fileName}.txt`;
-          txtLink.click();
-          URL.revokeObjectURL(txtUrl);
+          exportToTXT(plainText, generateFileName(undefined, 'txt'));
           break;
 
-        case 'html':
-          const htmlContent = documentEditorRef.current?.getHTML() || '';
-          const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
-          const htmlUrl = URL.createObjectURL(htmlBlob);
-          const htmlLink = document.createElement('a');
-          htmlLink.href = htmlUrl;
-          htmlLink.download = `${fileName}.html`;
-          htmlLink.click();
-          URL.revokeObjectURL(htmlUrl);
-          break;
-
-        case 'pdf':
-          alert('PDF export will be implemented with jsPDF library');
-          break;
-
-        case 'docx':
-          alert('DOCX export will be implemented with docx library');
-          break;
-
-        case 'md':
-          alert('Markdown export will be implemented');
-          break;
-      }
-    } else {
-      // Existing Slate export logic for email mode
-      switch (format) {
-        case 'txt':
-          const plainText = value
+        case 'html': {
+          // Convert Slate value to HTML (basic implementation for email mode)
+          const htmlContent = value
             .map(node => {
-              if ('children' in node) {
-                return node.children
+              if ('children' in node && 'type' in node) {
+                const text = node.children
                   .map(child => ('text' in child ? child.text : ''))
                   .join('');
+                
+                switch (node.type) {
+                  case 'heading1':
+                    return `<h1>${text}</h1>`;
+                  case 'heading2':
+                    return `<h2>${text}</h2>`;
+                  case 'heading3':
+                    return `<h3>${text}</h3>`;
+                  default:
+                    return `<p>${text}</p>`;
+                }
               }
               return '';
             })
-            .join('\n');
-
-          const txtBlob = new Blob([plainText], { type: 'text/plain' });
-          const txtUrl = URL.createObjectURL(txtBlob);
-          const txtLink = document.createElement('a');
-          txtLink.href = txtUrl;
-          txtLink.download = `${fileName}.txt`;
-          txtLink.click();
-          URL.revokeObjectURL(txtUrl);
+            .join('');
+          
+          exportToHTML(htmlContent, generateFileName(undefined, 'html'));
           break;
+        }
 
-        // ... other format cases
+        default:
+          alert(`${format.toUpperCase()} export is only available in Document mode. Please switch to Document mode to use this feature.`);
       }
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export. Please try again.');
     }
+  }
 
-    setShowSaveAsDropdown(false);
-  }, [value, editorMode]);
+  setShowSaveAsDropdown(false);
+}, [value, editorMode]);
 
   // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {

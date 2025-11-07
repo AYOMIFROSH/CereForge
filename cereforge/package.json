@@ -29,8 +29,11 @@
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
     "dayjs": "^1.11.18",
+    "docx": "^9.5.1",
     "emoji-picker-element": "^1.27.0",
     "framer-motion": "^12.23.22",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
     "lexical": "^0.37.0",
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.274.0",
@@ -48,7 +51,8 @@
     "redux-persist": "^6.0.0",
     "slate": "^0.118.1",
     "slate-history": "^0.113.1",
-    "slate-react": "^0.117.4"
+    "slate-react": "^0.117.4",
+    "turndown": "^7.2.2"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
@@ -56,6 +60,7 @@
     "@types/react-copy-to-clipboard": "^5.0.7",
     "@types/react-dom": "^18.2.7",
     "@types/react-helmet": "^6.1.11",
+    "@types/turndown": "^5.0.6",
     "@typescript-eslint/eslint-plugin": "^6.5.0",
     "@typescript-eslint/parser": "^6.5.0",
     "@vitejs/plugin-react": "^4.0.4",

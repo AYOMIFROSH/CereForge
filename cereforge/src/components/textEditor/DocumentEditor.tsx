@@ -7,7 +7,7 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, $isListNode } from '@lexical/list';
 import { LinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
-import { TableCellNode, TableNode, TableRowNode} from '@lexical/table';
+import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
 import {
   $getRoot,
   LexicalEditor,
@@ -160,7 +160,6 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     );
   }
 }
-
 function ImageComponent({
   src,
   altText,
@@ -220,15 +219,6 @@ function ImageComponent({
     };
   }, [isResizing, currentWidth, editor, nodeKey]);
 
-  const handleAlignChange = (newAlign: 'left' | 'center' | 'right') => {
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if ($isImageNode(node)) {
-        node.setAlign(newAlign);
-      }
-    });
-  };
-
   const handleDelete = () => {
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
@@ -265,28 +255,6 @@ function ImageComponent({
               className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
               contentEditable={false}
             >
-              <button
-                onClick={() => handleAlignChange('left')}
-                className={`p-1.5 rounded transition-colors ${align === 'left' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                title="Align Left"
-              >
-                <AlignLeft size={16} />
-              </button>
-              <button
-                onClick={() => handleAlignChange('center')}
-                className={`p-1.5 rounded transition-colors ${align === 'center' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                title="Align Center"
-              >
-                <AlignCenter size={16} />
-              </button>
-              <button
-                onClick={() => handleAlignChange('right')}
-                className={`p-1.5 rounded transition-colors ${align === 'right' ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
-                title="Align Right"
-              >
-                <AlignRight size={16} />
-              </button>
-              <div className="w-px h-6 bg-gray-600 mx-1" />
               <button
                 onClick={handleDelete}
                 className="p-1.5 rounded transition-colors text-red-400 hover:bg-red-900/50 hover:text-red-300"
