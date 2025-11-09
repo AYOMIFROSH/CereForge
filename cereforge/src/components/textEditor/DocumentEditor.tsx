@@ -41,10 +41,10 @@ import { AlignLeft, AlignCenter, AlignRight, Trash2, Edit2, Plus, Minus } from '
 
 /* @refresh reset */
 
-// A4 Page Constants
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297;
-const MARGIN_MM = '25mm 20mm';
+// Letter Page Constants (8.5" x 11")
+const LETTER_WIDTH_MM = 216;
+const LETTER_HEIGHT_MM = 279;
+const MARGIN_MM = '25.4mm 25.4mm'; // 1 inch margins
 
 const editorTheme = {
   paragraph: 'mb-1 leading-relaxed min-h-[1.5em]',
@@ -275,7 +275,7 @@ function ImageComponent({
             height: 'auto',
             borderRadius: '0.5rem',
             display: 'block',
-            margin: '0.5rem 0',
+            margin: '0.2rem 0',
           }}
           draggable={false}
         />
@@ -549,8 +549,8 @@ function TableComponent({
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
                 contentEditable={false}
+                className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 rounded-lg shadow-xl px-2 py-1 flex items-center space-x-1 z-50"
               >
                 <button
                   onClick={() => handleAlignChange('left')}
@@ -1204,6 +1204,7 @@ function ChartComponent({
             className="absolute bottom-0 right-0 w-4 h-4 bg-blue-600 rounded-tl cursor-nwse-resize opacity-0 group-hover:opacity-100 transition-opacity"
             onMouseDown={handleMouseDown}
             style={{ cursor: 'nwse-resize' }}
+            contentEditable={false}
           />
         </div>
       </div>
@@ -1431,7 +1432,7 @@ function PageCounterPlugin() {
 
       timeoutRef.current = setTimeout(() => {
         const contentHeight = editorContent.scrollHeight;
-        const pageHeightPx = (A4_HEIGHT_MM * 96) / 25.4;
+        const pageHeightPx = (LETTER_HEIGHT_MM * 96) / 25.4;
         const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
         setPageCount(pages);
       }, 500);
@@ -1955,8 +1956,8 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
         <style>{`
           @media screen {
             .document-page {
-              width: ${A4_WIDTH_MM}mm;
-              min-height: ${A4_HEIGHT_MM}mm;
+              width: ${LETTER_WIDTH_MM}mm;
+              min-height: ${LETTER_HEIGHT_MM}mm;
               padding: ${MARGIN_MM};
               background: white;
               margin: 0 auto 20px;

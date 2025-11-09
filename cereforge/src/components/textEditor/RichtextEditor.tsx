@@ -27,6 +27,8 @@ import LexicalDocumentEditor, { LexicalDocumentEditorHandle } from './DocumentEd
 // Sample cereforge logo URL
 import cereforgeLogo from '../../assets/cereForge.png'
 
+import { useEditorPreferences } from '@/hooks/useEditorPreferences';
+
 // Add this after the other imports, before the cereforgeLogo import
 import { 
   exportDocument, 
@@ -64,7 +66,6 @@ type CustomText = {
   backgroundColor?: string;
 };
 
-type EditorMode = 'email' | 'document';
 
 declare module 'slate' {
   interface CustomTypes {
@@ -118,14 +119,11 @@ const withCustomElements = (editor: Editor) => {
 
 const CereforgeEditor: React.FC = () => {
   // Mode state - NEW
-  const [editorMode, setEditorMode] = useState<EditorMode>('email');
+  const { editorMode, sidebarOpen, setEditorMode, setSidebarOpen } = useEditorPreferences();
 
   // Save As dropdown state
   const [showSaveAsDropdown, setShowSaveAsDropdown] = useState<boolean>(false);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('pdf');
-
-  // Sidebar state
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
   // Editor state
   const [showImageModal, setShowImageModal] = useState<boolean>(false);
@@ -168,6 +166,19 @@ const CereforgeEditor: React.FC = () => {
     cols: number;
     cellData: string[][];
   } | null>(null);
+
+  const [exportProgress, setExportProgress] = useState<{
+  isExporting: boolean;
+  progress: number;
+  message: string;
+  format: ExportFormat | null;
+}>({
+  isExporting: false,
+  progress: 0,
+  message: '',
+  format: null,
+});
+
 
   const [lexicalFormatState, setLexicalFormatState] = useState({
     bold: false,
@@ -399,12 +410,28 @@ const CereforgeEditor: React.FC = () => {
     }
   }, [editor]);
 
-  // Export/Save handlers
   const handleExportDocument = useCallback(async (format: ExportFormat) => {
+  // Prevent multiple simultaneous exports
+  if (exportProgress.isExporting) {
+    return;
+  }
+
+  setExportProgress({
+    isExporting: true,
+    progress: 0,
+    message: 'Starting export...',
+    format,
+  });
+
   if (editorMode === 'document') {
-    // Document mode exports using Lexical
     if (!documentEditorRef.current) {
       console.error('Document editor ref not available');
+      setExportProgress({
+        isExporting: false,
+        progress: 0,
+        message: '',
+        format: null,
+      });
       return;
     }
 
@@ -413,11 +440,36 @@ const CereforgeEditor: React.FC = () => {
         format,
         getHTML: () => documentEditorRef.current?.getHTML() || '',
         getText: () => documentEditorRef.current?.getText() || '',
-        documentTitle: undefined, // Auto-generate timestamped name
+        documentTitle: undefined,
+        onProgress: (progress: number, message: string) => {
+          setExportProgress({
+            isExporting: true,
+            progress,
+            message,
+            format,
+          });
+        },
+      });
+
+      // Success - show completion briefly before closing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setExportProgress({
+        isExporting: false,
+        progress: 0,
+        message: '',
+        format: null,
       });
     } catch (error) {
       console.error('Export failed:', error);
       alert(error instanceof Error ? error.message : 'Failed to export document. Please try again.');
+      
+      setExportProgress({
+        isExporting: false,
+        progress: 0,
+        message: '',
+        format: null,
+      });
     }
   } else {
     // Email mode exports using Slate
@@ -433,13 +485,19 @@ const CereforgeEditor: React.FC = () => {
       .join('\n');
 
     try {
+      setExportProgress({
+        isExporting: true,
+        progress: 50,
+        message: 'Preparing export...',
+        format,
+      });
+
       switch (format) {
         case 'txt':
           exportToTXT(plainText, generateFileName(undefined, 'txt'));
           break;
 
         case 'html': {
-          // Convert Slate value to HTML (basic implementation for email mode)
           const htmlContent = value
             .map(node => {
               if ('children' in node && 'type' in node) {
@@ -469,15 +527,37 @@ const CereforgeEditor: React.FC = () => {
         default:
           alert(`${format.toUpperCase()} export is only available in Document mode. Please switch to Document mode to use this feature.`);
       }
+
+      setExportProgress({
+        isExporting: true,
+        progress: 100,
+        message: 'Complete!',
+        format,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setExportProgress({
+        isExporting: false,
+        progress: 0,
+        message: '',
+        format: null,
+      });
     } catch (error) {
       console.error('Export failed:', error);
       alert('Failed to export. Please try again.');
+      
+      setExportProgress({
+        isExporting: false,
+        progress: 0,
+        message: '',
+        format: null,
+      });
     }
   }
 
   setShowSaveAsDropdown(false);
-}, [value, editorMode]);
-
+}, [value, editorMode, exportProgress.isExporting]);
   // Sidebar handlers
   const handleInsertGif = useCallback((url: string) => {
     if (editorMode === 'document') {
@@ -1837,6 +1917,76 @@ const CereforgeEditor: React.FC = () => {
     '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16'
   ];
 
+  // Add this progress modal component before the return statement
+const ExportProgressModal = () => {
+  if (!exportProgress.isExporting) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.9, y: 20 }}
+          className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
+        >
+          <div className="space-y-4">
+            {/* Icon and Title */}
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                {exportProgress.format === 'pdf' && <FileText className="w-6 h-6 text-blue-600" />}
+                {exportProgress.format === 'docx' && <File className="w-6 h-6 text-blue-600" />}
+                {exportProgress.format === 'txt' && <FileText className="w-6 h-6 text-blue-600" />}
+                {exportProgress.format === 'html' && <Code className="w-6 h-6 text-blue-600" />}
+                {exportProgress.format === 'md' && <FileText className="w-6 h-6 text-blue-600" />}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Exporting {exportProgress.format?.toUpperCase()}
+                </h3>
+                <p className="text-sm text-gray-600">{exportProgress.message}</p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Progress</span>
+                <span className="font-semibold text-blue-600">{exportProgress.progress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${exportProgress.progress}%` }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* Success indicator */}
+            {exportProgress.progress === 100 && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="flex items-center justify-center space-x-2 text-green-600"
+              >
+                <Check className="w-5 h-5" />
+                <span className="font-medium">Export Complete!</span>
+              </motion.div>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
   return (
     <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden">
       {/* Independent Sidebar Component */}
@@ -2433,6 +2583,8 @@ const CereforgeEditor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      <ExportProgressModal />
+
     </div>
 
   );

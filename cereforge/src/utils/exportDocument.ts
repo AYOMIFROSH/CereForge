@@ -12,7 +12,8 @@ import {
     HeadingLevel,
     ImageRun,
     WidthType,
-    BorderStyle
+    BorderStyle,
+    AlignmentType
 } from 'docx';
 import TurndownService from 'turndown';
 
@@ -23,6 +24,7 @@ interface ExportOptions {
     getHTML: () => string;
     getText: () => string;
     documentTitle?: string;
+    onProgress?: (progress: number, message: string) => void;
 }
 
 /**
@@ -37,84 +39,144 @@ export const generateFileName = (customName?: string, extension?: string): strin
 /**
  * Convert image URL to base64
  */
-const imageUrlToBase64 = async (url: string): Promise<string> => {
+const imageUrlToBase64 = async (url: string): Promise<{ data: string; type: string }> => {
     try {
-        // If already base64, return as is
+        // Already base64
         if (url.startsWith('data:')) {
-            return url.split(',')[1];
+            const matches = url.match(/^data:([^;]+);base64,(.+)$/);
+            if (matches) {
+                return { data: matches[2], type: matches[1] };
+            }
         }
 
-        // Fetch and convert to base64
-        const response = await fetch(url);
-        const blob = await response.blob();
-
+        // Try canvas method (works for CORS images)
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = reader.result as string;
-                resolve(base64.split(',')[1]);
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Failed to get canvas context'));
+                        return;
+                    }
+                    
+                    ctx.drawImage(img, 0, 0);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+                    
+                    if (matches) {
+                        resolve({ data: matches[2], type: matches[1] });
+                    } else {
+                        reject(new Error('Failed to extract base64'));
+                    }
+                } catch (error) {
+                    reject(error);
+                }
             };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
+            
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = url;
+            
+            // Timeout after 10 seconds
+            setTimeout(() => reject(new Error('Timeout')), 10000);
         });
     } catch (error) {
-        console.error('Failed to convert image to base64:', error);
-        return '';
+        console.error('Image conversion failed:', error);
+        return { data: '', type: 'image/png' };
     }
 };
-
 /**
- * Capture chart as image using html2canvas
+ * Capture element as image using html2canvas
  */
-const captureChartAsImage = async (chartElement: HTMLElement): Promise<string> => {
+const captureElementAsImage = async (element: HTMLElement): Promise<string> => {
     try {
-        const canvas = await html2canvas(chartElement, {
+        // Ensure element is visible
+        const rect = element.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+            console.warn('Element has zero dimensions');
+            return '';
+        }
+
+        const canvas = await html2canvas(element, {
             scale: 2,
             useCORS: true,
             logging: false,
             backgroundColor: '#ffffff',
+            allowTaint: true,
+            removeContainer: false,
         });
-        return canvas.toDataURL('image/png').split(',')[1];
+        
+        const base64 = canvas.toDataURL('image/png').split(',')[1];
+        
+        if (!base64 || base64.length < 100) {
+            throw new Error('Captured image too small');
+        }
+        
+        return base64;
     } catch (error) {
-        console.error('Failed to capture chart:', error);
+        console.error('Failed to capture element:', error);
         return '';
     }
 };
 
 /**
- * Export document as PDF with full formatting preservation
+ * Export document as PDF with proper A4 dimensions and margins
  */
-export const exportToPDF = async (element: HTMLElement, fileName: string): Promise<void> => {
+export const exportToPDF = async (
+    element: HTMLElement,
+    fileName: string,
+    onProgress?: (progress: number, message: string) => void
+): Promise<void> => {
     try {
-        // Configure html2canvas for high quality
-        const canvas = await html2canvas(element, {
-            scale: 2, // Higher quality
-            useCORS: true, // Handle cross-origin images
+        onProgress?.(10, 'Preparing document...');
+
+        const clonedElement = element.cloneNode(true) as HTMLElement;
+
+        const pageCounter = clonedElement.querySelector('.no-print');
+        if (pageCounter) {
+            pageCounter.remove();
+        }
+
+        clonedElement.style.position = 'absolute';
+        clonedElement.style.left = '-9999px';
+        clonedElement.style.top = '0';
+        document.body.appendChild(clonedElement);
+
+        onProgress?.(30, 'Rendering content...');
+
+        const a4WidthPx = 794;
+        clonedElement.style.width = `${a4WidthPx}px`;
+        clonedElement.style.maxWidth = `${a4WidthPx}px`;
+
+        onProgress?.(50, 'Capturing pages...');
+
+        const canvas = await html2canvas(clonedElement, {
+            scale: 2,
+            useCORS: true,
             logging: false,
             backgroundColor: '#ffffff',
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-            onclone: (clonedDoc) => {
-                // Ensure all images are loaded in cloned document
-                const images = clonedDoc.querySelectorAll('img');
-                images.forEach((img) => {
-                    img.style.maxWidth = '100%';
-                    img.style.height = 'auto';
-                });
-            },
+            width: a4WidthPx,
+            allowTaint: true,
         });
+
+        document.body.removeChild(clonedElement);
+
+        onProgress?.(70, 'Generating PDF...');
 
         const imgData = canvas.toDataURL('image/png');
 
-        // A4 dimensions in mm
         const pdfWidth = 210;
         const pdfHeight = 297;
 
-        // Calculate dimensions to fit A4
         const imgWidth = pdfWidth;
         const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-        // Create PDF
         const pdf = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -124,21 +186,28 @@ export const exportToPDF = async (element: HTMLElement, fileName: string): Promi
 
         let heightLeft = imgHeight;
         let position = 0;
+        let pageCount = 0;
 
-        // Add first page
+        // ✅ FIXED: Add first page
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
         heightLeft -= pdfHeight;
+        pageCount++;
 
-        // Add additional pages if content is longer than one page
-        while (heightLeft > 0) {
+        // ✅ FIXED: Only add pages if there's significant content remaining (more than 10mm)
+        const THRESHOLD = 10; // Minimum height in mm to justify a new page
+        while (heightLeft > THRESHOLD) {
             position = heightLeft - imgHeight;
             pdf.addPage();
             pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
             heightLeft -= pdfHeight;
+            pageCount++;
         }
 
-        // Save the PDF
+        onProgress?.(90, `Saving ${pageCount} page(s)...`);
+
         pdf.save(fileName);
+
+        onProgress?.(100, 'Complete!');
     } catch (error) {
         console.error('PDF export failed:', error);
         throw new Error('Failed to export PDF. Please try again.');
@@ -146,19 +215,105 @@ export const exportToPDF = async (element: HTMLElement, fileName: string): Promi
 };
 
 /**
- * Export document as DOCX with full formatting preservation including images, tables, and charts
+ * Parse HTML table to DOCX format
  */
-export const exportToDOCX = async (htmlContent: string, fileName: string): Promise<void> => {
+const parseHTMLTable = async (tableElement: HTMLTableElement): Promise<Table> => {
+    const rows: TableRow[] = [];
+
+    const tableRows = tableElement.querySelectorAll('tr');
+    for (const tr of Array.from(tableRows)) {
+        const cells: TableCell[] = [];
+        const tableCells = tr.querySelectorAll('td, th');
+
+        for (const cell of Array.from(tableCells)) {
+            const isHeader = cell.tagName === 'TH';
+            const textRuns: TextRun[] = [];
+
+            // Extract text with formatting
+            const processTextNode = (node: Node): void => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent || '';
+                    if (text.trim()) {
+                        textRuns.push(new TextRun({
+                            text,
+                            bold: isHeader
+                        }));
+                    }
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const el = node as HTMLElement;
+                    const text = el.textContent || '';
+                    const isBold = el.tagName === 'STRONG' || el.tagName === 'B' || isHeader;
+                    const isItalic = el.tagName === 'EM' || el.tagName === 'I';
+                    const isUnderline = el.tagName === 'U';
+
+                    if (text.trim()) {
+                        textRuns.push(new TextRun({
+                            text,
+                            bold: isBold,
+                            italics: isItalic,
+                            underline: isUnderline ? {} : undefined,
+                        }));
+                    }
+                }
+            };
+
+            cell.childNodes.forEach(processTextNode);
+
+            cells.push(new TableCell({
+                children: [new Paragraph({
+                    children: textRuns.length > 0 ? textRuns : [new TextRun({ text: cell.textContent || '', bold: isHeader })]
+                })],
+                width: { size: 2000, type: WidthType.DXA },
+                shading: isHeader ? { fill: 'E5E7EB' } : undefined,
+                margins: {
+                    top: 100,
+                    bottom: 100,
+                    left: 100,
+                    right: 100,
+                },
+            }));
+        }
+
+        if (cells.length > 0) {
+            rows.push(new TableRow({ children: cells }));
+        }
+    }
+
+    return new Table({
+        rows,
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        margins: {
+            top: 200,
+            bottom: 200,
+        },
+    });
+};
+
+/**
+ * Export document as DOCX with full formatting preservation
+ */
+/**
+ * Export document as DOCX with full formatting preservation
+ */
+export const exportToDOCX = async (
+    htmlContent: string,
+    fileName: string,
+    onProgress?: (progress: number, message: string) => void
+): Promise<void> => {
     try {
-        // Parse HTML to extract content
+        onProgress?.(10, 'Parsing document...');
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlContent, 'text/html');
-
         const sections: any[] = [];
 
-        // Process each element
+        let processedCount = 0;
+        const totalElements = doc.body.childNodes.length;
+
         const processNode = async (node: Node): Promise<any[]> => {
-            const children: any[] = [];
+            processedCount++;
+            const progress = 10 + Math.floor((processedCount / totalElements) * 60);
+            onProgress?.(progress, 'Processing content...');
 
             if (node.nodeType === Node.TEXT_NODE) {
                 const text = node.textContent?.trim();
@@ -172,7 +327,6 @@ export const exportToDOCX = async (htmlContent: string, fileName: string): Promi
                 const element = node as HTMLElement;
                 const tagName = element.tagName.toLowerCase();
 
-                // Handle different HTML elements
                 switch (tagName) {
                     case 'h1':
                         return [new Paragraph({
@@ -195,10 +349,18 @@ export const exportToDOCX = async (htmlContent: string, fileName: string): Promi
                             spacing: { before: 160, after: 80 },
                         })];
 
-                    case 'p':
+                    case 'p': {
                         const textRuns: TextRun[] = [];
+                        let alignment: typeof AlignmentType[keyof typeof AlignmentType] = AlignmentType.LEFT;
 
-                        for (const child of Array.from(element.childNodes)) {
+                        const style = element.getAttribute('style') || '';
+                        if (style.includes('text-align: center') || style.includes('justify-center')) {
+                            alignment = AlignmentType.CENTER;
+                        } else if (style.includes('text-align: right') || style.includes('justify-end')) {
+                            alignment = AlignmentType.RIGHT;
+                        }
+
+                        const processChild = (child: Node) => {
                             if (child.nodeType === Node.TEXT_NODE) {
                                 const text = child.textContent || '';
                                 if (text.trim()) {
@@ -208,33 +370,36 @@ export const exportToDOCX = async (htmlContent: string, fileName: string): Promi
                                 const childEl = child as HTMLElement;
                                 const childText = childEl.textContent || '';
 
-                                // Get computed styles
-                                const isBold = childEl.tagName === 'STRONG' || childEl.tagName === 'B' ||
-                                    getComputedStyle(childEl).fontWeight === 'bold';
-                                const isItalic = childEl.tagName === 'EM' || childEl.tagName === 'I' ||
-                                    getComputedStyle(childEl).fontStyle === 'italic';
-                                const isUnderline = childEl.tagName === 'U' ||
-                                    getComputedStyle(childEl).textDecoration.includes('underline');
+                                const isBold = ['STRONG', 'B'].includes(childEl.tagName);
+                                const isItalic = ['EM', 'I'].includes(childEl.tagName);
+                                const isUnderline = childEl.tagName === 'U';
+                                const isStrike = ['S', 'STRIKE', 'DEL'].includes(childEl.tagName);
 
-                                textRuns.push(new TextRun({
-                                    text: childText,
-                                    bold: isBold,
-                                    // This line is correct in your file:
-                                    italics: isItalic, 
-                                    underline: isUnderline ? {} : undefined,
-                                }));
+                                if (childText.trim()) {
+                                    textRuns.push(new TextRun({
+                                        text: childText,
+                                        bold: isBold,
+                                        italics: isItalic,
+                                        underline: isUnderline ? {} : undefined,
+                                        strike: isStrike,
+                                    }));
+                                }
                             }
-                        }
+                        };
+
+                        element.childNodes.forEach(processChild);
 
                         return [new Paragraph({
                             children: textRuns.length > 0 ? textRuns : [new TextRun({ text: element.textContent || '' })],
                             spacing: { before: 100, after: 100 },
+                            alignment,
                         })];
+                    }
 
                     case 'ul':
-                    case 'ol':
+                    case 'ol': {
                         const listItems: Paragraph[] = [];
-                        element.querySelectorAll('li').forEach((li, _index) => {
+                        element.querySelectorAll('li').forEach((li) => {
                             listItems.push(new Paragraph({
                                 text: li.textContent || '',
                                 bullet: tagName === 'ul' ? { level: 0 } : undefined,
@@ -243,121 +408,155 @@ export const exportToDOCX = async (htmlContent: string, fileName: string): Promi
                             }));
                         });
                         return listItems;
+                    }
 
-                   case 'blockquote':
+                    case 'blockquote':
                         return [new Paragraph({
-                            // Move paragraph-level options here
                             indent: { left: 720 },
                             border: {
-                                left: { color: '2563eb', space: 1, style: BorderStyle.SINGLE },
+                                left: { color: '2563eb', space: 1, style: BorderStyle.SINGLE, size: 6 },
                             },
                             spacing: { before: 120, after: 120 },
-                            // Add a TextRun to the children array for styling
                             children: [
                                 new TextRun({
                                     text: element.textContent || '',
-                                    italics: true, // This is a valid property for IRunOptions/TextRun
+                                    italics: true,
                                 }),
                             ],
                         })];
 
                     case 'img': {
-                        const imgElement = element as HTMLImageElement;
-                        const src = imgElement.src;
+    const imgElement = element as HTMLImageElement;
+    const src = imgElement.src;
 
+    if (!src || src === '' || src === 'about:blank') {
+        return [];
+    }
+
+    try {
+        onProgress?.(progress, 'Processing image...');
+
+        const { data: base64Image, type } = await imageUrlToBase64(src);
+
+        if (!base64Image || base64Image.length < 100) {
+            console.warn('Image failed:', src);
+            return [new Paragraph({
+                text: `[Image: ${imgElement.alt || 'Unable to load'}]`,
+                spacing: { before: 120, after: 120 },
+            })];
+        }
+
+        let width = imgElement.width || 400;
+        let height = imgElement.height || 300;
+        
+        if (width > 500) {
+            height = (height / width) * 500;
+            width = 500;
+        }
+
+        let imageType: 'png' | 'jpg' | 'gif' | 'bmp' = 'png';
+        if (type.includes('jpeg') || type.includes('jpg')) {
+            imageType = 'jpg';
+        } else if (type.includes('gif')) {
+            imageType = 'gif';
+        }
+
+        console.log(`✅ Embedded image: ${width}x${height}`);
+
+        return [
+            new Paragraph({
+                children: [
+                    new ImageRun({
+                        data: Buffer.from(base64Image, 'base64'),
+                        transformation: { width, height },
+                        type: imageType,
+                    }),
+                ],
+                spacing: { before: 200, after: 200 },
+            }),
+        ];
+    } catch (error) {
+        console.error('Image embed failed:', error);
+        return [new Paragraph({
+            text: `[Image: Error]`,
+            spacing: { before: 120, after: 120 },
+        })];
+    }
+}
+
+                    case 'table': {
                         try {
-                            const base64Image = await imageUrlToBase64(src);
-                            if (base64Image) {
-                                // Calculate dimensions (max width 600px = ~6 inches)
-                                const maxWidth = 600;
-                                const width = Math.min(imgElement.width || maxWidth, maxWidth);
-                                const height = imgElement.height || (width * 0.75);
-
-                                return [new Paragraph({
-                                    children: [
-                                        new ImageRun({
-                                            data: Uint8Array.from(Buffer.from(base64Image, 'base64')),
-                                            transformation: {
-                                                width: width,
-                                                height: height,
-                                            },
-                                            type: 'png',
-                                        }),
-                                    ],
-                                    spacing: { before: 120, after: 120 },
-                                })];
-                            }
+                            onProgress?.(progress, 'Processing table...');
+                            const tableElement = element as HTMLTableElement;
+                            const table = await parseHTMLTable(tableElement);
+                            return [
+                                table,
+                                new Paragraph({ text: '' }), // Spacing after table
+                            ];
                         } catch (error) {
-                            console.error('Failed to embed image:', error);
+                            console.error('Failed to process table:', error);
                             return [new Paragraph({
-                                text: `[Image: ${imgElement.alt || 'Unable to load'}]`,
+                                text: '[Table: Error processing]',
                                 spacing: { before: 120, after: 120 },
                             })];
                         }
-                        return [];
                     }
 
-                    case 'table':
-                        const rows: TableRow[] = [];
-                        const tableElement = element as HTMLTableElement;
+                    case 'div':
+                    case 'span': {
+                        // Check for charts first (SVG, canvas, or chart classes)
+                        // Inside case 'div': around line 500
+const hasSVG = element.querySelector('svg');
+const hasCanvas = element.querySelector('canvas');
 
-                        tableElement.querySelectorAll('tr').forEach((tr) => {
-                            const cells: TableCell[] = [];
-                            tr.querySelectorAll('td, th').forEach((cell) => {
-                                const isHeader = cell.tagName === 'TH';
-                                cells.push(new TableCell({
-                                    children: [new Paragraph({
-                                        children: [new TextRun({
-                                            text: cell.textContent || '',
-                                            bold: isHeader,
-                                        })],
-                                    })],
-                                    width: { size: 2000, type: WidthType.DXA },
-                                    shading: isHeader ? { fill: 'f2f2f2' } : undefined,
-                                }));
-                            });
-                            rows.push(new TableRow({ children: cells }));
-                        });
+if (hasSVG || hasCanvas) {
+    try {
+        onProgress?.(progress, 'Processing chart...');
 
-                        return [
-                            new Table({
-                                rows,
-                                width: { size: 100, type: WidthType.PERCENTAGE },
-                            }),
-                            new Paragraph({ text: '' }), // Add spacing after table
-                        ];
+        let captureElement = element;
+        const chartContainer = element.querySelector('.p-4') || 
+                             element.querySelector('svg')?.parentElement;
+        
+        if (chartContainer instanceof HTMLElement) {
+            captureElement = chartContainer;
+        }
 
-                    // Handle chart containers
-                    case 'div': {
-                        // Check if this div contains a chart
-                        if (element.querySelector('svg') || element.classList.contains('chart-container')) {
+        const chartImage = await captureElementAsImage(captureElement);
+
+        if (chartImage && chartImage.length > 100) {
+            console.log('✅ Embedded chart');
+            
+            return [
+                new Paragraph({
+                    children: [
+                        new ImageRun({
+                            data: Buffer.from(chartImage, 'base64'),
+                            transformation: { width: 500, height: 300 },
+                            type: 'png',
+                        }),
+                    ],
+                    spacing: { before: 200, after: 200 },
+                }),
+            ];
+        }
+    } catch (error) {
+        console.error('Chart embed failed:', error);
+    }
+}
+
+                        // Check for nested tables
+                        const nestedTable = element.querySelector('table');
+                        if (nestedTable && !element.closest('table')) {
                             try {
-                                const chartImage = await captureChartAsImage(element);
-                                if (chartImage) {
-                                    return [new Paragraph({
-                                        children: [
-                                            new ImageRun({
-                                                data: Uint8Array.from(Buffer.from(chartImage, 'base64')),
-                                                transformation: {
-                                                    width: 500,
-                                                    height: 300,
-                                                },
-                                                type: 'png',
-                                            }),
-                                        ],
-                                        spacing: { before: 120, after: 120 },
-                                    })];
-                                }
+                                onProgress?.(progress, 'Processing nested table...');
+                                const table = await parseHTMLTable(nestedTable as HTMLTableElement);
+                                return [table, new Paragraph({ text: '' })];
                             } catch (error) {
-                                console.error('Failed to embed chart:', error);
-                                return [new Paragraph({
-                                    text: '[Chart: Unable to render]',
-                                    spacing: { before: 120, after: 120 },
-                                })];
+                                console.error('Failed to process nested table:', error);
                             }
                         }
 
-                        // Process children for regular divs
+                        // Process children recursively
                         const childResults: any[] = [];
                         for (const child of Array.from(element.childNodes)) {
                             const processed = await processNode(child);
@@ -365,38 +564,50 @@ export const exportToDOCX = async (htmlContent: string, fileName: string): Promi
                         }
                         return childResults;
                     }
-
-                    default:
-                        // Process children for other elements
+                    default: {
+                        // Process children for unknown elements
                         const childResults: any[] = [];
                         for (const child of Array.from(element.childNodes)) {
                             const processed = await processNode(child);
                             childResults.push(...processed);
                         }
                         return childResults;
+                    }
                 }
             }
 
-            return children;
+            return [];
         };
 
         // Process body content
+        console.log('Starting document processing...');
         const bodyElements = doc.body.childNodes;
         for (const node of Array.from(bodyElements)) {
             const processed = await processNode(node);
             sections.push(...processed);
         }
 
-        // Create document
+        console.log(`Processed ${sections.length} sections`);
+
+        onProgress?.(80, 'Building document...');
+
+        // Create document with proper configuration
         const docxDocument = new Document({
+            creator: 'Cereforge Editor',
+            description: 'Document created with Cereforge Editor',
+            title: fileName.replace('.docx', ''),
             sections: [{
                 properties: {
                     page: {
                         margin: {
                             top: 1440,    // 1 inch
-                            right: 1440,
-                            bottom: 1440,
-                            left: 1440,
+                            right: 1440,  // 1 inch
+                            bottom: 1440, // 1 inch
+                            left: 1440,   // 1 inch
+                        },
+                        pageNumbers: {
+                            start: 1,
+                            formatType: 'decimal',
                         },
                     },
                 },
@@ -406,14 +617,28 @@ export const exportToDOCX = async (htmlContent: string, fileName: string): Promi
             }],
         });
 
-        // Generate and save
+        onProgress?.(90, 'Generating file...');
+
+        // Generate blob
         const blob = await Packer.toBlob(docxDocument);
+
+        console.log(`Document generated: ${blob.size} bytes`);
+
+        // Download
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = fileName;
+        document.body.appendChild(link);
         link.click();
-        URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+
+        // Cleanup
+        requestAnimationFrame(() => {
+            URL.revokeObjectURL(url);
+        });
+
+        onProgress?.(100, 'Complete!');
 
     } catch (error) {
         console.error('DOCX export failed:', error);
@@ -442,11 +667,36 @@ export const exportToTXT = (textContent: string, fileName: string): void => {
 /**
  * Export document as HTML with full preservation
  */
-export const exportToHTML = (htmlContent: string, fileName: string): void => {
+export const exportToHTML = (
+    htmlContent: string,
+    fileName: string,
+    onProgress?: (progress: number, message: string) => void
+): void => {
     try {
-        // Wrap in a complete HTML document
-        const fullHTML = `
-<!DOCTYPE html>
+        onProgress?.(20, 'Preparing HTML...');
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+
+        // Inline all images as base64
+        const images = doc.querySelectorAll('img');
+        const imagePromises = Array.from(images).map(async (img) => {
+            try {
+                const { data: base64, type } = await imageUrlToBase64(img.src);
+                if (base64) {
+                    img.src = `data:${type};base64,${base64}`;
+                }
+            } catch (error) {
+                console.error('Failed to inline image:', error);
+            }
+        });
+
+        Promise.all(imagePromises).then(() => {
+            onProgress?.(60, 'Building HTML file...');
+
+            const processedHTML = doc.body.innerHTML;
+
+            const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -488,29 +738,25 @@ export const exportToHTML = (htmlContent: string, fileName: string): void => {
     s, strike, del { text-decoration: line-through; }
     sub { vertical-align: sub; font-size: smaller; }
     sup { vertical-align: super; font-size: smaller; }
-    /* Chart container styling */
-    .chart-container {
-      margin: 1.5em 0;
-      padding: 1em;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      background: white;
-    }
   </style>
 </head>
 <body>
-${htmlContent}
+${processedHTML}
 </body>
-</html>
-    `.trim();
+</html>`;
 
-        const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(url);
+            onProgress?.(90, 'Saving file...');
+
+            const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            onProgress?.(100, 'Complete!');
+        });
     } catch (error) {
         console.error('HTML export failed:', error);
         throw new Error('Failed to export HTML file. Please try again.');
@@ -518,23 +764,24 @@ ${htmlContent}
 };
 
 /**
- * Export document as Markdown with tables and image links
+ * Export document as Markdown
  */
-export const exportToMarkdown = (htmlContent: string, fileName: string): void => {
+export const exportToMarkdown = (
+    htmlContent: string,
+    fileName: string,
+    onProgress?: (progress: number, message: string) => void
+): void => {
     try {
+        onProgress?.(30, 'Converting to Markdown...');
+
         const turndownService = new TurndownService({
             headingStyle: 'atx',
             codeBlockStyle: 'fenced',
             bulletListMarker: '-',
         });
 
-        // Add custom rules for better markdown conversion
         turndownService.addRule('strikethrough', {
-            filter: (node) => {
-                return node.nodeName === 'S' ||
-                    node.nodeName === 'STRIKE' ||
-                    node.nodeName === 'DEL';
-            },
+            filter: (node) => ['S', 'STRIKE', 'DEL'].includes(node.nodeName),
             replacement: (content) => `~~${content}~~`,
         });
 
@@ -548,22 +795,10 @@ export const exportToMarkdown = (htmlContent: string, fileName: string): void =>
             replacement: (content) => `^${content}^`,
         });
 
-        // Add rule for charts (convert to text representation)
-        turndownService.addRule('charts', {
-            filter: (node) => {
-                return node.nodeName === 'DIV' &&
-                    (node.classList.contains('chart-container') ||
-                        node.querySelector('svg') !== null);
-            },
-            replacement: (_content, node) => {
-                const title = (node as HTMLElement).querySelector('h4')?.textContent || 'Chart';
-                return `\n\n**${title}**\n\n*(Chart visualization not supported in Markdown)*\n\n`;
-            },
-        });
-
         const markdown = turndownService.turndown(htmlContent);
 
-        // Add metadata header
+        onProgress?.(70, 'Finalizing...');
+
         const fullMarkdown = `---
 title: ${fileName.replace('.md', '')}
 date: ${new Date().toISOString().split('T')[0]}
@@ -573,6 +808,8 @@ generated: Cereforge Document Editor
 ${markdown}
 `;
 
+        onProgress?.(90, 'Saving file...');
+
         const blob = new Blob([fullMarkdown], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -580,6 +817,8 @@ ${markdown}
         link.download = fileName;
         link.click();
         URL.revokeObjectURL(url);
+
+        onProgress?.(100, 'Complete!');
     } catch (error) {
         console.error('Markdown export failed:', error);
         throw new Error('Failed to export Markdown file. Please try again.');
@@ -587,45 +826,48 @@ ${markdown}
 };
 
 /**
- * Main export handler that routes to appropriate export function
+ * Main export handler with progress tracking
  */
 export const exportDocument = async (options: ExportOptions): Promise<void> => {
-    const { format, getHTML, getText, documentTitle } = options;
+    const { format, getHTML, getText, documentTitle, onProgress } = options;
     const fileName = generateFileName(documentTitle, format);
 
     try {
+        onProgress?.(5, 'Initializing export...');
+
         switch (format) {
             case 'pdf': {
-                // Get the document editor element
                 const editorElement = document.querySelector('.document-page') as HTMLElement;
                 if (!editorElement) {
                     throw new Error('Document editor not found');
                 }
-                await exportToPDF(editorElement, fileName);
+                await exportToPDF(editorElement, fileName, onProgress);
                 break;
             }
 
             case 'docx': {
                 const htmlContent = getHTML();
-                await exportToDOCX(htmlContent, fileName);
+                await exportToDOCX(htmlContent, fileName, onProgress);
                 break;
             }
 
             case 'txt': {
+                onProgress?.(50, 'Preparing text...');
                 const textContent = getText();
                 exportToTXT(textContent, fileName);
+                onProgress?.(100, 'Complete!');
                 break;
             }
 
             case 'html': {
                 const htmlContent = getHTML();
-                exportToHTML(htmlContent, fileName);
+                exportToHTML(htmlContent, fileName, onProgress);
                 break;
             }
 
             case 'md': {
                 const htmlContent = getHTML();
-                exportToMarkdown(htmlContent, fileName);
+                exportToMarkdown(htmlContent, fileName, onProgress);
                 break;
             }
 
