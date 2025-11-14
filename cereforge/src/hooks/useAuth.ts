@@ -1,154 +1,151 @@
-// src/hooks/useAuth.ts - Fixed authentication hook
-import { useSelector, useDispatch } from 'react-redux';
-import { useEffect, useCallback, useRef } from 'react';
-import { RootState, AppDispatch } from '@/store/store';
-import {
-  clearCredentials,
-  updateAccessToken,
-  initializeAuth,
-  logout as logoutThunk,
-  sessionExpired,
-  updateActivity
-} from '@/store/slices/authSlice';
-import client from '@/api/client';
+import { useAuthStore, EmailVerificationResult } from '../store/authStore';
+import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
-const useAuth = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const auth = useSelector((state: RootState) => state.auth);
-  const initializationPromise = useRef<Promise<any> | null>(null);
-  const hasInitialized = useRef(false);
+/**
+ * Custom hook for authentication operations
+ */
+export function useAuth() {
+  const navigate = useNavigate();
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    emailVerified,
+    verificationResult,
+    setUser,
+    setEmailVerification,
+    clearEmailVerification,
+    logout: logoutStore,
+    setLoading
+  } = useAuthStore();
 
-  // Initialize authentication on mount - ALWAYS run, don't depend on persisted token
-  useEffect(() => {
-    // Only initialize once per app load
-    if (!hasInitialized.current && !auth.initialized && !auth.loading) {
-      console.log('🚀 Starting auth initialization...');
-      hasInitialized.current = true;
-
-      if (!initializationPromise.current) {
-        initializationPromise.current = dispatch(initializeAuth())
-          .finally(() => {
-            initializationPromise.current = null;
-          });
-      }
-    }
-  }, [dispatch, auth.initialized, auth.loading]);
-
-  // Listen for session expiration events
-  useEffect(() => {
-    const handleSessionExpired = (event: Event) => {
-      const detail = (event as CustomEvent)?.detail;
-      console.log('🔒 Session expired event received:', detail);
-
-      dispatch(sessionExpired());
-
-      // Only redirect after initialization is complete
-      if (auth.initialized) {
-        setTimeout(() => {
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-        }, 100);
-      }
-    };
-
-    const handleTokenUpdated = (event: Event) => {
-      const detail = (event as CustomEvent)?.detail;
-      if (detail?.accessToken && auth.isAuthenticated) {
-        console.log('🔔 Token updated from API client');
-        dispatch(updateAccessToken({ accessToken: detail.accessToken }));
-      }
-    };
-
-    window.addEventListener('auth:sessionExpired', handleSessionExpired as EventListener);
-    window.addEventListener('auth:tokenUpdated', handleTokenUpdated as EventListener);
-
-    return () => {
-      window.removeEventListener('auth:sessionExpired', handleSessionExpired as EventListener);
-      window.removeEventListener('auth:tokenUpdated', handleTokenUpdated as EventListener);
-    };
-  }, [dispatch, auth.isAuthenticated, auth.initialized]);
-
-  // Update axios headers when token changes
-  useEffect(() => {
-    if (auth.accessToken) {
-      client.defaults.headers.common['Authorization'] = `Bearer ${auth.accessToken}`;
-    } else {
-      delete client.defaults.headers.common['Authorization'];
-    }
-  }, [auth.accessToken]);
-
-  // Activity tracking - only when fully authenticated
-  useEffect(() => {
-    if (!auth.isAuthenticated || !auth.initialized) return;
-
-    const trackActivity = () => {
-      if (auth.isAuthenticated) {
-        dispatch(updateActivity());
-      }
-    };
-
-    const events = ['click', 'keypress', 'scroll', 'touchstart'];
-    events.forEach(event => {
-      document.addEventListener(event, trackActivity, { passive: true });
-    });
-
-    return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, trackActivity);
-      });
-    };
-  }, [dispatch, auth.isAuthenticated, auth.initialized]);
-
-  // Logout function
-  const logout = useCallback(async (): Promise<void> => {
+  /**
+   * Step 1 of Smart Login: Verify email
+   */
+  const verifyEmail = async (email: string): Promise<EmailVerificationResult> => {
     try {
-      console.log('🔐 Starting logout process...');
-      await dispatch(logoutThunk()).unwrap();
-      console.log('✅ Logout completed successfully');
-      hasInitialized.current = false;
+      setLoading(true);
       
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    } catch (error) {
-      console.warn('⚠️ Logout API call failed, local cleanup completed:', error);
-      dispatch(clearCredentials());
-      hasInitialized.current = false;
+      const response = await api.post('/auth/verify-email', { email });
       
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      const result: EmailVerificationResult = response.data.data;
+      
+      // Store verification result in Zustand
+      setEmailVerification(result);
+      
+      return result;
+    } catch (error: any) {
+      console.error('Email verification failed:', error);
+      
+      // Return failure result
+      const failedResult: EmailVerificationResult = { exists: false };
+      setEmailVerification(failedResult);
+      
+      throw error;
+    } finally {
+      setLoading(false);
     }
-  }, [dispatch]);
+  };
 
-  // Check valid auth
-  const hasValidAuth = useCallback((): boolean => {
-    return Boolean(
-      auth.isAuthenticated &&
-      auth.user &&
-      auth.accessToken &&
-      auth.initialized
-    );
-  }, [auth.isAuthenticated, auth.user, auth.accessToken, auth.initialized]);
+  /**
+   * Step 2 of Smart Login: Login with password
+   */
+  const login = async (
+    email: string,
+    password: string,
+    role: 'core' | 'admin' | 'partner'
+  ): Promise<void> => {
+    try {
+      setLoading(true);
+      
+      const response = await api.post('/auth/login', {
+        email,
+        password,
+        role
+      });
+      
+      const userData = response.data.data.user;
+      
+      // Store user in Zustand (tokens are in httpOnly cookies automatically)
+      setUser(userData);
+      
+      // Redirect based on role
+      switch (role) {
+        case 'core':
+          navigate('/core/dashboard');
+          break;
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'partner':
+          navigate('/partner/dashboard');
+          break;
+      }
+    } catch (error: any) {
+      console.error('Login failed:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Logout user
+   */
+  const logout = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      
+      // Call logout endpoint (clears cookies on server)
+      await api.post('/auth/logout');
+      
+      // Clear Zustand state
+      logoutStore();
+      
+      // Redirect to login
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      
+      // Still clear local state even if API call fails
+      logoutStore();
+      navigate('/login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Check if user has specific role
+   */
+  const hasRole = (role: 'core' | 'admin' | 'partner'): boolean => {
+    return user?.role === role;
+  };
+
+  /**
+   * Check if user has specific permission
+   */
+  const hasPermission = (permission: string): boolean => {
+    return user?.permissions?.[permission] === true;
+  };
 
   return {
-    user: auth.user,
-    isAuthenticated: auth.isAuthenticated,
-    loading: auth.loading,
-    error: auth.error,
-    initialized: auth.initialized,
-    hasAccessToken: Boolean(auth.accessToken),
-    logout,
-    hasValidAuth,
+    // State
+    user,
+    isAuthenticated,
+    isLoading,
+    emailVerified,
+    verificationResult,
     
-    // Simplified state checks
-    isReady: auth.initialized && !auth.loading,
-    needsLogin: auth.initialized && !auth.isAuthenticated,
-    isInitializing: !auth.initialized && (auth.loading || !hasInitialized.current),
-    hasError: Boolean(auth.error),
-    errorMessage: auth.error
+    // Actions
+    verifyEmail,
+    login,
+    logout,
+    clearEmailVerification,
+    
+    // Helpers
+    hasRole,
+    hasPermission
   };
-};
-
-export default useAuth;
+}

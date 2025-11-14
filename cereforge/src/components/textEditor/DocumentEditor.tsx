@@ -47,7 +47,7 @@ const LETTER_HEIGHT_MM = 279;
 const MARGIN_MM = '25.4mm 25.4mm'; // 1 inch margins
 
 const editorTheme = {
-  paragraph: 'mb-1 leading-relaxed min-h-[1.5em]',
+  paragraph: 'mb--0.5 leading-relaxed min-h-[1.5em]',
   quote: 'border-l-4 border-blue-600 pl-4 italic my-4 text-gray-600',
   heading: {
     h1: 'text-3xl font-bold my-4 text-gray-900',
