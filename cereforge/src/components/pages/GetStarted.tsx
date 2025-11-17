@@ -17,6 +17,9 @@ import {
     Home
 } from 'lucide-react';
 import cereforge from '../../assets/cereForge.png';
+import { useGetStarted } from '@/hooks/useGetStarted';
+import { Loader2, AlertCircle } from 'lucide-react'; // If not already imported
+
 
 // Define interfaces for type safety
 interface FormData {
@@ -92,6 +95,8 @@ const GetStarted = () => {
         termsAccepted: false,
         contactConsent: false
     });
+
+    const { submitApplication, isSubmitting, validationErrors: submissionError } = useGetStarted();
 
     const [selectedCurrency, setSelectedCurrency] = useState<string>('₦');
     const [showCurrencyDropdown, setShowCurrencyDropdown] = useState<boolean>(false);
@@ -219,11 +224,63 @@ const GetStarted = () => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Form submitted:', formData);
-        console.log('Selected currency:', selectedCurrency);
-        setShowConfirmation(true);
+
+        // Validate that we're on the final step
+        if (currentStep !== totalSteps) {
+            handleNext();
+            return;
+        }
+
+        // Convert date to ISO datetime format if provided
+        let idealStartDateISO = '';
+        if (formData.startDate) {
+            try {
+                // Create a date object and convert to ISO string
+                const dateObj = new Date(formData.startDate + 'T00:00:00');
+                idealStartDateISO = dateObj.toISOString();
+            } catch (error) {
+                console.error('Invalid date format:', error);
+            }
+        }
+
+        // Submit to backend
+        const success = await submitApplication({
+            // Personal & Company Info
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            companyName: formData.companyName,
+            companyWebsite: formData.companyWebsite || '',
+            linkedinProfile: formData.linkedinProfile || '',
+
+            // Project Overview
+            projectTitle: formData.projectTitle,
+            projectDescription: formData.projectDescription,
+            projectStage: formData.projectStage,
+            solutionType: formData.solutionType,
+
+            // Timeline & Budget
+            idealStartDate: idealStartDateISO, // Use converted ISO datetime
+            budgetRange: formData.budgetRange,
+            currency: selectedCurrency,
+
+            // Collaboration Preferences
+            hasInternalTeam: formData.hasInternalTeam === 'yes',
+            scheduleCall: formData.scheduleCall === 'yes',
+
+            // Legal & Consent
+            termsAccepted: formData.termsAccepted,
+            contactConsent: formData.contactConsent
+        });
+
+        if (success) {
+            console.log('Application submitted successfully!');
+            setShowConfirmation(true);
+        } else if (submissionError) {
+            console.error('Submission error:', submissionError);
+        }
     };
 
     const getStepTitle = (): string => {
@@ -607,7 +664,7 @@ const GetStarted = () => {
                                                 <span className="font-medium text-lg">{selectedCurrency}</span>
                                                 <ChevronRight className={`w-3 h-3 transform transition-transform ${showCurrencyDropdown ? 'rotate-90' : ''}`} />
                                             </button>
-                                            
+
                                             {showCurrencyDropdown && (
                                                 <div className="absolute top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[100px] z-20">
                                                     {currencies.map((currency) => (
@@ -627,7 +684,7 @@ const GetStarted = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        
+
                                         <input
                                             type="text"
                                             value={formData.budgetRange}
@@ -791,14 +848,48 @@ const GetStarted = () => {
                             ) : (
                                 <button
                                     type="submit"
-                                    className="flex items-center justify-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base"
+                                    disabled={isSubmitting}
+                                    className={`flex items-center justify-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                                        }`}
                                 >
-                                    <span>Start Your Project</span>
-                                    <ChevronRight className="w-4 h-4" />
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Submitting...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>Start Your Project</span>
+                                            <ChevronRight className="w-4 h-4" />
+                                        </>
+                                    )}
                                 </button>
                             )}
                         </div>
                     </form>
+                    {/* // Add error display after the form (optional): */}
+                    {submissionError && (
+                        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-center space-x-2 text-red-600">
+                                <AlertCircle className="w-5 h-5" />
+                                <p className="font-medium">Submission Failed</p>
+                            </div>
+
+                            {/* Support both string and array error shapes */}
+                            {Array.isArray(submissionError) ? (
+                                <ul className="mt-1 space-y-1 text-sm text-red-600 list-disc list-inside">
+                                    {submissionError.map((err, idx) => (
+                                        <li key={idx}>
+                                            {err.field ? <span className="font-medium">{err.field}: </span> : null}
+                                            <span>{err.message}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-red-600 mt-1">{submissionError}</p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

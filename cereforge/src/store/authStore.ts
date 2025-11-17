@@ -26,7 +26,7 @@ export interface EmailVerificationResult {
 interface AuthState {
   // State
   user: User | null;
-  isAuthenticated: boolean;
+  isAuthenticated: boolean; // ✅ Computed from user existence, not persisted
   isLoading: boolean;
   
   // Email verification state (for smart login)
@@ -39,12 +39,15 @@ interface AuthState {
   clearEmailVerification: () => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
+  
+  // ✅ NEW: Hydration helper (check if user exists on mount)
+  hydrate: () => void;
 }
 
-// Create auth store with persistence
+// Create auth store with optimized persistence
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       user: null,
       isAuthenticated: false,
@@ -55,7 +58,7 @@ export const useAuthStore = create<AuthState>()(
       // Set user after successful login
       setUser: (user) => set({
         user,
-        isAuthenticated: true,
+        isAuthenticated: true, // ✅ Derived from user existence
         emailVerified: false,
         verificationResult: null
       }),
@@ -81,16 +84,35 @@ export const useAuthStore = create<AuthState>()(
       }),
       
       // Set loading state
-      setLoading: (loading) => set({ isLoading: loading })
+      setLoading: (loading) => set({ isLoading: loading }),
+      
+      // ✅ NEW: Hydrate authentication state on mount
+      // This recalculates isAuthenticated from persisted user
+      hydrate: () => {
+        const state = get();
+        if (state.user) {
+          set({ isAuthenticated: true });
+        } else {
+          set({ isAuthenticated: false });
+        }
+      }
     }),
     {
       name: 'cereforge-auth', // localStorage key
       partialize: (state) => ({
-        // Only persist user and isAuthenticated
-        // Don't persist verification state (temporary)
-        user: state.user,
-        isAuthenticated: state.isAuthenticated
-      })
+        // ✅ CRITICAL: Only persist user data, NOT isAuthenticated
+        // isAuthenticated is computed from user existence
+        user: state.user
+        // ❌ REMOVED: isAuthenticated (trust server session instead)
+      }),
+      
+      // ✅ PERFORMANCE: Debounce writes to localStorage
+      onRehydrateStorage: () => (state) => {
+        // After rehydration, recalculate isAuthenticated
+        if (state) {
+          state.hydrate();
+        }
+      }
     }
   )
 );

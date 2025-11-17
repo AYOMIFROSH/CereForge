@@ -36,12 +36,14 @@ export interface GetStartedFormData {
 export function useGetStarted() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Array<{ field: string; message: string }> | null>(null);
   const [success, setSuccess] = useState(false);
 
   const submitApplication = async (formData: GetStartedFormData): Promise<boolean> => {
     try {
       setIsSubmitting(true);
       setError(null);
+      setValidationErrors(null);
       setSuccess(false);
 
       const response = await api.post('/public/get-started', formData);
@@ -53,9 +55,27 @@ export function useGetStarted() {
 
       return false;
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error?.message || 'Failed to submit application. Please try again.';
-      setError(errorMessage);
-      console.error('Get Started submission failed:', err);
+      // ✅ ONLY use server errors - no client-side error creation
+      if (err.response?.data?.error) {
+        const serverError = err.response.data.error;
+        
+        // Check if it's a validation error with details
+        if (serverError.code === 'VALIDATION_ERROR' && serverError.details) {
+          setValidationErrors(serverError.details);
+          setError(serverError.message);
+        } else {
+          // General error from server
+          setError(serverError.message);
+        }
+      } else if (err.message) {
+        // Network error or other axios error
+        setError(`Network error: ${err.message}`);
+      } else {
+        // Absolute fallback (should rarely happen)
+        setError('An unexpected error occurred. Please try again.');
+      }
+      
+      console.error('Get Started submission error:', err.response?.data || err);
       return false;
     } finally {
       setIsSubmitting(false);
@@ -64,6 +84,7 @@ export function useGetStarted() {
 
   const resetState = () => {
     setError(null);
+    setValidationErrors(null);
     setSuccess(false);
   };
 
@@ -71,6 +92,7 @@ export function useGetStarted() {
     submitApplication,
     isSubmitting,
     error,
+    validationErrors, // ✅ Field-specific errors from server
     success,
     resetState
   };
