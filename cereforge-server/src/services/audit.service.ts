@@ -1,4 +1,4 @@
-import supabase from '../config/database';
+import { getFreshSupabase } from '../config/database';
 import logger from '../utils/logger';
 
 interface AuditLogEntry {
@@ -16,13 +16,17 @@ interface AuditLogEntry {
 
 /**
  * Create audit log entry
+ * ✅ FIXED: Uses service role to bypass RLS (audit logs are system-level)
  */
 export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
   try {
+    // ✅ FIX: Use getFreshSupabase() with service role - bypasses RLS
+    const supabase = getFreshSupabase();
+    
     const { error } = await supabase
       .from('audit_logs')
       .insert({
-        user_id: entry.userId,
+        user_id: entry.userId || null, // ✅ Allow null for pre-auth events
         action: entry.action,
         entity_type: entry.entityType,
         entity_id: entry.entityId,
@@ -36,6 +40,12 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
 
     if (error) {
       logger.error('Failed to create audit log:', error);
+      // ✅ Don't throw - audit logging should never break the main flow
+    } else {
+      logger.debug(`Audit log created: ${entry.action}`, {
+        userId: entry.userId || 'unauthenticated',
+        riskLevel: entry.riskLevel
+      });
     }
 
     // Log high-risk activities to monitoring
@@ -49,11 +59,13 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
     }
   } catch (error) {
     logger.error('Audit logging failed:', error);
+    // ✅ Don't throw - audit logging should never break the main flow
   }
 }
 
 /**
  * Log authentication events
+ * ✅ FIXED: Now works for email verification (pre-auth) and login/logout (authenticated)
  */
 export async function logAuthEvent(
   action: 'login' | 'logout' | 'login_failed' | 'token_refresh' | 'password_reset_request' | 'password_changed',

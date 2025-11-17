@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import logger from '../utils/logger';
 
 // Load environment variables first
@@ -13,18 +13,34 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('SUPABASE_URL and SUPABASE_SERVICE_KEY must be defined');
 }
 
-// Create Supabase client with service role key (bypasses RLS)
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+// ✅ CRITICAL FIX: Create a function that returns a fresh client each time
+// This prevents ANY auth state caching between requests
+export function createSupabaseClient(): SupabaseClient {
+  return createClient(supabaseUrl!, supabaseServiceKey!, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false
+    },
+    db: {
+      schema: 'public'
+    }
+  });
+}
+
+// ✅ Export the default client for non-auth operations
+export const supabase = createSupabaseClient();
+
+// ✅ Export a function to get a fresh client for auth operations
+export function getFreshSupabase(): SupabaseClient {
+  return createSupabaseClient();
+}
 
 // Test database connection
 export async function testDatabaseConnection(): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const client = getFreshSupabase();
+    const { error } = await client
       .from('user_profiles')
       .select('id')
       .limit(1);

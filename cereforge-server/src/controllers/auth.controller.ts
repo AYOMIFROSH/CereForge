@@ -84,6 +84,34 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 });
 
 /**
+ * GET /api/v1/auth/me
+ * ⚡ ULTRA-FAST: Validate current session (JWT only, no DB query)
+ * Used by frontend to check if user is still authenticated
+ */
+export const getMeHandler = asyncHandler(async (req: Request, res: Response) => {
+  // ✅ User already validated by authenticate middleware
+  const user = req.user!;
+
+  // ✅ PERFORMANCE: No database query needed
+  // JWT already contains all user info
+  // Session validity already checked in middleware
+
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: user.userId,
+        email: user.email,
+        role: user.role,
+        permissions: user.permissions
+      },
+      authenticated: true
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
  * POST /api/v1/auth/logout
  * Logout user and invalidate session
  */

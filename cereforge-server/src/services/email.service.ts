@@ -3,7 +3,7 @@ import logger from '../utils/logger';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'no-reply@update.cereforge.com';
-const TEAM_EMAIL = process.env.RESEND_TEAM_EMAIL || 'team@cereforge.com';
+const TEAM_EMAIL = process.env.RESEND_TEAM_EMAIL || 'cereforgepurpose@gmail.com';
 
 if (!RESEND_API_KEY) {
   logger.error('RESEND_API_KEY not configured');
@@ -22,7 +22,7 @@ export async function sendPartnerWelcomeEmail(
 ): Promise<boolean> {
   try {
     const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: `Cereforge <${FROM_EMAIL}>`,
       to: email,
       subject: 'Welcome to Cereforge - Your Account Details',
       html: `
@@ -115,7 +115,7 @@ export async function sendPartnerApplicationNotification(data: {
 }): Promise<boolean> {
   try {
     const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: `Cereforge <${FROM_EMAIL}>`,
       to: TEAM_EMAIL,
       subject: `New Partner Application - ${data.companyName}`,
       html: `
@@ -177,6 +177,121 @@ export async function sendPartnerApplicationNotification(data: {
 }
 
 /**
+ * Send confirmation email to client
+ */
+export async function sendClientConfirmationEmail(
+  email: string,
+  fullName: string,
+  companyName: string,
+  projectTitle: string
+): Promise<boolean> {
+  try {
+    const { error } = await resend.emails.send({
+      from: `Cereforge <${FROM_EMAIL}>`, 
+      to: email,
+      subject: 'Application Received - Cereforge',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 20px;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px;">
+                  
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 40px 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                      
+                      <!-- Checkmark using table for perfect centering -->
+                      <table cellpadding="0" cellspacing="0" align="center" style="margin-bottom: 20px;">
+                        <tr>
+                          <td align="center" valign="middle" style="background: #10b981; width: 80px; height: 80px; border-radius: 50%; color: white; font-size: 48px; font-weight: bold; line-height: 80px;">
+                            ✓
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <h1 style="margin: 0; font-size: 28px;">Application Received!</h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+                      
+                      <p>Hello <strong>${fullName}</strong>,</p>
+                      
+                      <p>Thank you for your interest in partnering with Cereforge! We've successfully received your project application.</p>
+                      
+                      <!-- Info Box -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f97316;">
+                        <tr>
+                          <td>
+                            <h3 style="color: #1e3a8a; margin-top: 0;">Application Summary:</h3>
+                            <p style="margin: 5px 0;"><strong>Company:</strong> ${companyName}</p>
+                            <p style="margin: 5px 0;"><strong>Project:</strong> ${projectTitle}</p>
+                            <p style="margin: 5px 0;"><strong>Submitted:</strong> ${new Date().toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}</p>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <h3 style="color: #1e3a8a;">What Happens Next?</h3>
+                      <ol style="padding-left: 20px;">
+                        <li style="margin-bottom: 10px;"><strong>Review (24-48 hours):</strong> Our team will carefully review your application</li>
+                        <li style="margin-bottom: 10px;"><strong>Initial Contact:</strong> We'll reach out via email or phone</li>
+                        <li style="margin-bottom: 10px;"><strong>Discovery Call:</strong> If aligned, we'll schedule a detailed discussion</li>
+                        <li style="margin-bottom: 10px;"><strong>Proposal:</strong> We'll craft a tailored solution for your project</li>
+                      </ol>
+                      
+                      <p>We're excited about the possibility of bringing your vision to life with cutting-edge AI and engineering solutions.</p>
+                      
+                      <p>If you have any immediate questions, feel free to reply to this email or contact us at <a href="mailto:info@cereforge.com" style="color: #3b82f6; text-decoration: none;">info@cereforge.com</a>.</p>
+                      
+                      <p>Best regards,<br><strong>The Cereforge Team</strong></p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td style="text-align: center; color: #6b7280; font-size: 12px; padding: 30px 20px; border-top: 1px solid #e5e7eb;">
+                      <p style="margin: 5px 0;">© ${new Date().getFullYear()} Cereforge. All rights reserved.</p>
+                      <p style="margin: 5px 0;">Innovative AI & Engineering Solutions</p>
+                    </td>
+                  </tr>
+                  
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `
+    });
+
+    if (error) {
+      logger.error('Failed to send client confirmation email:', error);
+      return false;
+    }
+
+    logger.info(`Client confirmation email sent to ${email}`);
+    return true;
+  } catch (error) {
+    logger.error('Error sending client confirmation email:', error);
+    return false;
+  }
+}
+
+/**
  * Send password reset email
  */
 export async function sendPasswordResetEmail(
@@ -185,9 +300,9 @@ export async function sendPasswordResetEmail(
 ): Promise<boolean> {
   try {
     const resetUrl = `${process.env.FRONTEND_PROD_URL || 'https://cereforge.com'}/reset-password?token=${resetToken}`;
-    
+
     const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: `Cereforge <${FROM_EMAIL}>`,
       to: email,
       subject: 'Reset Your Cereforge Password',
       html: `
@@ -251,7 +366,7 @@ export async function sendApplicationRejectionEmail(
 ): Promise<boolean> {
   try {
     const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
+      from: `Cereforge <${FROM_EMAIL}>`,
       to: email,
       subject: 'Update on Your Cereforge Application',
       html: `

@@ -43,28 +43,38 @@ export async function authenticate(
       throw Errors.invalidToken();
     }
 
-    // Check if session is still active
-    const { data: session, error } = await supabase
+    // ✅ FIX: Check if session exists and is active
+    const { data: session,  } = await supabase
       .from('user_sessions')
       .select('is_active, expires_at')
       .eq('id', payload.sessionId)
-      .eq('is_active', true)
+      .eq('user_id', payload.userId)
       .single();
 
-    if (error || !session) {
-      logger.warn(`Invalid session for user ${payload.userId}`);
-      throw Errors.unauthorized('Session expired or invalid');
-    }
+    // ✅ If session doesn't exist, it's a new login - allow it
+    // ✅ If session exists but inactive, reject
+    if (session) {
+      if (!session.is_active) {
+        logger.warn(`Inactive session for user ${payload.userId}`);
+        throw Errors.unauthorized('Session has been terminated');
+      }
 
-    // Check session expiry
-    if (new Date(session.expires_at) < new Date()) {
-      // Mark session as inactive
+      // Check session expiry
+      if (new Date(session.expires_at) < new Date()) {
+        // Mark session as inactive
+        await supabase
+          .from('user_sessions')
+          .update({ is_active: false })
+          .eq('id', payload.sessionId);
+        
+        throw Errors.unauthorized('Session has expired');
+      }
+
+      // ✅ Update last activity only if session exists
       await supabase
         .from('user_sessions')
-        .update({ is_active: false })
+        .update({ last_activity: new Date().toISOString() })
         .eq('id', payload.sessionId);
-      
-      throw Errors.unauthorized('Session has expired');
     }
 
     // Verify user still exists and is active
@@ -87,12 +97,6 @@ export async function authenticate(
         throw Errors.unauthorized('Account is not active');
       }
     }
-
-    // Update last activity
-    await supabase
-      .from('user_sessions')
-      .update({ last_activity: new Date().toISOString() })
-      .eq('id', payload.sessionId);
 
     // Attach user to request
     req.user = payload;

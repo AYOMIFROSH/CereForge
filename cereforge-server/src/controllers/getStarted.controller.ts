@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import supabase from '../config/database';
-import { sendPartnerApplicationNotification } from '../services/email.service';
+import { queueTeamNotification, queueClientConfirmation } from '../queues/email.queue';
 import { logPartnerEvent } from '../services/audit.service';
 import { asyncHandler, Errors } from '../utils/errors';
 import logger from '../utils/logger';
@@ -68,19 +68,23 @@ export const submitGetStartedForm = asyncHandler(async (req: Request, res: Respo
     }
   );
 
-  // Send notification email to team (don't fail if email fails)
-  try {
-    await sendPartnerApplicationNotification({
-      fullName: formData.fullName,
-      email: formData.email,
-      companyName: formData.companyName,
-      projectTitle: formData.projectTitle,
-      applicationId: pendingPartner.id
-    });
-  } catch (emailError) {
-    logger.error('Failed to send application notification email:', emailError);
-    // Continue anyway - application is saved
-  }
+  // ✅ Queue team notification with applicationId
+  queueTeamNotification({
+    fullName: formData.fullName,
+    email: formData.email,
+    companyName: formData.companyName,
+    projectTitle: formData.projectTitle,
+    applicationId: pendingPartner.id // ✅ Pass UUID
+  }).catch(err => logger.error('Failed to queue team notification:', err));
+
+  // ✅ Queue client confirmation with applicationId
+  queueClientConfirmation({
+    email: formData.email,
+    fullName: formData.fullName,
+    companyName: formData.companyName,
+    projectTitle: formData.projectTitle,
+    applicationId: pendingPartner.id // ✅ Pass UUID (not email!)
+  }).catch(err => logger.error('Failed to queue client confirmation:', err));
 
   logger.info(`Get Started application created: ${pendingPartner.id}`);
 

@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import app from './app';
 import logger from './utils/logger';
 import { testDatabaseConnection } from './config/database';
+import { closeEmailQueue } from './queues/email.queue';
 
 // Load environment variables
 dotenv.config();
@@ -33,25 +34,37 @@ async function startServer() {
       logger.info(`💚 Health check: http://localhost:${PORT}/health`);
     });
 
-    // Graceful shutdown
+    // ==========================================
+    // ✅ GRACEFUL SHUTDOWN
+    // ==========================================
     const gracefulShutdown = async (signal: string) => {
       logger.info(`\n${signal} received. Starting graceful shutdown...`);
       
       server.close(async () => {
         logger.info('✅ HTTP server closed');
         
-        // Close database connections, etc.
+        // ✅ Step 1: Close email queue (wait for active jobs)
+        try {
+          logger.info('📧 Closing email queue...');
+          await closeEmailQueue();
+          logger.info('✅ Email queue closed');
+        } catch (error) {
+          logger.error('❌ Error closing email queue:', error);
+        }
+        
+        // ✅ Step 2: Close database connections
         // (Supabase client handles this automatically)
+        logger.info('✅ Database connections closed');
         
         logger.info('👋 Server shut down complete');
         process.exit(0);
       });
 
-      // Force shutdown after 10 seconds
+      // Force shutdown after 15 seconds (increased for queue processing)
       setTimeout(() => {
         logger.error('⚠️  Forced shutdown after timeout');
         process.exit(1);
-      }, 10000);
+      }, 15000); // 15 seconds (was 10)
     };
 
     // Handle shutdown signals
@@ -61,12 +74,12 @@ async function startServer() {
     // Handle uncaught errors
     process.on('uncaughtException', (error) => {
       logger.error('💥 Uncaught Exception:', error);
-      process.exit(1);
+      gracefulShutdown('UNCAUGHT_EXCEPTION');
     });
 
     process.on('unhandledRejection', (reason, promise) => {
       logger.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
-      process.exit(1);
+      gracefulShutdown('UNHANDLED_REJECTION');
     });
 
   } catch (error) {

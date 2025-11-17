@@ -1,4 +1,5 @@
 import supabase from '../config/database';
+import { getFreshSupabase } from '../config/database';
 import { generateAccessToken, generateRefreshToken, generateSessionId, JWTPayload } from '../utils/jwt';
 import { Errors } from '../utils/errors';
 import logger from '../utils/logger';
@@ -32,14 +33,22 @@ interface LoginResult {
  */
 export async function verifyEmail(email: string): Promise<EmailVerificationResult> {
   try {
-    // Check if user exists
+    // ✅ FIX: Use a fresh Supabase query with service role (bypasses RLS and auth state)
+    const supabase = getFreshSupabase();
     const { data: user, error } = await supabase
       .from('user_profiles')
       .select('id, email, role, status, full_name')
       .eq('email', email)
-      .single();
+      .maybeSingle(); // ✅ Use maybeSingle instead of single to avoid throwing on not found
 
-    if (error || !user) {
+    // ✅ Handle not found explicitly
+    if (error) {
+      logger.error('Error querying user_profiles:', error);
+      return { exists: false };
+    }
+
+    if (!user) {
+      logger.info(`Email verification: ${email} not found`);
       return { exists: false };
     }
 
@@ -51,7 +60,7 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
         .from('partners')
         .select('partner_name')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (partner) {
         displayInfo.partnerName = partner.partner_name;
@@ -61,7 +70,7 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
         .from('admin_staff')
         .select('category')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (admin) {
         displayInfo.category = admin.category;
@@ -71,12 +80,14 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
         .from('core_staff')
         .select('position')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (core) {
         displayInfo.employeeId = core.position;
       }
     }
+
+    logger.info(`Email verification: ${email} found with role ${user.role}`);
 
     return {
       exists: true,
@@ -87,7 +98,8 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
     };
   } catch (error) {
     logger.error('Email verification failed:', error);
-    throw Errors.internal('Email verification failed');
+    // ✅ Return exists: false instead of throwing
+    return { exists: false };
   }
 }
 

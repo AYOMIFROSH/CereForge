@@ -3,7 +3,8 @@ import {
   verifyEmailHandler,
   loginHandler,
   logoutHandler,
-  refreshTokenHandler
+  refreshTokenHandler,
+  getMeHandler // ✅ NEW
 } from '../controllers/auth.controller';
 import { validateBody } from '../middleware/validator';
 import { authenticate } from '../middleware/auth';
@@ -38,6 +39,17 @@ router.post(
   loginLimiter,
   validateBody(loginSchema),
   loginHandler
+);
+
+/**
+ * GET /api/v1/auth/me
+ * ⚡ FAST: Check if current session is valid
+ * Returns user info if authenticated, 401 if not
+ */
+router.get(
+  '/me',
+  authenticate, // ✅ Validates JWT + session
+  getMeHandler
 );
 
 /**
