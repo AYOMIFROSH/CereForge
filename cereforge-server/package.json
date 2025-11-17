@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.ts",
+    "start": "node dist/server.js",
     "migrate:create": "node scripts/create-migration.ts",
-    "migrate:run": "node scripts/run-migrations.js",
+    "migrate:run": "node scripts/run-migrations.ts",
     "migrate:rollback": "node scripts/rollback-migration.ts",
     "db:setup": "ts-node scripts/setup-database.ts",
     "create:testusers": "ts-node scripts/create-test-users.ts",
