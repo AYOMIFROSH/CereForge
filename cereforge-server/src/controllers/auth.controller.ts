@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { verifyEmail, login, logout, refreshAccessToken } from '../services/auth.service';
+import { verifyRefreshToken } from '../utils/jwt';
 import { logAuthEvent } from '../services/audit.service';
 import { asyncHandler } from '../utils/errors';
 import logger from '../utils/logger';
@@ -143,7 +144,7 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
 
 /**
  * POST /api/v1/auth/refresh
- * Refresh access token using refresh token
+ * ✅ FIXED: Refresh access token using refresh token
  */
 export const refreshTokenHandler = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken;
@@ -160,36 +161,75 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
     return;
   }
 
-  // Verify refresh token (simplified - should use verifyRefreshToken from jwt.ts)
-  const user = req.user!;
+  // ✅ FIX: Verify refresh token to extract user data
+  const payload = verifyRefreshToken(refreshToken);
 
-  const newAccessToken = await refreshAccessToken(
-    user.userId,
-    user.sessionId,
-    user.role
-  );
+  if (!payload) {
+    // Invalid or expired refresh token - clear cookies
+    res.clearCookie('authToken');
+    res.clearCookie('refreshToken');
+    
+    logger.warn('Invalid or expired refresh token received');
+    
+    res.status(401).json({
+      success: false,
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'Invalid or expired refresh token'
+      },
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
 
-  // Log token refresh
-  await logAuthEvent(
-    'token_refresh',
-    user.userId,
-    req.ip || 'unknown',
-    req.get('user-agent') || 'unknown'
-  );
+  try {
+    // ✅ Now we have userId, sessionId, role from verified token
+    const newAccessToken = await refreshAccessToken(
+      payload.userId,
+      payload.sessionId,
+      payload.role
+    );
 
-  // Set new access token cookie
-  const isProduction = process.env.NODE_ENV === 'production';
+    // Log token refresh
+    await logAuthEvent(
+      'token_refresh',
+      payload.userId,
+      req.ip || 'unknown',
+      req.get('user-agent') || 'unknown',
+      { sessionId: payload.sessionId }
+    );
 
-  res.cookie('authToken', newAccessToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'strict',
-    maxAge: 15 * 60 * 1000 // 15 minutes
-  });
+    // Set new access token cookie
+    const isProduction = process.env.NODE_ENV === 'production';
 
-  res.json({
-    success: true,
-    message: 'Token refreshed successfully',
-    timestamp: new Date().toISOString()
-  });
+    res.cookie('authToken', newAccessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+
+    logger.info(`Access token refreshed for user ${payload.userId}`);
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Token refresh failed:', error);
+    
+    // Clear cookies on error
+    res.clearCookie('authToken');
+    res.clearCookie('refreshToken');
+    
+    res.status(401).json({
+      success: false,
+      error: {
+        code: 'TOKEN_REFRESH_FAILED',
+        message: 'Failed to refresh token'
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
 });

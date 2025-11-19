@@ -97,7 +97,8 @@ export function verifyAccessToken(token: string): JWTPayload | null {
 }
 
 /**
- * Verify refresh token
+ * ✅ Verify refresh token
+ * Used in /auth/refresh endpoint
  */
 export function verifyRefreshToken(token: string): Omit<JWTPayload, 'permissions'> | null {
   try {
@@ -106,6 +107,7 @@ export function verifyRefreshToken(token: string): Omit<JWTPayload, 'permissions
       audience: 'cereforge-api'
     }) as Omit<JWTPayload, 'permissions'>;
     
+    logger.debug(`Refresh token verified for user ${decoded.userId}`);
     return decoded;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
