@@ -2,10 +2,10 @@
   "name": "cereforge-server",
   "version": "1.0.0",
   "description": "Cereforge Backend API - Production Grade Server",
-  "main": "dist/server.ts",
+    "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
+    "build": "tsc && cp -r src/assets dist/assets",
     "start": "node dist/server.js",
     "migrate:create": "node scripts/create-migration.ts",
     "migrate:run": "node scripts/run-migrations.ts",

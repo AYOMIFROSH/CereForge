@@ -8,6 +8,8 @@ import logger from './logger';
  */
 export function getApiLandingHtml(version: string, environment: string): string {
   try {
+    // In production (dist/), go from dist/utils/ to dist/assets/
+    // In development (src/), go from src/utils/ to src/assets/
     const templatePath = path.join(__dirname, '../assets/apiLanding.html');
     
     // Read template file
