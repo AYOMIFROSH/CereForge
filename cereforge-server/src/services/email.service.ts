@@ -255,7 +255,7 @@ export async function sendClientConfirmationEmail(
                       
                       <p>We're excited about the possibility of bringing your vision to life with cutting-edge AI and engineering solutions.</p>
                       
-                      <p>If you have any immediate questions, feel free to reply to this email or contact us at <a href="mailto:info@cereforge.com" style="color: #3b82f6; text-decoration: none;">info@cereforge.com</a>.</p>
+                      <p>If you have any immediate questions, feel free to reply to this email or contact us at <a href="mailto:cereforgepurpose@gmail.com" style="color: #3b82f6; text-decoration: none;">info@cereforge.com</a>.</p>
                       
                       <p>Best regards,<br><strong>The Cereforge Team</strong></p>
                     </td>

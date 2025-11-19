@@ -45,7 +45,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -86,10 +86,10 @@ app.use(morgan(
 
 app.get('/favicon.ico', (_req: Request, res: Response) => {
   const faviconPath = path.join(__dirname, 'assets', 'cereforge.ico');
-  
+
   res.setHeader('Content-Type', 'image/x-icon');
   res.setHeader('Cache-Control', 'public, max-age=31536000');
-  
+
   res.sendFile(faviconPath, (err) => {
     if (err) {
       logger.error('Failed to serve favicon:', err);
@@ -130,9 +130,9 @@ app.get('/health', async (req: Request, res: Response) => {
   health.checks.memory = memoryPercent < 90 ? 'healthy' : 'warning';
 
   const statusCode = health.checks.database === 'healthy' ? 200 : 503;
-  
+
   logger.debug(`Health check requested from ${req.ip}`);
-  
+
   res.status(statusCode).json(health);
 });
 
@@ -145,7 +145,7 @@ const API_VERSION = process.env.API_VERSION || 'v1';
 // API root
 app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
   logger.debug(`API root accessed from ${req.ip}`);
-  
+
   // Check if request accepts HTML (browser)
   if (req.accepts('html')) {
     const html = getApiLandingHtml(API_VERSION, process.env.NODE_ENV || 'development');
