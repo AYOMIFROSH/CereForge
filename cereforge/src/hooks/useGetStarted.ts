@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import api from '../services/api';
-import { uploadApplicationFiles, deleteUploadedFiles } from '../services/FileUpload';
-
+import { uploadApplicationFiles, deleteUploadedFiles } from '../services/fileUpload';
 
 export interface GetStartedFormData {
   // Personal & Company Info
