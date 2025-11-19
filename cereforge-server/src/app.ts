@@ -3,7 +3,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import path from 'path';
 import { errorHandler } from './utils/errors';
+import { getApiLandingHtml } from './utils/apiLanding';
 import logger, { stream } from './utils/logger';
 
 // Import routes
@@ -79,6 +81,24 @@ app.use(morgan(
 ));
 
 // ==========================================
+// FAVICON
+// ==========================================
+
+app.get('/favicon.ico', (_req: Request, res: Response) => {
+  const faviconPath = path.join(__dirname, 'assets', 'cereforge.ico');
+  
+  res.setHeader('Content-Type', 'image/x-icon');
+  res.setHeader('Cache-Control', 'public, max-age=31536000');
+  
+  res.sendFile(faviconPath, (err) => {
+    if (err) {
+      logger.error('Failed to serve favicon:', err);
+      res.status(404).send('Favicon not found');
+    }
+  });
+});
+
+// ==========================================
 // HEALTH CHECK
 // ==========================================
 
@@ -126,12 +146,19 @@ const API_VERSION = process.env.API_VERSION || 'v1';
 app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
   logger.debug(`API root accessed from ${req.ip}`);
   
-  res.json({
-    success: true,
-    message: `Cereforge API ${API_VERSION}`,
-    version: API_VERSION,
-    timestamp: new Date().toISOString()
-  });
+  // Check if request accepts HTML (browser)
+  if (req.accepts('html')) {
+    const html = getApiLandingHtml(API_VERSION, process.env.NODE_ENV || 'development');
+    res.send(html);
+  } else {
+    // JSON response for API clients
+    res.json({
+      success: true,
+      message: `Cereforge API ${API_VERSION}`,
+      version: API_VERSION,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Mount routes
