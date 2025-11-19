@@ -96,7 +96,7 @@ const GetStarted = () => {
         contactConsent: false
     });
 
-    const { submitApplication, isSubmitting, validationErrors: submissionError } = useGetStarted();
+    const { submitApplication, isSubmitting, isUploadingFiles, uploadProgress, validationErrors: submissionError } = useGetStarted();
 
     const [selectedCurrency, setSelectedCurrency] = useState<string>('₦');
     const [showCurrencyDropdown, setShowCurrencyDropdown] = useState<boolean>(false);
@@ -237,7 +237,6 @@ const GetStarted = () => {
         let idealStartDateISO = '';
         if (formData.startDate) {
             try {
-                // Create a date object and convert to ISO string
                 const dateObj = new Date(formData.startDate + 'T00:00:00');
                 idealStartDateISO = dateObj.toISOString();
             } catch (error) {
@@ -245,35 +244,43 @@ const GetStarted = () => {
             }
         }
 
-        // Submit to backend
-        const success = await submitApplication({
-            // Personal & Company Info
-            fullName: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            companyName: formData.companyName,
-            companyWebsite: formData.companyWebsite || '',
-            linkedinProfile: formData.linkedinProfile || '',
+        // Submit to backend with files
+        const success = await submitApplication(
+            {
+                // Personal & Company Info
+                fullName: formData.fullName,
+                email: formData.email,
+                phone: formData.phone,
+                companyName: formData.companyName,
+                companyWebsite: formData.companyWebsite || '',
+                linkedinProfile: formData.linkedinProfile || '',
 
-            // Project Overview
-            projectTitle: formData.projectTitle,
-            projectDescription: formData.projectDescription,
-            projectStage: formData.projectStage,
-            solutionType: formData.solutionType,
+                // Project Overview
+                projectTitle: formData.projectTitle,
+                projectDescription: formData.projectDescription,
+                projectStage: formData.projectStage,
+                solutionType: formData.solutionType,
 
-            // Timeline & Budget
-            idealStartDate: idealStartDateISO, // Use converted ISO datetime
-            budgetRange: formData.budgetRange,
-            currency: selectedCurrency,
+                // Timeline & Budget
+                idealStartDate: idealStartDateISO,
+                budgetRange: formData.budgetRange,
+                currency: selectedCurrency,
 
-            // Collaboration Preferences
-            hasInternalTeam: formData.hasInternalTeam === 'yes',
-            scheduleCall: formData.scheduleCall === 'yes',
+                // Collaboration Preferences
+                hasInternalTeam: formData.hasInternalTeam === 'yes',
+                scheduleCall: formData.scheduleCall === 'yes',
 
-            // Legal & Consent
-            termsAccepted: formData.termsAccepted,
-            contactConsent: formData.contactConsent
-        });
+                // Legal & Consent
+                termsAccepted: formData.termsAccepted,
+                contactConsent: formData.contactConsent
+            },
+            // Files (optional - will be uploaded if provided)
+            {
+                projectBrief: formData.projectBrief,
+                referenceImages: formData.referenceImages,
+                profilePhoto: formData.profilePhoto
+            }
+        );
 
         if (success) {
             console.log('Application submitted successfully!');
@@ -852,7 +859,12 @@ const GetStarted = () => {
                                     className={`flex items-center justify-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-sm sm:text-base ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
                                         }`}
                                 >
-                                    {isSubmitting ? (
+                                    {isUploadingFiles ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Uploading Files ({uploadProgress}%)...</span>
+                                        </>
+                                    ) : isSubmitting ? (
                                         <>
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                             <span>Submitting...</span>

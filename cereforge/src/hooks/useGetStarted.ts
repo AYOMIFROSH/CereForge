@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../services/api';
+import { uploadApplicationFiles, deleteUploadedFiles } from '../services/FileUpload';
 
 export interface GetStartedFormData {
   // Personal & Company Info
@@ -31,22 +32,76 @@ export interface GetStartedFormData {
 }
 
 /**
- * Hook for Get Started form submission
+ * Hook for Get Started form submission with file uploads
  */
 export function useGetStarted() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Array<{ field: string; message: string }> | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const submitApplication = async (formData: GetStartedFormData): Promise<boolean> => {
+  const submitApplication = async (
+    formData: GetStartedFormData,
+    files?: {
+      projectBrief?: File | null;
+      referenceImages?: File | null;
+      profilePhoto?: File | null;
+    }
+  ): Promise<boolean> => {
+      let fileUrls: {
+        applicationId: string;
+        projectBriefUrl?: string;
+        referenceImagesUrl?: string;
+        profilePhotoUrl?: string;
+      } | null = null;
+
     try {
       setIsSubmitting(true);
       setError(null);
       setValidationErrors(null);
       setSuccess(false);
 
-      const response = await api.post('/public/get-started', formData);
+      // Step 1: Upload files if provided
+      if (files && (files.projectBrief || files.referenceImages || files.profilePhoto)) {
+        try {
+          setIsUploadingFiles(true);
+          setUploadProgress(10);
+
+          console.log('Uploading files to Supabase...');
+          fileUrls = await uploadApplicationFiles(files);
+
+          setUploadProgress(50);
+          console.log('Files uploaded successfully:', fileUrls);
+        } catch (uploadError: any) {
+          console.error('File upload failed:', uploadError);
+          setError(`File upload failed: ${uploadError.message}`);
+          return false;
+        } finally {
+          setIsUploadingFiles(false);
+        }
+      }
+
+      setUploadProgress(60);
+
+      // Step 2: Submit form data with file URLs
+      const payload = {
+        ...formData,
+        // Add file URLs if files were uploaded
+        ...(fileUrls && {
+          applicationId: fileUrls.applicationId,
+          projectBriefUrl: fileUrls.projectBriefUrl || null,
+          referenceImagesUrl: fileUrls.referenceImagesUrl || null,
+          profilePhotoUrl: fileUrls.profilePhotoUrl || null
+        })
+      };
+
+      setUploadProgress(70);
+
+      const response = await api.post('/public/get-started', payload);
+
+      setUploadProgress(100);
 
       if (response.data.success) {
         setSuccess(true);
@@ -55,23 +110,25 @@ export function useGetStarted() {
 
       return false;
     } catch (err: any) {
-      // ✅ ONLY use server errors - no client-side error creation
+      // If submission failed and files were uploaded, cleanup
+      if (fileUrls?.applicationId) {
+        console.log('Cleaning up uploaded files due to submission failure...');
+        await deleteUploadedFiles(fileUrls.applicationId);
+      }
+
+      // Handle server errors
       if (err.response?.data?.error) {
         const serverError = err.response.data.error;
         
-        // Check if it's a validation error with details
         if (serverError.code === 'VALIDATION_ERROR' && serverError.details) {
           setValidationErrors(serverError.details);
           setError(serverError.message);
         } else {
-          // General error from server
           setError(serverError.message);
         }
       } else if (err.message) {
-        // Network error or other axios error
         setError(`Network error: ${err.message}`);
       } else {
-        // Absolute fallback (should rarely happen)
         setError('An unexpected error occurred. Please try again.');
       }
       
@@ -79,6 +136,7 @@ export function useGetStarted() {
       return false;
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
@@ -86,13 +144,16 @@ export function useGetStarted() {
     setError(null);
     setValidationErrors(null);
     setSuccess(false);
+    setUploadProgress(0);
   };
 
   return {
     submitApplication,
     isSubmitting,
+    isUploadingFiles,
+    uploadProgress,
     error,
-    validationErrors, // ✅ Field-specific errors from server
+    validationErrors,
     success,
     resetState
   };
