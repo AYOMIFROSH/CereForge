@@ -99,6 +99,8 @@ export function useGetStarted() {
 
       setUploadProgress(70);
 
+      console.log('📤 Sending payload to backend:', payload)
+
       const response = await api.post('/public/get-started', payload);
 
       setUploadProgress(100);
