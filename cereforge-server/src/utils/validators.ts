@@ -54,43 +54,40 @@ export const resetPasswordSchema = z.object({
  */
 export const getStartedSchema = z.object({
   // Personal Info
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(255),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().regex(/^[\d\s\+\-\(\)]+$/, 'Invalid phone number format'),
+  fullName: z.string().min(2).max(255),
+  email: z.string().email(),
+  phone: z.string().regex(/^[\d\s\+\-\(\)]+$/),
   
   // Company Info
-  companyName: z.string().min(2, 'Company name must be at least 2 characters').max(255),
-  companyWebsite: z.string().url('Invalid URL').optional().or(z.literal('')),
-  linkedinProfile: z.string().url('Invalid URL').optional().or(z.literal('')),
+  companyName: z.string().min(2).max(255),
+  companyWebsite: z.string().url().optional().or(z.literal('')),
+  linkedinProfile: z.string().url().optional().or(z.literal('')),
   
   // Project Details
-  projectTitle: z.string().min(5, 'Project title must be at least 5 characters').max(255),
-  projectDescription: z.string().min(50, 'Description must be at least 50 characters').max(5000),
-  projectStage: z.enum(['idea', 'prototype', 'mvp', 'scaling'], {
-    errorMap: () => ({ message: 'Invalid project stage' })
-  }),
-  solutionType: z.enum(['software', 'hardware', 'ai', 'fullstack', 'web'], {
-    errorMap: () => ({ message: 'Invalid solution type' })
-  }),
+  projectTitle: z.string().min(5).max(255),
+  projectDescription: z.string().min(50).max(5000),
+  projectStage: z.enum(['idea', 'prototype', 'mvp', 'scaling']),
+  solutionType: z.enum(['software', 'hardware', 'ai', 'fullstack', 'web']),
   
   // Timeline & Budget
   idealStartDate: z.string().datetime().optional().or(z.literal('')),
-  budgetRange: z.string().min(1, 'Budget range is required'),
+  budgetRange: z.string().min(1),
   currency: z.enum(['$', '₦', '£', '€']).default('₦'),
   
   // Collaboration
   hasInternalTeam: z.boolean(),
+  
   scheduleCall: z.boolean(),
   
   // Legal
-  termsAccepted: z.literal(true, {
-    errorMap: () => ({ message: 'You must accept the terms and conditions' })
-  }),
-  contactConsent: z.literal(true, {
-    errorMap: () => ({ message: 'You must consent to be contacted' })
-  })
+  termsAccepted: z.literal(true),
+  contactConsent: z.literal(true),
+  
+  // ✅ File URLs (Optional - only present if files uploaded)
+  projectBriefUrl: z.string().optional(),
+  referenceImagesUrl: z.string().optional(),
+  profilePhotoUrl: z.string().optional()
 });
-
 /**
  * Partner approval schema
  */

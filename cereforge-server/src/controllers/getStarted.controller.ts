@@ -14,6 +14,7 @@ export const submitGetStartedForm = asyncHandler(async (req: Request, res: Respo
   const formData = req.body;
   const ipAddress = req.ip || 'unknown';
 
+
   logger.info(`Get Started form submission from: ${formData.email}`);
 
   // Check if email already has pending application
@@ -113,7 +114,7 @@ export const submitGetStartedForm = asyncHandler(async (req: Request, res: Respo
     applicationId: pendingPartner.id
   }).catch(err => logger.error('Failed to queue client confirmation:', err));
 
-  logger.info(`Get Started application created: ${pendingPartner.id}${hasFiles ? ' (with files)' : ''}`);
+  logger.info(`Get Started application created: ${pendingPartner.email}${hasFiles ? ' (with files)' : ''}`);
 
   res.status(201).json({
     success: true,

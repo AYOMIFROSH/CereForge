@@ -35,22 +35,31 @@ export async function validateFileExists(filePath: string): Promise<boolean> {
 /**
  * Validate multiple file URLs
  */
+/**
+ * Validate multiple file URLs/paths
+ */
 export async function validateFileUrls(urls: (string | undefined | null)[]): Promise<boolean> {
-  const validUrls = urls.filter(url => url && url.trim() !== '');
+  const validUrls = urls.filter((url): url is string => url !== null && url !== undefined && url.trim() !== '');
 
   if (validUrls.length === 0) {
     // No files to validate (optional uploads)
     return true;
   }
 
-  // Extract file paths from URLs
+  // Extract file paths from URLs or use paths directly
   const filePaths = validUrls.map(url => {
-    // Extract path from Supabase Storage URL
-    // Format: https://{project}.supabase.co/storage/v1/object/public/pending-partner-documents/{applicationId}/{file}
-    if (!url) return null;
+    // ✅ url is guaranteed to be string here (not null/undefined)
+    
+    // Check if it's already a path (not a full URL)
+    if (!url.startsWith('http')) {
+      // ✅ It's already a path like "6d38a58e-.../project-brief.pdf"
+      return url;
+    }
+    
+    // Extract path from full Supabase URL
     const match = url.match(/pending-partner-documents\/(.+)$/);
     return match ? match[1] : null;
-  }).filter(path => path !== null) as string[];
+  }).filter((path): path is string => path !== null);
 
   if (filePaths.length !== validUrls.length) {
     logger.warn('Some file URLs have invalid format');
@@ -70,7 +79,6 @@ export async function validateFileUrls(urls: (string | undefined | null)[]): Pro
 
   return allValid;
 }
-
 /**
  * Generate signed URL for file download (valid for 1 hour)
  */
