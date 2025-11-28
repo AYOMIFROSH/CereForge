@@ -1,6 +1,7 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 import logger from './logger';
+import { SystemType, UserRole } from '../types/types';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
@@ -12,16 +13,20 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
   throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be defined');
 }
 
+/**
+ * ✅ UPDATED: JWT Payload with system_type
+ */
 export interface JWTPayload {
   userId: string;
   email: string;
-  role: 'core' | 'admin' | 'partner';
+  role: UserRole;
+  systemType: SystemType; // ✅ NEW
   sessionId: string;
   permissions?: Record<string, boolean>;
 }
 
 /**
- * Generate access token (short-lived)
+ * ✅ UPDATED: Generate access token (short-lived) with systemType
  */
 export function generateAccessToken(payload: JWTPayload): string {
   try {
@@ -30,6 +35,7 @@ export function generateAccessToken(payload: JWTPayload): string {
         userId: payload.userId,
         email: payload.email,
         role: payload.role,
+        systemType: payload.systemType, // ✅ NEW
         sessionId: payload.sessionId,
         permissions: payload.permissions
       },
@@ -48,7 +54,7 @@ export function generateAccessToken(payload: JWTPayload): string {
 }
 
 /**
- * Generate refresh token (long-lived)
+ * ✅ UPDATED: Generate refresh token (long-lived) with systemType
  */
 export function generateRefreshToken(payload: Omit<JWTPayload, 'permissions'>): string {
   try {
@@ -57,6 +63,7 @@ export function generateRefreshToken(payload: Omit<JWTPayload, 'permissions'>): 
         userId: payload.userId,
         email: payload.email,
         role: payload.role,
+        systemType: payload.systemType, // ✅ NEW
         sessionId: payload.sessionId
       },
       JWT_REFRESH_SECRET,
@@ -74,7 +81,7 @@ export function generateRefreshToken(payload: Omit<JWTPayload, 'permissions'>): 
 }
 
 /**
- * Verify access token
+ * ✅ UPDATED: Verify access token (now includes systemType)
  */
 export function verifyAccessToken(token: string): JWTPayload | null {
   try {
@@ -82,6 +89,12 @@ export function verifyAccessToken(token: string): JWTPayload | null {
       issuer: 'cereforge',
       audience: 'cereforge-api'
     }) as JWTPayload;
+    
+    // ✅ VALIDATION: Ensure systemType exists in token
+    if (!decoded.systemType) {
+      logger.warn('Token missing systemType - possibly old token');
+      return null;
+    }
     
     return decoded;
   } catch (error) {
@@ -97,8 +110,7 @@ export function verifyAccessToken(token: string): JWTPayload | null {
 }
 
 /**
- * ✅ Verify refresh token
- * Used in /auth/refresh endpoint
+ * ✅ UPDATED: Verify refresh token (now includes systemType)
  */
 export function verifyRefreshToken(token: string): Omit<JWTPayload, 'permissions'> | null {
   try {
@@ -106,6 +118,12 @@ export function verifyRefreshToken(token: string): Omit<JWTPayload, 'permissions
       issuer: 'cereforge',
       audience: 'cereforge-api'
     }) as Omit<JWTPayload, 'permissions'>;
+    
+    // ✅ VALIDATION: Ensure systemType exists in token
+    if (!decoded.systemType) {
+      logger.warn('Refresh token missing systemType - possibly old token');
+      return null;
+    }
     
     logger.debug(`Refresh token verified for user ${decoded.userId}`);
     return decoded;
@@ -123,6 +141,7 @@ export function verifyRefreshToken(token: string): Omit<JWTPayload, 'permissions
 
 /**
  * Generate secure random token (for password reset, etc.)
+ * No changes needed
  */
 export function generateSecureToken(length: number = 32): string {
   return crypto.randomBytes(length).toString('hex');
@@ -130,6 +149,7 @@ export function generateSecureToken(length: number = 32): string {
 
 /**
  * Hash token for storage (one-way hash)
+ * No changes needed
  */
 export function hashToken(token: string): string {
   return crypto
@@ -140,6 +160,7 @@ export function hashToken(token: string): string {
 
 /**
  * Generate session ID
+ * No changes needed
  */
 export function generateSessionId(): string {
   return crypto.randomUUID();

@@ -6,8 +6,25 @@ import { asyncHandler } from '../utils/errors';
 import logger from '../utils/logger';
 
 /**
+ * ✅ PRODUCTION-SAFE Cookie Configuration
+ * Works across *.cereforge.com subdomains
+ */
+const getCookieConfig = (maxAge: number) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  return {
+    httpOnly: true,
+    secure: isProduction, // HTTPS only in production
+    sameSite: 'lax' as const, // 'lax' allows cross-subdomain (cereforge.com → api.cereforge.com)
+    domain: isProduction ? '.cereforge.com' : undefined, // ✅ Shared across subdomains
+    maxAge,
+    path: '/' // Available to all routes
+  };
+};
+
+/**
  * POST /api/v1/auth/verify-email
- * Step 1 of Smart Login: Verify email and return role + display info
+ * Step 1 of Smart Login: Verify email and return role + display info + systemType
  */
 export const verifyEmailHandler = asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -24,7 +41,12 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
     result.userId,
     ipAddress,
     userAgent,
-    { email, step: 'email_verification', success: result.exists }
+    { 
+      email, 
+      step: 'email_verification', 
+      success: result.exists,
+      systemType: result.systemType // ✅ NEW: Log system type
+    }
   );
 
   res.json({
@@ -37,6 +59,7 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
 /**
  * POST /api/v1/auth/login
  * Step 2 of Smart Login: Complete login with password
+ * ✅ UPDATED: Sets cookies with subdomain support
  */
 export const loginHandler = asyncHandler(async (req: Request, res: Response) => {
   const { email, password, role } = req.body;
@@ -53,25 +76,16 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
     result.user.id,
     ipAddress,
     userAgent,
-    { email, role }
+    { 
+      email, 
+      role,
+      systemType: result.user.systemType // ✅ NEW: Log system type
+    }
   );
 
-  // Set httpOnly cookies
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  res.cookie('authToken', result.token, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'strict',
-    maxAge: 15 * 60 * 1000 // 15 minutes
-  });
-
-  res.cookie('refreshToken', result.refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  });
+  // ✅ UPDATED: Set httpOnly cookies with subdomain support
+  res.cookie('authToken', result.token, getCookieConfig(15 * 60 * 1000)); // 15 minutes
+  res.cookie('refreshToken', result.refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000)); // 7 days
 
   // Return user data (tokens in cookies)
   res.json({
@@ -87,14 +101,14 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 /**
  * GET /api/v1/auth/me
  * ⚡ ULTRA-FAST: Validate current session (JWT only, no DB query)
- * Used by frontend to check if user is still authenticated
+ * ✅ UPDATED: Returns systemType
  */
 export const getMeHandler = asyncHandler(async (req: Request, res: Response) => {
   // ✅ User already validated by authenticate middleware
   const user = req.user!;
 
   // ✅ PERFORMANCE: No database query needed
-  // JWT already contains all user info
+  // JWT already contains all user info including systemType
   // Session validity already checked in middleware
 
   res.json({
@@ -104,6 +118,7 @@ export const getMeHandler = asyncHandler(async (req: Request, res: Response) => 
         id: user.userId,
         email: user.email,
         role: user.role,
+        systemType: user.systemType, // ✅ NEW
         permissions: user.permissions
       },
       authenticated: true
@@ -115,6 +130,7 @@ export const getMeHandler = asyncHandler(async (req: Request, res: Response) => 
 /**
  * POST /api/v1/auth/logout
  * Logout user and invalidate session
+ * ✅ UPDATED: Clears cookies properly for subdomains
  */
 export const logoutHandler = asyncHandler(async (req: Request, res: Response) => {
   const user = req.user!;
@@ -128,12 +144,22 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
     'logout',
     user.userId,
     ipAddress,
-    userAgent
+    userAgent,
+    { systemType: user.systemType } // ✅ NEW
   );
 
-  // Clear cookies
-  res.clearCookie('authToken');
-  res.clearCookie('refreshToken');
+  // ✅ UPDATED: Clear cookies with same domain config
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookieOptions = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax' as const,
+    domain: isProduction ? '.cereforge.com' : undefined,
+    path: '/'
+  };
+
+  res.clearCookie('authToken', cookieOptions);
+  res.clearCookie('refreshToken', cookieOptions);
 
   res.json({
     success: true,
@@ -144,7 +170,7 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
 
 /**
  * POST /api/v1/auth/refresh
- * ✅ FIXED: Refresh access token using refresh token
+ * ✅ UPDATED: Refresh access token using refresh token with systemType
  */
 export const refreshTokenHandler = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken;
@@ -161,13 +187,22 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
     return;
   }
 
-  // ✅ FIX: Verify refresh token to extract user data
+  // ✅ UPDATED: Verify refresh token (now includes systemType)
   const payload = verifyRefreshToken(refreshToken);
 
   if (!payload) {
     // Invalid or expired refresh token - clear cookies
-    res.clearCookie('authToken');
-    res.clearCookie('refreshToken');
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax' as const,
+      domain: isProduction ? '.cereforge.com' : undefined,
+      path: '/'
+    };
+
+    res.clearCookie('authToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
     
     logger.warn('Invalid or expired refresh token received');
     
@@ -183,11 +218,12 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
   }
 
   try {
-    // ✅ Now we have userId, sessionId, role from verified token
+    // ✅ UPDATED: Now includes systemType parameter
     const newAccessToken = await refreshAccessToken(
       payload.userId,
       payload.sessionId,
-      payload.role
+      payload.role,
+      payload.systemType // ✅ NEW
     );
 
     // Log token refresh
@@ -196,18 +232,14 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
       payload.userId,
       req.ip || 'unknown',
       req.get('user-agent') || 'unknown',
-      { sessionId: payload.sessionId }
+      { 
+        sessionId: payload.sessionId,
+        systemType: payload.systemType // ✅ NEW
+      }
     );
 
-    // Set new access token cookie
-    const isProduction = process.env.NODE_ENV === 'production';
-
-    res.cookie('authToken', newAccessToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'strict',
-      maxAge: 15 * 60 * 1000 // 15 minutes
-    });
+    // ✅ Set new access token cookie with subdomain support
+    res.cookie('authToken', newAccessToken, getCookieConfig(15 * 60 * 1000));
 
     logger.info(`Access token refreshed for user ${payload.userId}`);
 
@@ -220,8 +252,17 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
     logger.error('Token refresh failed:', error);
     
     // Clear cookies on error
-    res.clearCookie('authToken');
-    res.clearCookie('refreshToken');
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax' as const,
+      domain: isProduction ? '.cereforge.com' : undefined,
+      path: '/'
+    };
+
+    res.clearCookie('authToken', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
     
     res.status(401).json({
       success: false,

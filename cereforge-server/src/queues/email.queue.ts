@@ -24,7 +24,7 @@ if (!REDIS_URL) {
 // Parse Redis URL
 const url = new URL(REDIS_URL);
 
-// Base configuration for all clients
+// ✅ OPTIMIZED: Minimal Redis calls configuration
 const baseConfig = {
     host: url.hostname,
     port: parseInt(url.port) || 6379,
@@ -45,7 +45,7 @@ const baseConfig = {
     }
 };
 
-// Create Redis client factory for Bull
+// ✅ CRITICAL: Optimized Redis client factory
 const createRedisClient = (type?: string) => {
     if (type === 'bclient' || type === 'subscriber') {
         return new IORedis({
@@ -63,7 +63,7 @@ const createRedisClient = (type?: string) => {
     });
 };
 
-// Create email queue with custom client
+// ✅ OPTIMIZED: Drastically reduced polling and checks
 export const emailQueue = new Bull('email-notifications', {
     createClient: createRedisClient,
     defaultJobOptions: {
@@ -72,8 +72,19 @@ export const emailQueue = new Bull('email-notifications', {
             type: 'exponential',
             delay: 5000
         },
-        removeOnComplete: true,
+        removeOnComplete: true, // ✅ Auto-cleanup completed jobs
         removeOnFail: false
+    },
+    settings: {
+        // ✅ CRITICAL: Reduce Redis polling frequency
+        lockDuration: 300000,     // 5 minutes (default: 30 seconds)
+        stalledInterval: 300000,  // Check stalled jobs every 5 minutes (default: 30 seconds)
+        maxStalledCount: 1,       // Fail after 1 stall (default: 1)
+        guardInterval: 300000,    // Check delayed jobs every 5 minutes (default: 5 seconds)
+        retryProcessDelay: 5000,  // Wait 5 seconds before retrying (default: 5 seconds)
+        
+        // ✅ Disable unnecessary checks
+        drainDelay: 300            // Delay between processing jobs (reduces polling)
     }
 });
 
@@ -93,7 +104,6 @@ emailQueue.on('active', (job) => {
 emailQueue.on('completed', async (job) => {
     logger.info(`Email job ${job.id} completed successfully`);
 
-    // ✅ AUDIT: Log successful email delivery
     const { type, data } = job.data;
 
     if (type === 'team-notification') {
@@ -103,7 +113,7 @@ emailQueue.on('completed', async (job) => {
         );
     } else if (type === 'client-confirmation') {
         await auditClientConfirmationSent(
-            data.applicationId, // ✅ Pass applicationId, not email
+            data.applicationId,
             job.id,
             data.email
         );
@@ -113,7 +123,6 @@ emailQueue.on('completed', async (job) => {
 emailQueue.on('failed', async (job, err) => {
     logger.error(`Email job ${job?.id} failed after all retries:`, err);
 
-    // ✅ AUDIT: Log email failure (critical - needs investigation)
     if (job) {
         const { type, data } = job.data;
 
@@ -126,7 +135,7 @@ emailQueue.on('failed', async (job, err) => {
             );
         } else if (type === 'client-confirmation') {
             await auditClientConfirmationFailed(
-                data.applicationId, // ✅ Pass applicationId, not email
+                data.applicationId,
                 job.id,
                 data.email,
                 err.message,
@@ -136,8 +145,8 @@ emailQueue.on('failed', async (job, err) => {
     }
 });
 
-// Process team notification emails
-emailQueue.process('team-notification', async (job) => {
+// ✅ OPTIMIZED: Process jobs with concurrency limit
+emailQueue.process('team-notification', 1, async (job) => {
     const { data } = job.data;
 
     logger.info(`Processing team notification email job ${job.id}`);
@@ -157,8 +166,7 @@ emailQueue.process('team-notification', async (job) => {
     }
 });
 
-// Process client confirmation emails
-emailQueue.process('client-confirmation', async (job) => {
+emailQueue.process('client-confirmation', 1, async (job) => {
     const { data } = job.data;
 
     logger.info(`Processing client confirmation email job ${job.id}`);
@@ -200,7 +208,6 @@ export async function queueTeamNotification(data: {
 
         logger.info(`Queued team notification for ${data.companyName} (Job ID: ${job.id})`);
 
-        // ✅ AUDIT: Log email queued
         await auditTeamNotificationQueued(
             data.applicationId,
             job.id,
@@ -218,7 +225,7 @@ export async function queueClientConfirmation(data: {
     fullName: string;
     companyName: string;
     projectTitle: string;
-    applicationId: string; // ✅ Added applicationId
+    applicationId: string;
 }): Promise<void> {
     try {
         const job = await emailQueue.add(
@@ -229,7 +236,6 @@ export async function queueClientConfirmation(data: {
 
         logger.info(`Queued client confirmation for ${data.email} (Job ID: ${job.id})`);
 
-        // ✅ AUDIT: Log email queued
         await auditClientConfirmationQueued(
             data.applicationId,
             job.id,
@@ -244,14 +250,12 @@ export async function queueClientConfirmation(data: {
 }
 
 /**
- * ✅ GRACEFUL SHUTDOWN: Close queue properly
- * Call this in server shutdown process
+ * Graceful shutdown
  */
 export async function closeEmailQueue(): Promise<void> {
     logger.info('Closing email queue...');
 
     try {
-        // Wait for active jobs to complete
         await emailQueue.close();
         logger.info('✅ Email queue closed successfully');
     } catch (error) {
@@ -260,4 +264,4 @@ export async function closeEmailQueue(): Promise<void> {
     }
 }
 
-logger.info('Email queue initialized successfully');
+logger.info('✅ Email queue initialized with optimized settings (low Redis usage)');

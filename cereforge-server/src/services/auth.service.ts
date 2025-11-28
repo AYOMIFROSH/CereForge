@@ -3,10 +3,12 @@ import { getFreshSupabase } from '../config/database';
 import { generateAccessToken, generateRefreshToken, generateSessionId, JWTPayload } from '../utils/jwt';
 import { Errors } from '../utils/errors';
 import logger from '../utils/logger';
+import { SystemType, UserRole } from '../types/types';
 
 interface EmailVerificationResult {
   exists: boolean;
-  role?: 'core' | 'admin' | 'partner';
+  role?: UserRole;
+  systemType?: SystemType; // ✅ NEW
   displayInfo?: {
     partnerName?: string;
     category?: string;
@@ -23,25 +25,27 @@ interface LoginResult {
     id: string;
     email: string;
     name: string;
-    role: 'core' | 'admin' | 'partner';
+    role: UserRole;
+    systemType: SystemType; // ✅ NEW
     permissions?: Record<string, boolean>;
   };
 }
 
 /**
- * Verify email and return user role + display info (Step 1 of Smart Login)
+ * ✅ UPDATED: Verify email and return user role + system_type
+ * Step 1 of Smart Login
  */
 export async function verifyEmail(email: string): Promise<EmailVerificationResult> {
   try {
-    // ✅ FIX: Use a fresh Supabase query with service role (bypasses RLS and auth state)
     const supabase = getFreshSupabase();
+    
+    // ✅ NOW SELECTS system_type
     const { data: user, error } = await supabase
       .from('user_profiles')
-      .select('id, email, role, status, full_name')
+      .select('id, email, role, system_type, status, full_name')
       .eq('email', email)
-      .maybeSingle(); // ✅ Use maybeSingle instead of single to avoid throwing on not found
+      .maybeSingle();
 
-    // ✅ Handle not found explicitly
     if (error) {
       logger.error('Error querying user_profiles:', error);
       return { exists: false };
@@ -50,6 +54,12 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
     if (!user) {
       logger.info(`Email verification: ${email} not found`);
       return { exists: false };
+    }
+
+    // ✅ VALIDATION: Ensure system_type exists (should always be set after migration)
+    if (!user.system_type) {
+      logger.error(`User ${user.id} missing system_type! Database migration incomplete.`);
+      throw new Error('System configuration error. Please contact support.');
     }
 
     // Get role-specific display info
@@ -87,34 +97,35 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
       }
     }
 
-    logger.info(`Email verification: ${email} found with role ${user.role}`);
+    logger.info(`Email verification: ${email} found with role ${user.role}, systemType ${user.system_type}`);
 
     return {
       exists: true,
-      role: user.role,
+      role: user.role as UserRole,
+      systemType: user.system_type as SystemType, // ✅ NEW
       displayInfo,
       accountStatus: user.status,
       userId: user.id
     };
   } catch (error) {
     logger.error('Email verification failed:', error);
-    // ✅ Return exists: false instead of throwing
     return { exists: false };
   }
 }
 
 /**
- * Login user (Step 2 of Smart Login)
+ * ✅ UPDATED: Login user with system_type support
+ * Step 2 of Smart Login
  */
 export async function login(
   email: string,
   password: string,
-  role: 'core' | 'admin' | 'partner',
+  role: UserRole,
   ipAddress: string,
   userAgent: string
 ): Promise<LoginResult> {
   try {
-    // Get user from Supabase Auth
+    // Authenticate with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -125,10 +136,10 @@ export async function login(
       throw Errors.invalidCredentials();
     }
 
-    // Get user profile
+    // ✅ NOW FETCHES system_type
     const { data: userProfile, error: profileError } = await supabase
       .from('user_profiles')
-      .select('id, email, full_name, role, status')
+      .select('id, email, full_name, role, system_type, status')
       .eq('id', authData.user.id)
       .single();
 
@@ -136,10 +147,22 @@ export async function login(
       throw Errors.notFound('User profile');
     }
 
+    // ✅ VALIDATION: Ensure system_type exists
+    if (!userProfile.system_type) {
+      logger.error(`User ${userProfile.id} missing system_type during login!`);
+      throw Errors.internal('Account configuration error. Please contact support.');
+    }
+
     // Verify role matches
     if (userProfile.role !== role) {
       logger.warn(`Role mismatch for ${email}: expected ${role}, got ${userProfile.role}`);
       throw Errors.invalidCredentials();
+    }
+
+    // ✅ SYSTEM_USERS validation (only SYSTEM_USERS can use this login endpoint)
+    if (userProfile.system_type !== SystemType.SYSTEM_USERS) {
+      logger.warn(`Non-system user attempted system login: ${email}`);
+      throw Errors.forbidden('This login endpoint is for system users only');
     }
 
     // Check account status
@@ -156,7 +179,7 @@ export async function login(
     // Get permissions based on role
     let permissions: Record<string, boolean> = {};
 
-    if (role === 'core') {
+    if (role === UserRole.CORE) {
       const { data: coreStaff } = await supabase
         .from('core_staff')
         .select('permissions')
@@ -166,7 +189,7 @@ export async function login(
       if (coreStaff) {
         permissions = coreStaff.permissions;
       }
-    } else if (role === 'admin') {
+    } else if (role === UserRole.ADMIN) {
       const { data: adminStaff } = await supabase
         .from('admin_staff')
         .select('permissions')
@@ -181,11 +204,12 @@ export async function login(
     // Generate session ID
     const sessionId = generateSessionId();
 
-    // Create JWT payload
+    // ✅ UPDATED: JWT payload now includes systemType
     const jwtPayload: JWTPayload = {
       userId: userProfile.id,
       email: userProfile.email,
-      role: userProfile.role,
+      role: userProfile.role as UserRole,
+      systemType: userProfile.system_type as SystemType, // ✅ NEW
       sessionId,
       permissions
     };
@@ -195,7 +219,8 @@ export async function login(
     const refreshToken = generateRefreshToken({
       userId: userProfile.id,
       email: userProfile.email,
-      role: userProfile.role,
+      role: userProfile.role as UserRole,
+      systemType: userProfile.system_type as SystemType, // ✅ NEW
       sessionId
     });
 
@@ -206,7 +231,7 @@ export async function login(
     await supabase.from('user_sessions').insert({
       id: sessionId,
       user_id: userProfile.id,
-      token_hash: token.substring(0, 50), // Store partial hash for reference
+      token_hash: token.substring(0, 50),
       refresh_token_hash: refreshToken.substring(0, 50),
       ip_address: ipAddress,
       user_agent: userAgent,
@@ -220,7 +245,7 @@ export async function login(
       .update({ last_login: new Date().toISOString() })
       .eq('id', userProfile.id);
 
-    logger.info(`User ${email} logged in successfully`);
+    logger.info(`User ${email} logged in successfully (${userProfile.system_type})`);
 
     return {
       token,
@@ -229,7 +254,8 @@ export async function login(
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.full_name,
-        role: userProfile.role,
+        role: userProfile.role as UserRole,
+        systemType: userProfile.system_type as SystemType, // ✅ NEW
         permissions
       }
     };
@@ -243,7 +269,7 @@ export async function login(
 }
 
 /**
- * Logout user
+ * Logout user (no changes needed)
  */
 export async function logout(sessionId: string): Promise<void> {
   try {
@@ -260,12 +286,13 @@ export async function logout(sessionId: string): Promise<void> {
 }
 
 /**
- * Refresh access token
+ * ✅ UPDATED: Refresh access token with system_type
  */
 export async function refreshAccessToken(
   userId: string,
   sessionId: string,
-  role: 'core' | 'admin' | 'partner'
+  role: UserRole,
+  systemType: SystemType // ✅ NEW parameter
 ): Promise<string> {
   try {
     // Verify session is still active
@@ -288,7 +315,7 @@ export async function refreshAccessToken(
     // Get current permissions
     let permissions: Record<string, boolean> = {};
 
-    if (role === 'core') {
+    if (role === UserRole.CORE) {
       const { data: coreStaff } = await supabase
         .from('core_staff')
         .select('permissions')
@@ -298,7 +325,7 @@ export async function refreshAccessToken(
       if (coreStaff) {
         permissions = coreStaff.permissions;
       }
-    } else if (role === 'admin') {
+    } else if (role === UserRole.ADMIN) {
       const { data: adminStaff } = await supabase
         .from('admin_staff')
         .select('permissions')
@@ -321,11 +348,12 @@ export async function refreshAccessToken(
       throw Errors.notFound('User');
     }
 
-    // Generate new access token
+    // ✅ UPDATED: Generate new access token with systemType
     const token = generateAccessToken({
       userId,
       email: user.email,
       role,
+      systemType, // ✅ NEW
       sessionId,
       permissions
     });
