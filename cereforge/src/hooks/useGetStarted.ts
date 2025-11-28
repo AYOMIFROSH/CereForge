@@ -2,6 +2,10 @@ import { useState } from 'react';
 import api from '../services/api';
 import { uploadApplicationFiles, deleteUploadedFiles } from '../services/fileUpload';
 
+// ✅ Import Redux toast action
+import { useAppDispatch } from '../store/hook';
+import { addToast } from '../store/slices/uiSlice';
+
 export interface GetStartedFormData {
   // Personal & Company Info
   fullName: string;
@@ -32,9 +36,12 @@ export interface GetStartedFormData {
 }
 
 /**
- * Hook for Get Started form submission with file uploads
+ * ✅ Hook for Get Started form submission with file uploads
+ * Updated with Redux toast notifications
  */
 export function useGetStarted() {
+  const dispatch = useAppDispatch();  // ✅ NEW
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -50,12 +57,12 @@ export function useGetStarted() {
       profilePhoto?: File | null;
     }
   ): Promise<boolean> => {
-      let fileUrls: {
-        applicationId: string;
-        projectBriefUrl?: string;
-        referenceImagesUrl?: string;
-        profilePhotoUrl?: string;
-      } | null = null;
+    let fileUrls: {
+      applicationId: string;
+      projectBriefUrl?: string;
+      referenceImagesUrl?: string;
+      profilePhotoUrl?: string;
+    } | null = null;
 
     try {
       setIsSubmitting(true);
@@ -70,13 +77,34 @@ export function useGetStarted() {
           setUploadProgress(10);
 
           console.log('Uploading files to Supabase...');
+          
+          // ✅ Show toast for file upload
+          dispatch(addToast({
+            message: 'Uploading files...',
+            type: 'info',
+            duration: 0  // Keep visible until upload done
+          }));
+
           fileUrls = await uploadApplicationFiles(files);
 
           setUploadProgress(50);
           console.log('Files uploaded successfully:', fileUrls);
+          
+          // ✅ Success toast for upload
+          dispatch(addToast({
+            message: 'Files uploaded successfully!',
+            type: 'success'
+          }));
         } catch (uploadError: any) {
           console.error('File upload failed:', uploadError);
           setError(`File upload failed: ${uploadError.message}`);
+          
+          // ✅ Error toast
+          dispatch(addToast({
+            message: `File upload failed: ${uploadError.message}`,
+            type: 'error'
+          }));
+          
           return false;
         } finally {
           setIsUploadingFiles(false);
@@ -99,7 +127,7 @@ export function useGetStarted() {
 
       setUploadProgress(70);
 
-      console.log('📤 Sending payload to backend:', payload)
+      console.log('📤 Sending payload to backend:', payload);
 
       const response = await api.post('/public/get-started', payload);
 
@@ -107,6 +135,13 @@ export function useGetStarted() {
 
       if (response.data.success) {
         setSuccess(true);
+        
+        // ✅ Success toast
+        dispatch(addToast({
+          message: 'Application submitted successfully!',
+          type: 'success'
+        }));
+        
         return true;
       }
 
@@ -125,13 +160,38 @@ export function useGetStarted() {
         if (serverError.code === 'VALIDATION_ERROR' && serverError.details) {
           setValidationErrors(serverError.details);
           setError(serverError.message);
+          
+          // ✅ Validation error toast
+          dispatch(addToast({
+            message: serverError.message,
+            type: 'error',
+            duration: 8000  // Show longer for validation errors
+          }));
         } else {
           setError(serverError.message);
+          
+          // ✅ Generic error toast
+          dispatch(addToast({
+            message: serverError.message,
+            type: 'error'
+          }));
         }
       } else if (err.message) {
         setError(`Network error: ${err.message}`);
+        
+        // ✅ Network error toast
+        dispatch(addToast({
+          message: 'Network error. Please check your connection.',
+          type: 'error'
+        }));
       } else {
         setError('An unexpected error occurred. Please try again.');
+        
+        // ✅ Generic error toast
+        dispatch(addToast({
+          message: 'An unexpected error occurred.',
+          type: 'error'
+        }));
       }
       
       console.error('Get Started submission error:', err.response?.data || err);
@@ -160,4 +220,3 @@ export function useGetStarted() {
     resetState
   };
 }
-

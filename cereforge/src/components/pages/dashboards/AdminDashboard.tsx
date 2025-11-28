@@ -1,15 +1,36 @@
-import { useAuth } from '@/hooks/useAuth';
-import { Shield, LogOut, User, Mail } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/store/store'; // Adjust path
+import { logout } from '@/store/slices/authSlice'; // Adjust path
+import { useLogoutMutation } from '@/store/api/authApi'; 
+import { User, Mail, Shield, LogOut } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const AdminDashboard = () => {
+    const dispatch = useDispatch();
+  
   useDocumentTitle(
     "Admin Dashboard - Cereforge",
     "Admin portal dashboard",
     "/admin/dashboard"
   );
 
-  const { user, logout } = useAuth();
+const { user } = useSelector((state: RootState) => state.auth);
+    const [logoutApi, { isLoading }] = useLogoutMutation(); // ✅ Add API logout hook
+
+  const handleLogout = async () => {
+      try {
+        // ✅ Call API logout first
+        await logoutApi().unwrap();
+        console.log('API logout successful');
+      } catch (error) {
+        console.error('API logout failed:', error);
+      } finally {
+        // ✅ Always dispatch Redux logout (clears local state)
+        dispatch(logout());
+        // ✅ Redirect to login
+        window.location.href = '/login';
+      }
+    };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -27,11 +48,12 @@ const AdminDashboard = () => {
               </div>
             </div>
             <button
-              onClick={logout}
-              className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+              onClick={handleLogout}
+              disabled={isLoading} // ✅ Disable while loading
+              className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white px-4 py-2 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span>Logout</span>
+              <span>{isLoading ? 'Logging out...' : 'Logout'}</span>
             </button>
           </div>
         </div>

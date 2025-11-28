@@ -1,15 +1,35 @@
-import { useAuth } from '@/hooks/useAuth';
-import { User, LogOut, Mail, Briefcase } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/store/store'; // Adjust path
+import { logout } from '@/store/slices/authSlice'; // Adjust path
+import { useLogoutMutation } from '@/store/api/authApi'; // ✅ Add this import
+import { User, Mail, Briefcase, LogOut } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const CoreDashboard = () => {
+  const dispatch = useDispatch();
   useDocumentTitle(
     "Core Dashboard - Cereforge",
     "Core system dashboard",
     "/core/dashboard"
   );
 
-  const { user, logout } = useAuth();
+  const { user } = useSelector((state: RootState) => state.auth);
+    const [logoutApi, { isLoading }] = useLogoutMutation(); // ✅ Add API logout hook
+
+  const handleLogout = async () => {
+      try {
+        // ✅ Call API logout first
+        await logoutApi().unwrap();
+        console.log('API logout successful');
+      } catch (error) {
+        console.error('API logout failed:', error);
+      } finally {
+        // ✅ Always dispatch Redux logout (clears local state)
+        dispatch(logout());
+        // ✅ Redirect to login
+        window.location.href = '/login';
+      }
+    };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
@@ -27,11 +47,12 @@ const CoreDashboard = () => {
               </div>
             </div>
             <button
-              onClick={logout}
-              className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors"
+              onClick={handleLogout}
+              disabled={isLoading} // ✅ Disable while loading
+              className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white px-4 py-2 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span>Logout</span>
+              <span>{isLoading ? 'Logging out...' : 'Logout'}</span>
             </button>
           </div>
         </div>
@@ -78,7 +99,7 @@ const CoreDashboard = () => {
             <div className="ml-3">
               <h3 className="text-lg font-bold text-green-800">Authentication Successful!</h3>
               <p className="text-green-700 mt-1">
-                You have successfully logged in as a <span className="font-semibold">Core Team Member</span>. 
+                You have successfully logged in as a <span className="font-semibold">Core Team Member</span>.
                 Your dashboard is ready to use.
               </p>
             </div>

@@ -1,6 +1,5 @@
-// src/components/common/ErrorBoundary.tsx
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -8,98 +7,123 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
+  error?: Error;
+  errorInfo?: ErrorInfo;
+  isNetworkError: boolean;
 }
 
-class ErrorBoundary extends Component<Props, State> {
+/**
+ * ✅ Error Boundary Component
+ * Catches React errors and network failures
+ */
+export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = {
       hasError: false,
-      error: null,
-      errorInfo: null,
+      isNetworkError: false
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    // Check if it's a network error
+    const isNetworkError = 
+      error.message.includes('Network') ||
+      error.message.includes('Failed to fetch') ||
+      error.message.includes('NetworkError');
+
+    return {
+      hasError: true,
+      error,
+      isNetworkError
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Log error to console (or send to error tracking service)
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    
     this.setState({
-      hasError: true,
       error,
-      errorInfo,
+      errorInfo
     });
-
-    // Log error to console in development (Vite)
-    if (import.meta.env.DEV) {
-      console.error('Error caught by boundary:', error, errorInfo);
-    }
-
-    // In production, you might want to log to an error reporting service
-    // logErrorToService(error, errorInfo);
   }
 
   handleReset = () => {
     this.setState({
       hasError: false,
-      error: null,
-      errorInfo: null,
+      error: undefined,
+      errorInfo: undefined,
+      isNetworkError: false
     });
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full text-center">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
+            {/* Icon */}
+            <div className="mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full">
+                <AlertTriangle className="w-8 h-8 text-red-600" />
               </div>
-              
-              <h1 className="text-xl font-bold text-gray-900 mb-2">
-                Oops! Something went wrong
-              </h1>
-              
-              <p className="text-gray-600 mb-6">
-                We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.
-              </p>
-
-              <div className="space-y-3">
-                <button
-                  onClick={this.handleReset}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Try Again
-                </button>
-                
-                <button
-                  onClick={() => (window.location.href = '/')}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                >
-                  Go to Dashboard
-                </button>
-              </div>
-
-              {/* Error Details (Development Only) */}
-              {import.meta.env.DEV && this.state.error && (
-                <details className="mt-6 text-left">
-                  <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-2">
-                    Error Details (Development)
-                  </summary>
-                  <div className="bg-gray-100 rounded-md p-3 text-xs font-mono text-gray-800 overflow-auto max-h-32">
-                    <div className="font-bold mb-2">Error:</div>
-                    <div className="mb-3">{this.state.error.toString()}</div>
-                    {this.state.errorInfo && (
-                      <>
-                        <div className="font-bold mb-2">Component Stack:</div>
-                        <div>{this.state.errorInfo.componentStack}</div>
-                      </>
-                    )}
-                  </div>
-                </details>
-              )}
             </div>
+
+            {/* Title */}
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {this.state.isNetworkError ? 'Connection Error' : 'Something Went Wrong'}
+            </h1>
+
+            {/* Message */}
+            <p className="text-gray-600 mb-6">
+              {this.state.isNetworkError
+                ? 'Unable to connect to the server. Please check your internet connection and try again.'
+                : 'An unexpected error occurred. Our team has been notified.'}
+            </p>
+
+            {/* Error Details (Development Only) */}
+            {import.meta.env.DEV && this.state.error && (
+              <div className="mb-6 p-4 bg-red-50 rounded-lg text-left">
+                <p className="text-xs font-mono text-red-800 break-all">
+                  {this.state.error.toString()}
+                </p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 inline-flex items-center justify-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Reload Page</span>
+              </button>
+              
+              <button
+                onClick={() => window.location.href = '/'}
+                className="flex-1 inline-flex items-center justify-center space-x-2 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                <Home className="w-4 h-4" />
+                <span>Go Home</span>
+              </button>
+            </div>
+
+            {/* Network Tips (for network errors) */}
+            {this.state.isNetworkError && (
+              <div className="mt-6 p-4 bg-yellow-50 rounded-lg text-left">
+                <p className="text-sm font-medium text-yellow-800 mb-2">
+                  Troubleshooting Tips:
+                </p>
+                <ul className="text-xs text-yellow-700 space-y-1 list-disc list-inside">
+                  <li>Check your internet connection</li>
+                  <li>Disable VPN or proxy if enabled</li>
+                  <li>Clear browser cache and cookies</li>
+                  <li>Try using a different browser</li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -108,5 +132,3 @@ class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
-
-export default ErrorBoundary;

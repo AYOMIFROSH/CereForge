@@ -86,11 +86,6 @@ api.interceptors.response.use(
             isRefreshing = false;
             processQueue(refreshError as Error, null);
             
-            // ✅ CRITICAL: Import logout dynamically to avoid circular dependency
-            const { useAuthStore } = await import('../store/authStore');
-            const logout = useAuthStore.getState().logout;
-            logout();
-            
             // ✅ Redirect to login (only if not already there)
             if (!window.location.pathname.includes('/login')) {
               window.location.href = '/login';
@@ -100,16 +95,7 @@ api.interceptors.response.use(
           }
         }
         
-        // ✅ If refresh also failed or this is already a retry, force logout
-        if (originalRequest._retry) {
-          const { useAuthStore } = await import('../store/authStore');
-          const logout = useAuthStore.getState().logout;
-          logout();
-          
-          if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/login';
-          }
-        }
+       
       }
       
       // Handle 403 Forbidden (insufficient permissions)
