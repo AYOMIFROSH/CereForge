@@ -19,6 +19,7 @@ export const generalLimiter = rateLimit({
   }
 });
 
+
 /**
  * Email verification rate limiter
  * 10 requests per minute per IP
@@ -89,3 +90,45 @@ export const fileUploadLimiter = rateLimit({
   },
   skip: () => process.env.NODE_ENV === 'test'
 });
+
+/**
+ * ✅ OPTIONAL: Advanced token refresh limiter (per user)
+ * Use this if you want to limit per authenticated user instead of IP
+ * 
+ * This is more lenient but requires valid refresh token to be parsed
+ */
+
+export const tokenRefreshLimiterPerUser = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Higher limit since it's per user, not per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    // Try to extract userId from refresh token (if valid)
+    const refreshToken = req.cookies?.refreshToken;
+    
+    if (!refreshToken) {
+      return req.ip || 'unknown';
+    }
+    
+    try {
+      // ✅ Import verifyRefreshToken to extract userId
+      const { verifyRefreshToken } = require('../utils/jwt');
+      const payload = verifyRefreshToken(refreshToken);
+      
+      if (payload && payload.userId) {
+        return `user:${payload.userId}`;
+      }
+      
+      return req.ip || 'unknown';
+    } catch (error) {
+      // If token is invalid, fall back to IP
+      return req.ip || 'unknown';
+    }
+  },
+  handler: () => {
+    throw Errors.tooManyRequests('Too many token refresh attempts for your account.');
+  },
+  skip: () => process.env.NODE_ENV === 'test'
+});
+

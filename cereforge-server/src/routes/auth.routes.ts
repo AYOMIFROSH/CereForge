@@ -10,7 +10,8 @@ import { validateBody } from '../middleware/validator';
 import { authenticate } from '../middleware/auth';
 import {
   emailVerificationLimiter,
-  loginLimiter
+  loginLimiter,
+  tokenRefreshLimiterPerUser
 } from '../middleware/rateLimiter';
 import {
   verifyEmailSchema,
@@ -68,6 +69,7 @@ router.post(
  */
 router.post(
   '/refresh',
+  tokenRefreshLimiterPerUser,
   refreshTokenHandler
 );
 
