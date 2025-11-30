@@ -239,7 +239,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`bg-white rounded-2xl shadow-2xl ${consultationType ? 'max-w-5xl' : 'max-w-3xl'} w-full my-8 relative overflow-hidden`}
+        className={`bg-white rounded-2xl shadow-2xl ${consultationType ? 'max-w-5xl' : 'max-w-3xl'} w-full  my-8 relative overflow-hidden`}
       >
         {/* Close Button - Positioned above the ribbon */}
         {mode === 'popup' && (

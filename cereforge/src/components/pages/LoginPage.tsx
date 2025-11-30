@@ -91,16 +91,10 @@ const LoginPage = () => {
         role: verificationResult!.role!
       }).unwrap();
 
-      // ✅ Success toast
-      dispatch(addToast({
-        message: 'Login successful!',
-        type: 'success'
-      }));
-
       // ✅ Navigate based on role
       const role = verificationResult!.role!;
       switch (role) {
-        case 'core':
+        case 'core':``
           navigate('/core/dashboard');
           break;
         case 'admin':

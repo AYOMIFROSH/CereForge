@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
 import LandingPage from './components/pages/LandingPage'; // ✅ IMPORT DIRECTLY (NOT LAZY) - hardcoded content
+import ForgotPassword from './components/pages/ForgotPassword';
 
 // ✅ Lazy load all route components (code splitting)
 const LoginPage = lazy(() => import('./components/pages/LoginPage'));
@@ -55,6 +56,7 @@ const App = () => {
           {/* ============================================ */}
           
           <Route path="/" element={<LandingPage />} />
+          <Route path='/forgot-password' element={ <ForgotPassword /> } />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/calendar" element={<CalendarPage />} />
