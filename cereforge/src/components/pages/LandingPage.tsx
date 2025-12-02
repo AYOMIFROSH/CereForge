@@ -373,7 +373,7 @@ const LandingPage = () => {
                                 <iframe
                                     width="100%"
                                     height="100%"
-                                    src="https://www.youtube.com/embed/i5Zzln-TsD8?si=wIwCNxmO6jV3L06Q"
+                                    src="https://www.youtube.com/embed/I5bS0Fr8ds4?si=S0VYgDkcCoyWAs2A"
                                     title="Get to Know Cereforge"
                                     style={{ border: "0" }}
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
