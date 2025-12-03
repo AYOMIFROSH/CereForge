@@ -262,7 +262,7 @@ const LandingPage = () => {
                             </h2>
 
                             <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-                                We build complete software solutions, firmware, and websites. From concept to deployment -
+                                We build complete software solutions, firmware, SaaS, Ai integration and Hardware system web integration. From concept to deployment -
                                 <span className="text-orange-400 font-semibold"> your first complete software solution in 30 days</span>.
                             </p>
 
