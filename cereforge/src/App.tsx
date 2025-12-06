@@ -6,8 +6,9 @@ import { Analytics } from "@vercel/analytics/react";
 import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
-import LandingPage from './components/pages/LandingPage'; // ✅ IMPORT DIRECTLY (NOT LAZY) - hardcoded content
+import LandingPage from './components/pages/LandingPage';
 import ForgotPassword from './components/pages/ForgotPassword';
+import MeetPage from './components/pages/MeetPage';
 
 // ✅ Lazy load all route components (code splitting)
 const LoginPage = lazy(() => import('./components/pages/LoginPage'));
@@ -56,11 +57,14 @@ const App = () => {
           {/* ============================================ */}
           
           <Route path="/" element={<LandingPage />} />
-          <Route path='/forgot-password' element={ <ForgotPassword /> } />
+          <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/editor" element={<CereforgeEditor />} />
+
+          {/* ✅ MAIN VIDEO CALL ROUTE - /meet/:roomId */}
+          <Route path="/meet/:roomId" element={<MeetPage />} />
 
           {/* Consultation Routes */}
           <Route
