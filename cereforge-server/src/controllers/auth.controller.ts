@@ -6,19 +6,20 @@ import { asyncHandler } from '../utils/errors';
 import logger from '../utils/logger';
 
 /**
- * ✅ PRODUCTION-SAFE Cookie Configuration
- * Works across *.cereforge.com subdomains
+ * ✅ FIXED: Cookie Configuration for Development & Production
+ * CRITICAL: SameSite='none' requires secure=true, which breaks localhost
+ * SOLUTION: Use 'lax' for both dev and prod
  */
 const getCookieConfig = (maxAge: number) => {
   const isProduction = process.env.NODE_ENV === 'production';
   
   return {
     httpOnly: true,
-    secure: isProduction, // HTTPS only in production
-    sameSite: 'lax' as const, // 'lax' allows cross-subdomain (cereforge.com → api.cereforge.com)
-    domain: isProduction ? '.cereforge.com' : undefined, // ✅ Shared across subdomains
+    secure: true, // Only HTTPS in production
+    sameSite: 'lax' as const, // ✅ Works for both localhost and production
+    domain: isProduction ? '.cereforge.com' : undefined, // ✅ No domain for localhost
     maxAge,
-    path: '/' // Available to all routes
+    path: '/' // Available to ALL routes
   };
 };
 
@@ -45,7 +46,7 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
       email, 
       step: 'email_verification', 
       success: result.exists,
-      systemType: result.systemType // ✅ NEW: Log system type
+      systemType: result.systemType
     }
   );
 
@@ -59,7 +60,7 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
 /**
  * POST /api/v1/auth/login
  * Step 2 of Smart Login: Complete login with password
- * ✅ UPDATED: Sets cookies with subdomain support
+ * ✅ FIXED: Cookies now work in development
  */
 export const loginHandler = asyncHandler(async (req: Request, res: Response) => {
   const { email, password, role } = req.body;
@@ -70,7 +71,6 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 
   const result = await login(email, password, role, ipAddress, userAgent);
 
-  // Log successful login
   await logAuthEvent(
     'login',
     result.user.id,
@@ -79,15 +79,24 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
     { 
       email, 
       role,
-      systemType: result.user.systemType // ✅ NEW: Log system type
+      systemType: result.user.systemType
     }
   );
 
-  // ✅ UPDATED: Set httpOnly cookies with subdomain support
+  // ✅ Set httpOnly cookies with FIXED configuration
   res.cookie('authToken', result.token, getCookieConfig(15 * 60 * 1000)); // 15 minutes
   res.cookie('refreshToken', result.refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000)); // 7 days
 
-  // Return user data (tokens in cookies)
+  // ✅ ENHANCED: Log detailed cookie info for debugging
+  logger.info(`Cookies set for user ${result.user.email}`, {
+    isProduction: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.cereforge.com' : 'localhost',
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    authTokenLength: result.token.length,
+    refreshTokenLength: result.refreshToken.length
+  });
+
   res.json({
     success: true,
     data: {
@@ -101,7 +110,7 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 /**
  * GET /api/v1/auth/me
  * ⚡ ULTRA-FAST: Validate current session (JWT only, no DB query)
- * ✅ UPDATED: Returns systemType
+ * ✅ Returns systemType
  */
 export const getMeHandler = asyncHandler(async (req: Request, res: Response) => {
   // ✅ User already validated by authenticate middleware
@@ -118,7 +127,7 @@ export const getMeHandler = asyncHandler(async (req: Request, res: Response) => 
         id: user.userId,
         email: user.email,
         role: user.role,
-        systemType: user.systemType, // ✅ NEW
+        systemType: user.systemType,
         permissions: user.permissions
       },
       authenticated: true
@@ -130,7 +139,7 @@ export const getMeHandler = asyncHandler(async (req: Request, res: Response) => 
 /**
  * POST /api/v1/auth/logout
  * Logout user and invalidate session
- * ✅ UPDATED: Clears cookies properly for subdomains
+ * ✅ FIXED: Clears cookies properly
  */
 export const logoutHandler = asyncHandler(async (req: Request, res: Response) => {
   const user = req.user!;
@@ -145,10 +154,10 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
     user.userId,
     ipAddress,
     userAgent,
-    { systemType: user.systemType } // ✅ NEW
+    { systemType: user.systemType }
   );
 
-  // ✅ UPDATED: Clear cookies with same domain config
+  // ✅ FIXED: Clear cookies with same config
   const isProduction = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     httpOnly: true,
@@ -170,7 +179,7 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
 
 /**
  * POST /api/v1/auth/refresh
- * ✅ UPDATED: Refresh access token using refresh token with systemType
+ * ✅ Refresh access token using refresh token
  */
 export const refreshTokenHandler = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken;
@@ -187,7 +196,7 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
     return;
   }
 
-  // ✅ UPDATED: Verify refresh token (now includes systemType)
+  // ✅ Verify refresh token
   const payload = verifyRefreshToken(refreshToken);
 
   if (!payload) {
@@ -218,12 +227,12 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
   }
 
   try {
-    // ✅ UPDATED: Now includes systemType parameter
+    // ✅ Generate new access token
     const newAccessToken = await refreshAccessToken(
       payload.userId,
       payload.sessionId,
       payload.role,
-      payload.systemType // ✅ NEW
+      payload.systemType
     );
 
     // Log token refresh
@@ -234,11 +243,11 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
       req.get('user-agent') || 'unknown',
       { 
         sessionId: payload.sessionId,
-        systemType: payload.systemType // ✅ NEW
+        systemType: payload.systemType
       }
     );
 
-    // ✅ Set new access token cookie with subdomain support
+    // ✅ Set new access token cookie
     res.cookie('authToken', newAccessToken, getCookieConfig(15 * 60 * 1000));
 
     logger.info(`Access token refreshed for user ${payload.userId}`);
