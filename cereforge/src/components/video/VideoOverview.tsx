@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Video, Calendar, Clock, LogIn, Check , X} from 'lucide-react';
+import { Video, Calendar, Clock, LogIn,  Check, X } from 'lucide-react';
 
 // ✅ Generate meeting ID (word-number-word format)
 const generateMeetingId = (): string => {
