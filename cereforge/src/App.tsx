@@ -29,8 +29,8 @@ const UnauthorizedPage = () => (
     <div className="text-center">
       <h1 className="text-4xl font-bold text-gray-900 mb-4">403</h1>
       <p className="text-xl text-gray-600 mb-8">Unauthorized Access</p>
-      <a 
-        href="/" 
+      <a
+        href="/"
         className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
       >
         Go Home
@@ -46,11 +46,11 @@ const App = () => {
     <>
       {/* Analytics */}
       <Analytics />
-      
+
       {/* Toast Notifications (global) */}
       <ToastNotifications />
 
-      {/* < AuthDebugHelper /> */}
+      {/* <AuthDebugHelper /> */}
 
       {/* Suspense wrapper for all lazy-loaded routes */}
       <Suspense fallback={<PageLoadingSkeleton />}>
@@ -58,7 +58,7 @@ const App = () => {
           {/* ============================================ */}
           {/* PUBLIC ROUTES (Lazy Loaded) */}
           {/* ============================================ */}
-          
+
           <Route path="/" element={<LandingPage />} />
           <Route path='/forgot-password' element={<ForgotPassword />} />
           <Route path="/login" element={<LoginPage />} />
@@ -66,8 +66,15 @@ const App = () => {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/editor" element={<CereforgeEditor />} />
 
-          {/* ✅ MAIN VIDEO CALL ROUTE - /meet/:roomId */}
-          <Route path="/meet/:roomId" element={<MeetPage />} />
+          {/* ✅ MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
+          <Route
+            path="/meet/:roomId"
+            element={
+              <ProtectedRoute allowedRoles={['partner', 'admin', 'core']}>
+                <MeetPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Consultation Routes */}
           <Route
@@ -129,26 +136,26 @@ const App = () => {
           {/* ============================================ */}
           {/* ERROR ROUTES */}
           {/* ============================================ */}
-          
+
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          
+
           {/* 404 Catch-all */}
-          <Route 
-            path="*" 
+          <Route
+            path="*"
             element={
               <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
                   <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
                   <p className="text-xl text-gray-600 mb-8">Page Not Found</p>
-                  <a 
-                    href="/" 
+                  <a
+                    href="/"
                     className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Go Home
                   </a>
                 </div>
               </div>
-            } 
+            }
           />
         </Routes>
       </Suspense>
