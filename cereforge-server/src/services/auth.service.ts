@@ -21,6 +21,7 @@ interface EmailVerificationResult {
 interface LoginResult {
   token: string;
   refreshToken: string;
+  sessionId: string;
   user: {
     id: string;
     email: string;
@@ -38,7 +39,7 @@ interface LoginResult {
 export async function verifyEmail(email: string): Promise<EmailVerificationResult> {
   try {
     const supabase = getFreshSupabase();
-    
+
     // ✅ NOW SELECTS system_type
     const { data: user, error } = await supabase
       .from('user_profiles')
@@ -136,7 +137,7 @@ export async function login(
       throw Errors.invalidCredentials();
     }
 
-    // ✅ NOW FETCHES system_type
+    // Fetch user profile
     const { data: userProfile, error: profileError } = await supabase
       .from('user_profiles')
       .select('id, email, full_name, role, system_type, status')
@@ -147,7 +148,7 @@ export async function login(
       throw Errors.notFound('User profile');
     }
 
-    // ✅ VALIDATION: Ensure system_type exists
+    // Validate system_type exists
     if (!userProfile.system_type) {
       logger.error(`User ${userProfile.id} missing system_type during login!`);
       throw Errors.internal('Account configuration error. Please contact support.');
@@ -159,7 +160,7 @@ export async function login(
       throw Errors.invalidCredentials();
     }
 
-    // ✅ SYSTEM_USERS validation (only SYSTEM_USERS can use this login endpoint)
+    // SYSTEM_USERS validation
     if (userProfile.system_type !== SystemType.SYSTEM_USERS) {
       logger.warn(`Non-system user attempted system login: ${email}`);
       throw Errors.forbidden('This login endpoint is for system users only');
@@ -176,68 +177,69 @@ export async function login(
       }
     }
 
-    // Get permissions based on role
+    // Get permissions
     let permissions: Record<string, boolean> = {};
-
     if (role === UserRole.CORE) {
       const { data: coreStaff } = await supabase
         .from('core_staff')
         .select('permissions')
         .eq('user_id', userProfile.id)
         .single();
-
-      if (coreStaff) {
-        permissions = coreStaff.permissions;
-      }
+      if (coreStaff) permissions = coreStaff.permissions;
     } else if (role === UserRole.ADMIN) {
       const { data: adminStaff } = await supabase
         .from('admin_staff')
         .select('permissions')
         .eq('user_id', userProfile.id)
         .single();
-
-      if (adminStaff) {
-        permissions = adminStaff.permissions;
-      }
+      if (adminStaff) permissions = adminStaff.permissions;
     }
 
-    // Generate session ID
+    // Generate session
     const sessionId = generateSessionId();
-
-    // ✅ UPDATED: JWT payload now includes systemType
     const jwtPayload: JWTPayload = {
       userId: userProfile.id,
       email: userProfile.email,
       role: userProfile.role as UserRole,
-      systemType: userProfile.system_type as SystemType, // ✅ NEW
+      systemType: userProfile.system_type as SystemType,
       sessionId,
       permissions
     };
 
-    // Generate tokens
     const token = generateAccessToken(jwtPayload);
     const refreshToken = generateRefreshToken({
       userId: userProfile.id,
       email: userProfile.email,
       role: userProfile.role as UserRole,
-      systemType: userProfile.system_type as SystemType, // ✅ NEW
+      systemType: userProfile.system_type as SystemType,
       sessionId
     });
 
     // Create session record
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await supabase.from('user_sessions').insert({
-      id: sessionId,
-      user_id: userProfile.id,
-      token_hash: token.substring(0, 50),
-      refresh_token_hash: refreshToken.substring(0, 50),
-      ip_address: ipAddress,
-      user_agent: userAgent,
-      expires_at: expiresAt.toISOString(),
-      is_active: true
-    });
+    const { error: sessionError } = await supabase
+      .from('user_sessions')
+      .insert({
+        id: sessionId,
+        user_id: userProfile.id,
+        token_hash: token.substring(0, 50),
+        refresh_token_hash: refreshToken.substring(0, 50),
+        ip_address: ipAddress,
+        user_agent: userAgent,
+        expires_at: expiresAt.toISOString(),
+        is_active: true
+      });
+
+    if (sessionError) {
+      logger.error('Failed to create user session', {
+        userId: userProfile.id,
+        errorCode: sessionError.code,
+        errorMessage: sessionError.message
+      });
+      throw Errors.internal('Failed to create session. Please contact support.');
+    }
 
     // Update last login
     await supabase
@@ -250,12 +252,13 @@ export async function login(
     return {
       token,
       refreshToken,
+      sessionId,
       user: {
         id: userProfile.id,
         email: userProfile.email,
         name: userProfile.full_name,
         role: userProfile.role as UserRole,
-        systemType: userProfile.system_type as SystemType, // ✅ NEW
+        systemType: userProfile.system_type as SystemType,
         permissions
       }
     };
@@ -263,7 +266,7 @@ export async function login(
     if (error instanceof Errors) {
       throw error;
     }
-    logger.error('Login failed:', error);
+    logger.error('Login failed with unexpected error', { error });
     throw Errors.internal('Login failed');
   }
 }

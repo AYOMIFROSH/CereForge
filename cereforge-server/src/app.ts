@@ -37,15 +37,25 @@ app.use(helmet({
     preload: true
   }
 }));
-
-// CORS configuration
+// ✅ FIXED CORS Configuration
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean);
+
+// Add development origins explicitly
+const isDevelopment = process.env.NODE_ENV !== 'production';
+if (isDevelopment) {
+  allowedOrigins.push('http://localhost:5173'); // ✅ Vite default
+  allowedOrigins.push('http://127.0.0.1:5173');
+  allowedOrigins.push('http://localhost:5000'); // ✅ Backend itself
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    // ✅ Allow requests with no origin (mobile apps, Postman, same-origin)
+    if (!origin) {
+      return callback(null, true);
+    }
 
+    // ✅ Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -53,11 +63,12 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, // Allow cookies
+  credentials: true, // ✅ CRITICAL: Allows cookies to be sent/received
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Set-Cookie'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400,
+  optionsSuccessStatus: 204 // ✅ Better for legacy browsers
 }));
 
 // ==========================================

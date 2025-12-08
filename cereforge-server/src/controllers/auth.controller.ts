@@ -10,16 +10,17 @@ import logger from '../utils/logger';
  * CRITICAL: SameSite='none' requires secure=true, which breaks localhost
  * SOLUTION: Use 'lax' for both dev and prod
  */
+// ✅ FIXED Cookie Configuration
 const getCookieConfig = (maxAge: number) => {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   return {
     httpOnly: true,
-    secure: true, // Only HTTPS in production
-    sameSite: 'lax' as const, // ✅ Works for both localhost and production
-    domain: isProduction ? '.cereforge.com' : undefined, // ✅ No domain for localhost
+    secure: isProduction, // ✅ FALSE in development (HTTP), TRUE in production (HTTPS)
+    sameSite: 'lax' as const,
+    domain: isProduction ? '.cereforge.com' : undefined, // ✅ No domain in dev (allows localhost:5173)
     maxAge,
-    path: '/' // Available to ALL routes
+    path: '/'
   };
 };
 
@@ -42,9 +43,9 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
     result.userId,
     ipAddress,
     userAgent,
-    { 
-      email, 
-      step: 'email_verification', 
+    {
+      email,
+      step: 'email_verification',
       success: result.exists,
       systemType: result.systemType
     }
@@ -76,8 +77,8 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
     result.user.id,
     ipAddress,
     userAgent,
-    { 
-      email, 
+    {
+      email,
       role,
       systemType: result.user.systemType
     }
@@ -87,15 +88,7 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
   res.cookie('authToken', result.token, getCookieConfig(15 * 60 * 1000)); // 15 minutes
   res.cookie('refreshToken', result.refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000)); // 7 days
 
-  // ✅ ENHANCED: Log detailed cookie info for debugging
-  logger.info(`Cookies set for user ${result.user.email}`, {
-    isProduction: process.env.NODE_ENV === 'production',
-    domain: process.env.NODE_ENV === 'production' ? '.cereforge.com' : 'localhost',
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    authTokenLength: result.token.length,
-    refreshTokenLength: result.refreshToken.length
-  });
+  logger.info(`User ${result.user.email} logged in successfully`);
 
   res.json({
     success: true,
@@ -212,9 +205,9 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
 
     res.clearCookie('authToken', cookieOptions);
     res.clearCookie('refreshToken', cookieOptions);
-    
+
     logger.warn('Invalid or expired refresh token received');
-    
+
     res.status(401).json({
       success: false,
       error: {
@@ -241,7 +234,7 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
       payload.userId,
       req.ip || 'unknown',
       req.get('user-agent') || 'unknown',
-      { 
+      {
         sessionId: payload.sessionId,
         systemType: payload.systemType
       }
@@ -259,7 +252,7 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
     });
   } catch (error) {
     logger.error('Token refresh failed:', error);
-    
+
     // Clear cookies on error
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
@@ -272,7 +265,7 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
 
     res.clearCookie('authToken', cookieOptions);
     res.clearCookie('refreshToken', cookieOptions);
-    
+
     res.status(401).json({
       success: false,
       error: {
