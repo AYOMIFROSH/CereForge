@@ -64,48 +64,66 @@ const authSlice = createSlice({
 
     // ✅ Handle RTK Query actions automatically
     extraReducers: (builder) => {
-        // Handle successful login
-        builder.addMatcher(
-            authApi.endpoints.login.matchFulfilled,
-            (state, { payload }) => {
-                state.user = payload.data.user;
-                state.isAuthenticated = true;
-                state.emailVerified = false;
-                state.verificationResult = null;
-            }
-        );
-
-        // Handle successful getMe
-        builder.addMatcher(
-            authApi.endpoints.getMe.matchFulfilled,
-            (state, { payload }) => {
-                if (payload.data.authenticated) {
-                    state.user = payload.data.user;
-                    state.isAuthenticated = true;
-                }
-            }
-        );
-
-        // Handle logout
-        builder.addMatcher(
-            authApi.endpoints.logout.matchFulfilled,
-            (state) => {
-                state.user = null;
-                state.isAuthenticated = false;
-                state.emailVerified = false;
-                state.verificationResult = null;
-            }
-        );
-
-        // Handle email verification
-        builder.addMatcher(
-            authApi.endpoints.verifyEmail.matchFulfilled,
-            (state, { payload }) => {
-                state.verificationResult = payload.data;
-                state.emailVerified = payload.data.exists;
-            }
-        );
+  // Handle successful login
+  builder.addMatcher(
+    authApi.endpoints.login.matchFulfilled,
+    (state, { payload }) => {
+      console.log('✅ authSlice: Login fulfilled', payload.data.user);
+      state.user = payload.data.user;
+      state.isAuthenticated = true;
+      state.emailVerified = false;
+      state.verificationResult = null;
     }
+  );
+
+  // ✅ CRITICAL: Handle successful getMe
+  builder.addMatcher(
+    authApi.endpoints.getMe.matchFulfilled,
+    (state, { payload }) => {
+      console.log('✅ authSlice: GetMe fulfilled', payload.data);
+      if (payload.data.authenticated) {
+        state.user = payload.data.user;
+        state.isAuthenticated = true;
+      } else {
+        // ✅ If server says not authenticated, clear state
+        state.user = null;
+        state.isAuthenticated = false;
+      }
+    }
+  );
+
+  // ✅ Handle getMe rejection (401, network error, etc.)
+  builder.addMatcher(
+    authApi.endpoints.getMe.matchRejected,
+    (state, { error }) => {
+      console.log('❌ authSlice: GetMe rejected', error);
+      state.user = null;
+      state.isAuthenticated = false;
+    }
+  );
+
+  // Handle logout
+  builder.addMatcher(
+    authApi.endpoints.logout.matchFulfilled,
+    (state) => {
+      console.log('✅ authSlice: Logout fulfilled');
+      state.user = null;
+      state.isAuthenticated = false;
+      state.emailVerified = false;
+      state.verificationResult = null;
+    }
+  );
+
+  // Handle email verification
+  builder.addMatcher(
+    authApi.endpoints.verifyEmail.matchFulfilled,
+    (state, { payload }) => {
+      console.log('✅ authSlice: VerifyEmail fulfilled', payload.data);
+      state.verificationResult = payload.data;
+      state.emailVerified = payload.data.exists;
+    }
+  );
+}
 });
 
 // ✅ Export actions

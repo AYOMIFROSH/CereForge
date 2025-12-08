@@ -39,10 +39,9 @@ export interface MeResponse {
   authenticated: boolean;
 }
 
-// ✅ Custom base query with cookie support and retry logic
 const baseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
-  credentials: 'include', // ✅ CRITICAL: Send cookies with every request
+  credentials: 'include', // ✅ MUST BE HERE - sends cookies with every request
   prepareHeaders: (headers) => {
     headers.set('Content-Type', 'application/json');
     return headers;
@@ -63,7 +62,7 @@ const baseQueryWithReauth: BaseQueryFn<
   // ✅ Handle 401: Try token refresh
   if (result.error && result.error.status === 401) {
     console.log('Token expired, attempting refresh...');
-    
+
     // Try to refresh token
     const refreshResult = await baseQuery(
       { url: '/auth/refresh', method: 'POST' },
@@ -80,7 +79,7 @@ const baseQueryWithReauth: BaseQueryFn<
       console.log('Token refresh failed, logging out...');
       // Dispatch logout action (will be handled in authSlice)
       api.dispatch({ type: 'auth/logout' });
-      
+
       // Redirect to login
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
@@ -124,9 +123,9 @@ export const authApi = createApi({
       query: () => '/auth/me',
       providesTags: ['Auth'],
       // ✅ Keep data fresh for 5 minutes
-      keepUnusedDataFor: 300
+      keepUnusedDataFor: 300,
+      // ✅ CRITICAL: Always refetch on mount if data is stale
     }),
-
     // POST /auth/logout
     logout: builder.mutation<{ success: boolean }, void>({
       query: () => ({

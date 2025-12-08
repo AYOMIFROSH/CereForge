@@ -4,11 +4,10 @@ import { Eye, EyeOff, User, Mail, Lock, Shield, Building, Loader2, CheckCircle, 
 import cereForge from '../../assets/cereForge.png';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
-// ✅ Redux hooks instead of Zustand
+// ✅ Redux hooks
 import { useAppDispatch, useAppSelector } from '@/store/hook';
-import { useVerifyEmailMutation, useLoginMutation } from '@/store/api/authApi';
-import { selectEmailVerified, selectVerificationResult, clearEmailVerification } from '@/store/slices/authSlice';
-import { addToast } from '@/store/slices/uiSlice';
+import { useVerifyEmailMutation, useLoginMutation, useGetMeQuery } from '@/store/api/authApi';
+import { selectEmailVerified, selectVerificationResult, clearEmailVerification, selectIsAuthenticated, selectUser } from '@/store/slices/authSlice';import { addToast } from '@/store/slices/uiSlice';
 
 const LoginPage = () => {
   useDocumentTitle(
@@ -23,10 +22,33 @@ const LoginPage = () => {
   // ✅ Redux selectors
   const emailVerified = useAppSelector(selectEmailVerified);
   const verificationResult = useAppSelector(selectVerificationResult);
+  const isAuthenticated = useAppSelector(selectIsAuthenticated); // ✅ ADD THIS
+  const user = useAppSelector(selectUser); // ✅ ADD THIS
 
-  // ✅ RTK Query mutations
   const [verifyEmail, { isLoading: isVerifying }] = useVerifyEmailMutation();
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+
+  // ✅ ADD THIS: Check session on mount
+  const { isLoading: isCheckingSession } = useGetMeQuery();
+
+  // ✅ ADD THIS: Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('✅ LoginPage: User already authenticated, redirecting...');
+      
+      switch (user.role) {
+        case 'core':
+          navigate('/core/dashboard', { replace: true });
+          break;
+        case 'admin':
+          navigate('/admin/dashboard', { replace: true });
+          break;
+        case 'partner':
+          navigate('/partner/dashboard', { replace: true });
+          break;
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
@@ -176,6 +198,17 @@ const LoginPage = () => {
     }
   };
 
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center">
+        <div className="text-white text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
+          <p>Checking session...</p>
+        </div>
+      </div>
+    );
+  }
+  
   const config = getRoleConfig();
 
   return (

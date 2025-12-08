@@ -6,7 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
-// import { AuthDebugHelper } from './components/common/AuthDebugHelper';
+import { AuthDebugHelper } from './components/common/AuthDebugHelper';
 import LandingPage from './components/pages/LandingPage';
 import ForgotPassword from './components/pages/ForgotPassword';
 import MeetPage from './components/pages/MeetPage';
@@ -50,7 +50,7 @@ const App = () => {
       {/* Toast Notifications (global) */}
       <ToastNotifications />
 
-      {/* <AuthDebugHelper /> */}
+      {import.meta.env.DEV && <AuthDebugHelper />}
 
       {/* Suspense wrapper for all lazy-loaded routes */}
       <Suspense fallback={<PageLoadingSkeleton />}>
