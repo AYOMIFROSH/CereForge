@@ -6,8 +6,9 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // ✅ Redux hooks
 import { useAppDispatch, useAppSelector } from '@/store/hook';
-import { useVerifyEmailMutation, useLoginMutation, useGetMeQuery } from '@/store/api/authApi';
-import { selectEmailVerified, selectVerificationResult, clearEmailVerification, selectIsAuthenticated, selectUser } from '@/store/slices/authSlice';import { addToast } from '@/store/slices/uiSlice';
+import { useVerifyEmailMutation, useLoginMutation } from '@/store/api/authApi';
+import { selectEmailVerified, selectVerificationResult, clearEmailVerification, selectIsAuthenticated, selectUser } from '@/store/slices/authSlice';
+import { addToast } from '@/store/slices/uiSlice';
 
 const LoginPage = () => {
   useDocumentTitle(
@@ -22,20 +23,19 @@ const LoginPage = () => {
   // ✅ Redux selectors
   const emailVerified = useAppSelector(selectEmailVerified);
   const verificationResult = useAppSelector(selectVerificationResult);
-  const isAuthenticated = useAppSelector(selectIsAuthenticated); // ✅ ADD THIS
-  const user = useAppSelector(selectUser); // ✅ ADD THIS
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const user = useAppSelector(selectUser);
 
   const [verifyEmail, { isLoading: isVerifying }] = useVerifyEmailMutation();
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
 
-  // ✅ ADD THIS: Check session on mount
-  const { isLoading: isCheckingSession } = useGetMeQuery();
-
-  // ✅ ADD THIS: Redirect if already authenticated
+  // ✅ OPTIMIZED: Quick redirect check (NO API CALL)
   useEffect(() => {
+    // Only check Redux state (instant, no network)
     if (isAuthenticated && user) {
-      console.log('✅ LoginPage: User already authenticated, redirecting...');
+      console.log('✅ Already authenticated, instant redirect');
       
+      // Instant redirect based on role
       switch (user.role) {
         case 'core':
           navigate('/core/dashboard', { replace: true });
@@ -77,7 +77,6 @@ const LoginPage = () => {
       const result = await verifyEmail({ email }).unwrap();
 
       if (result.data.exists) {
-        // ✅ Email verified, password field will auto-focus
         dispatch(addToast({
           message: `Welcome back! Login as ${result.data.role}`,
           type: 'success'
@@ -116,7 +115,7 @@ const LoginPage = () => {
       // ✅ Navigate based on role
       const role = verificationResult!.role!;
       switch (role) {
-        case 'core':``
+        case 'core':
           navigate('/core/dashboard');
           break;
         case 'admin':
@@ -198,18 +197,9 @@ const LoginPage = () => {
     }
   };
 
-  if (isCheckingSession) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex items-center justify-center">
-        <div className="text-white text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" />
-        </div>
-      </div>
-    );
-  }
-  
   const config = getRoleConfig();
 
+  // ✅ NO LOADING SKELETON - Instant render
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex flex-col overflow-hidden">
       {/* Background Pattern */}

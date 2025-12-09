@@ -1,12 +1,15 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Analytics } from "@vercel/analytics/react";
+import { useAppSelector } from './store/hook';
+import { selectUser } from './store/slices/authSlice';
+import { useGetMeQuery } from './store/api/authApi';
 
 // ✅ Import components that are NOT lazy loaded (critical path)
 import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
-import { AuthDebugHelper } from './components/common/AuthDebugHelper';
+// import { AuthDebugHelper } from './components/common/AuthDebugHelper';
 import LandingPage from './components/pages/LandingPage';
 import ForgotPassword from './components/pages/ForgotPassword';
 import MeetPage from './components/pages/MeetPage';
@@ -41,6 +44,10 @@ const UnauthorizedPage = () => (
 
 const App = () => {
   const navigate = useNavigate();
+  // Try to populate Redux auth from server session (HTTP-only cookie)
+  // Skip fetching if user already in Redux to keep fast-path behavior
+  const user = useAppSelector(selectUser);
+  useGetMeQuery(undefined, { skip: !!user, refetchOnMountOrArgChange: false });
 
   return (
     <>
@@ -50,7 +57,7 @@ const App = () => {
       {/* Toast Notifications (global) */}
       <ToastNotifications />
 
-      {import.meta.env.DEV && <AuthDebugHelper />}
+      {/* {import.meta.env.DEV && <AuthDebugHelper />} */}
 
       {/* Suspense wrapper for all lazy-loaded routes */}
       <Suspense fallback={<PageLoadingSkeleton />}>

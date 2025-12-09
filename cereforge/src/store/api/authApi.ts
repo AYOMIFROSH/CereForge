@@ -41,15 +41,29 @@ export interface MeResponse {
 
 const baseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
-  credentials: 'include', // ✅ MUST BE HERE - sends cookies with every request
+  credentials: 'include', // ✅ Sends cookies with every request
   prepareHeaders: (headers) => {
     headers.set('Content-Type', 'application/json');
     return headers;
   }
 });
 
-// ✅ Network resilience: Retry failed requests
-const baseQueryWithRetry = retry(baseQuery, { maxRetries: 2 });
+// ✅ OPTIMIZED: Only retry on network errors, not auth errors
+const baseQueryWithRetry = retry(
+  async (args, api, extraOptions) => {
+    const result = await baseQuery(args, api, extraOptions);
+    
+    // Don't retry auth errors (401, 403)
+    if (result.error?.status === 401 || result.error?.status === 403) {
+      retry.fail(result.error);
+    }
+    
+    return result;
+  },
+  {
+    maxRetries: 1 // ✅ Reduced from 2 → faster failure
+  }
+);
 
 // ✅ Custom error handling with token refresh
 const baseQueryWithReauth: BaseQueryFn<
@@ -59,7 +73,7 @@ const baseQueryWithReauth: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   let result = await baseQueryWithRetry(args, api, extraOptions);
 
-  // ✅ Handle 401: Try token refresh
+  // ✅ Handle 401: Try token refresh ONCE
   if (result.error && result.error.status === 401) {
     console.log('Token expired, attempting refresh...');
 
@@ -71,13 +85,10 @@ const baseQueryWithReauth: BaseQueryFn<
     );
 
     if (refreshResult.data) {
-      // Refresh successful, retry original request
       console.log('Token refreshed, retrying request...');
       result = await baseQueryWithRetry(args, api, extraOptions);
     } else {
-      // Refresh failed, logout user
       console.log('Token refresh failed, logging out...');
-      // Dispatch logout action (will be handled in authSlice)
       api.dispatch({ type: 'auth/logout' });
 
       // Redirect to login
@@ -95,6 +106,11 @@ export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: baseQueryWithReauth,
   tagTypes: ['Auth', 'User'],
+  // ✅ OPTIMIZED: Longer cache time for auth data
+  keepUnusedDataFor: 600, // 10 minutes (was 300)
+  refetchOnMountOrArgChange: false, // ✅ Don't auto-refetch (trust cache)
+  refetchOnFocus: false, // ✅ Don't refetch on tab focus
+  refetchOnReconnect: true, // ✅ Only refetch on reconnect
   endpoints: (builder) => ({
     // POST /auth/verify-email
     verifyEmail: builder.mutation<
@@ -122,11 +138,10 @@ export const authApi = createApi({
     getMe: builder.query<{ data: MeResponse }, void>({
       query: () => '/auth/me',
       providesTags: ['Auth'],
-      
-      // ✅ CRITICAL: Cache for 5 minutes (no refetch unless invalidated)
-      keepUnusedDataFor: 300, // 5 minutes
-      
+      // ✅ OPTIMIZED: Cache for 10 minutes
+      keepUnusedDataFor: 600,
     }),
+
     // POST /auth/logout
     logout: builder.mutation<{ success: boolean }, void>({
       query: () => ({
@@ -146,7 +161,7 @@ export const authApi = createApi({
   })
 });
 
-// ✅ Export hooks for use in components
+// ✅ Export hooks
 export const {
   useVerifyEmailMutation,
   useLoginMutation,

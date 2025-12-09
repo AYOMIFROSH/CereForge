@@ -2,8 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../store/hook';
 import { selectIsAuthenticated, selectUser } from '../store/slices/authSlice';
 import { useGetMeQuery } from '../store/api/authApi';
-import { PageLoadingSkeleton } from './LoadingSkeleton';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,7 +11,22 @@ interface ProtectedRouteProps {
 }
 
 /**
- * ✅ FIXED: Protected Route with proper session validation
+ * ✅ OPTIMIZED: Minimal loading UI with professional inline spinner
+ */
+function MinimalAuthCheck() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        {/* Lightweight spinner - no heavy animations */}
+        <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        <p className="mt-3 text-sm text-gray-600">Verifying access...</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ✅ OPTIMIZED: Protected Route with smart caching
  */
 export function ProtectedRoute({
   children,
@@ -20,70 +34,77 @@ export function ProtectedRoute({
   requiredPermission
 }: ProtectedRouteProps) {
   const location = useLocation();
+  const hasCheckedRef = useRef(false);
   
-  // Redux state
+  // Redux state (instant, no network)
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
 
-  // ✅ Always call useGetMeQuery to validate session
-  const { isLoading, isFetching, error, data } = useGetMeQuery(undefined, {
-    // ✅ CRITICAL: Refetch on mount to check cookies
-    refetchOnMountOrArgChange: true
+  // ✅ SMART: Only fetch if Redux says NOT authenticated
+  // If Redux already has user, skip API call (trust cookie/session)
+  const shouldSkipQuery = !!(isAuthenticated && user);
+  
+  const { isLoading, isFetching, error } = useGetMeQuery(undefined, {
+    // ✅ CRITICAL: Only refetch on mount if NO user in Redux
+    skip: shouldSkipQuery,
+    refetchOnMountOrArgChange: !shouldSkipQuery
   });
 
-  // ✅ Debug logging
+  // ✅ Debug logging (only once per mount)
   useEffect(() => {
-    console.log('🔒 ProtectedRoute Check:', {
-      path: location.pathname,
-      isLoading,
-      isFetching,
-      isAuthenticated,
-      hasUser: !!user,
-      userEmail: user?.email,
-      hasError: !!error,
-      hasData: !!data
-    });
-  }, [isLoading, isFetching, isAuthenticated, user, error, data, location.pathname]);
+    if (!hasCheckedRef.current) {
+      console.log('🔒 ProtectedRoute:', {
+        path: location.pathname,
+        skippedQuery: shouldSkipQuery,
+        isAuthenticated,
+        hasUser: !!user,
+        userEmail: user?.email
+      });
+      hasCheckedRef.current = true;
+    }
+  }, []);
 
-  // ✅ Show loading skeleton while validating
-  if (isLoading || isFetching) {
-    console.log('⏳ ProtectedRoute: Validating session...');
-    return <PageLoadingSkeleton />;
+  // ✅ Fast path: User already in Redux, instant access
+  if (shouldSkipQuery) {
+    console.log('⚡ Fast path: Using cached auth');
+    
+    // Role check
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+
+    // Permission check
+    if (requiredPermission && !user.permissions?.[requiredPermission]) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+
+    return <>{children}</>;
   }
 
-  // ✅ If API returned error OR Redux says not authenticated, redirect to login
+  // ✅ Show minimal loading (ONLY if actually fetching)
+  if (isLoading || isFetching) {
+    console.log('⏳ Checking session...');
+    return <MinimalAuthCheck />;
+  }
+
+  // ✅ Redirect to login if auth failed
   if (error || !isAuthenticated || !user) {
-    console.log('❌ ProtectedRoute: Not authenticated, redirecting to login', {
-      error: error,
-      isAuthenticated,
-      hasUser: !!user
-    });
+    console.log('❌ Not authenticated, redirecting');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // ✅ Check role if specified
+  // ✅ Role check
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    console.log('❌ ProtectedRoute: Insufficient role', {
-      userRole: user.role,
-      allowedRoles
-    });
+    console.log('❌ Insufficient role');
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // ✅ Check permission if specified
+  // ✅ Permission check
   if (requiredPermission && !user.permissions?.[requiredPermission]) {
-    console.log('❌ ProtectedRoute: Missing permission', {
-      requiredPermission,
-      userPermissions: user.permissions
-    });
+    console.log('❌ Missing permission');
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // ✅ All checks passed
-  console.log('✅ ProtectedRoute: Access granted', {
-    userEmail: user.email,
-    userRole: user.role
-  });
-  
+  console.log('✅ Access granted');
   return <>{children}</>;
 }
