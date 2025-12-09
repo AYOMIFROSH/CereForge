@@ -111,7 +111,7 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
 }
 
 /**
- * ✅ OPTIMIZED: Login with longer session expiry
+ * ✅ FIXED: Login with proper last_login update
  */
 export async function login(
   email: string,
@@ -208,10 +208,13 @@ export async function login(
 
     // ✅ FIX: Match session expiry to refreshToken expiry (7 days)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Match JWT_REFRESH_EXPIRY
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // ✅ OPTIMIZED: Check for existing active session and reuse it
-    const { data: existingSession } = await supabase
+    // ✅ Use getFreshSupabase() for session operations (bypasses RLS)
+    const adminClient = getFreshSupabase();
+
+    // ✅ Check for existing active session
+    const { data: existingSession } = await adminClient
       .from('user_sessions')
       .select('id')
       .eq('user_id', userProfile.id)
@@ -219,8 +222,8 @@ export async function login(
       .maybeSingle();
 
     if (existingSession) {
-      // Update existing session instead of creating new
-      const { error: updateError } = await supabase
+      // Update existing session
+      const { error: updateError } = await adminClient
         .from('user_sessions')
         .update({
           token_hash: token.substring(0, 50),
@@ -237,10 +240,10 @@ export async function login(
         throw Errors.internal('Failed to update session.');
       }
 
-      logger.info(`Updated existing session for user ${email}`);
+      logger.info(`✅ Updated existing session for user ${email}`);
     } else {
       // Create new session
-      const { error: sessionError } = await supabase
+      const { error: sessionError } = await adminClient
         .from('user_sessions')
         .insert({
           id: sessionId,
@@ -258,14 +261,21 @@ export async function login(
         throw Errors.internal('Failed to create session.');
       }
 
-      logger.info(`Created new session for user ${email}`);
+      logger.info(`✅ Created new session for user ${email}`);
     }
 
-    // Update last login
-    await supabase
+    // ✅ FIXED: Update last_login with error checking using admin client
+    const { error: lastLoginError } = await adminClient
       .from('user_profiles')
       .update({ last_login: new Date().toISOString() })
       .eq('id', userProfile.id);
+
+    if (lastLoginError) {
+      logger.error('Failed to update last_login:', lastLoginError);
+      // Don't throw - login succeeded, this is just logging
+    } else {
+      logger.info(`✅ Updated last_login for user ${email}`);
+    }
 
     logger.info(`User ${email} logged in successfully`);
 
@@ -292,16 +302,24 @@ export async function login(
 }
 
 /**
- * ✅ Logout (no changes needed)
+ * ✅ FIXED: Logout with proper session deactivation
  */
 export async function logout(sessionId: string): Promise<void> {
   try {
-    await supabase
+    // ✅ Use getFreshSupabase() to bypass RLS restrictions
+    const adminClient = getFreshSupabase();
+    
+    const { error } = await adminClient
       .from('user_sessions')
       .update({ is_active: false })
       .eq('id', sessionId);
 
-    logger.info(`Session ${sessionId} logged out`);
+    if (error) {
+      logger.error('Failed to deactivate session:', error);
+      throw Errors.internal('Failed to logout session');
+    }
+
+    logger.info(`✅ Session ${sessionId} logged out successfully`);
   } catch (error) {
     logger.error('Logout failed:', error);
     throw Errors.internal('Logout failed');
@@ -318,8 +336,10 @@ export async function refreshAccessToken(
   systemType: SystemType
 ): Promise<string> {
   try {
-    // ✅ FIX: Better session validation
-    const { data: session, error } = await supabase
+    // ✅ Use getFreshSupabase() for consistent session access
+    const adminClient = getFreshSupabase();
+    
+    const { data: session, error } = await adminClient
       .from('user_sessions')
       .select('is_active, expires_at')
       .eq('id', sessionId)
@@ -343,7 +363,7 @@ export async function refreshAccessToken(
       logger.warn(`Session ${sessionId} expired at ${session.expires_at}`);
       
       // Mark as inactive
-      await supabase
+      await adminClient
         .from('user_sessions')
         .update({ is_active: false })
         .eq('id', sessionId);
@@ -397,8 +417,8 @@ export async function refreshAccessToken(
       permissions
     });
 
-    // ✅ OPTIMIZED: Update session activity (fire-and-forget)
-    supabase
+    // ✅ Update session activity asynchronously (don't await)
+    adminClient
       .from('user_sessions')
       .update({ last_activity: new Date().toISOString() })
       .eq('id', sessionId)
