@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAppSelector } from '../store/hook';
-import { selectIsAuthenticated, selectUser } from '../store/slices/authSlice';
+import { selectIsAuthenticated, selectUser, selectIsAuthChecked } from '../store/slices/authSlice';
 import { useGetMeQuery } from '../store/api/authApi';
 import { useEffect, useRef } from 'react';
 
@@ -39,6 +39,7 @@ export function ProtectedRoute({
   // Redux state (instant, no network)
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const user = useAppSelector(selectUser);
+  const isAuthChecked = useAppSelector(selectIsAuthChecked);
 
   // ✅ SMART: Only fetch if Redux says NOT authenticated
   // If Redux already has user, skip API call (trust cookie/session)
@@ -67,14 +68,16 @@ export function ProtectedRoute({
   // ✅ Fast path: User already in Redux, instant access
   if (shouldSkipQuery) {
     console.log('⚡ Fast path: Using cached auth');
-    
+    // user is present on the fast path; create a local non-null reference for TS
+    const cachedUser = user as NonNullable<typeof user>;
+
     // Role check
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
+    if (allowedRoles && !allowedRoles.includes(cachedUser.role)) {
       return <Navigate to="/unauthorized" replace />;
     }
 
     // Permission check
-    if (requiredPermission && !user.permissions?.[requiredPermission]) {
+    if (requiredPermission && !cachedUser.permissions?.[requiredPermission]) {
       return <Navigate to="/unauthorized" replace />;
     }
 
@@ -87,9 +90,20 @@ export function ProtectedRoute({
     return <MinimalAuthCheck />;
   }
 
-  // ✅ Redirect to login if auth failed
+  // If the initial auth check hasn't completed yet, show minimal check UI
+  if (!isAuthChecked) {
+    return <MinimalAuthCheck />;
+  }
+
+  // ✅ Redirect to login if auth failed (only after auth check completes)
   if (error || !isAuthenticated || !user) {
     console.log('❌ Not authenticated, redirecting');
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Ensure user is present before performing role/permission checks
+  if (!user) {
+    // Should be handled above, but guard to satisfy TypeScript and avoid runtime errors
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -4,6 +4,8 @@ import { authApi, User } from '../api/authApi';
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
+  // Whether we've performed the initial auth check (getMe)
+  isAuthChecked: boolean;
 
     // Email verification state (Smart Login Step 1)
     emailVerified: boolean;
@@ -24,6 +26,7 @@ interface AuthState {
 const initialState: AuthState = {
     user: null,
     isAuthenticated: false,
+  isAuthChecked: false,
     emailVerified: false,
     verificationResult: null
 };
@@ -57,6 +60,7 @@ const authSlice = createSlice({
         logout: (state) => {
             state.user = null;
             state.isAuthenticated = false;
+          state.isAuthChecked = true;
             state.emailVerified = false;
             state.verificationResult = null;
         }
@@ -73,6 +77,7 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       state.emailVerified = false;
       state.verificationResult = null;
+      state.isAuthChecked = true;
     }
   );
 
@@ -89,6 +94,7 @@ const authSlice = createSlice({
         state.user = null;
         state.isAuthenticated = false;
       }
+      state.isAuthChecked = true;
     }
   );
 
@@ -99,6 +105,7 @@ const authSlice = createSlice({
       console.log('❌ authSlice: GetMe rejected', error);
       state.user = null;
       state.isAuthenticated = false;
+      state.isAuthChecked = true;
     }
   );
 
@@ -111,6 +118,7 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.emailVerified = false;
       state.verificationResult = null;
+      state.isAuthChecked = true;
     }
   );
 
@@ -138,6 +146,7 @@ export const {
 export const selectAuth = (state: { auth: AuthState }) => state.auth;
 export const selectUser = (state: { auth: AuthState }) => state.auth.user;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectIsAuthChecked = (state: { auth: AuthState }) => state.auth.isAuthChecked;
 export const selectEmailVerified = (state: { auth: AuthState }) => state.auth.emailVerified;
 export const selectVerificationResult = (state: { auth: AuthState }) => state.auth.verificationResult;
 

@@ -89,12 +89,9 @@ const baseQueryWithReauth: BaseQueryFn<
       result = await baseQueryWithRetry(args, api, extraOptions);
     } else {
       console.log('Token refresh failed, logging out...');
+      // Clear client state but avoid forcing a global redirect here.
+      // Let route-level logic (ProtectedRoute / pages) handle navigation.
       api.dispatch({ type: 'auth/logout' });
-
-      // Redirect to login
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
-      }
     }
   }
 

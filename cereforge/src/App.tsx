@@ -1,11 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Analytics } from "@vercel/analytics/react";
-import { useAppSelector } from './store/hook';
-import { selectUser } from './store/slices/authSlice';
-import { useGetMeQuery } from './store/api/authApi';
 
-// ✅ Import components that are NOT lazy loaded (critical path)
+// âœ… Import components that are NOT lazy loaded (critical path)
 import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
@@ -13,20 +10,23 @@ import { ToastNotifications } from './components/ToastNotification';
 import LandingPage from './components/pages/LandingPage';
 import ForgotPassword from './components/pages/ForgotPassword';
 import MeetPage from './components/pages/MeetPage';
+import { useAppSelector } from './store/hook';
+import { selectUser } from './store/slices/authSlice';
+import { useGetMeQuery } from './store/api/authApi';
 
-// ✅ Lazy load all route components (code splitting)
+// âœ… Lazy load all route components (code splitting)
 const LoginPage = lazy(() => import('./components/pages/LoginPage'));
 const GetStarted = lazy(() => import('./components/pages/GetStarted'));
 const CalendarPage = lazy(() => import('./components/pages/CalendarPage'));
 const ConsultationBooking = lazy(() => import('./components/calendar/ConsultationBooking'));
 const CereforgeEditor = lazy(() => import('./components/textEditor/RichtextEditor'));
 
-// ✅ Lazy load dashboard components (heavy components)
+// âœ… Lazy load dashboard components (heavy components)
 const PartnerDashboard = lazy(() => import('./components/pages/dashboards/PartnerDashboard'));
 const AdminDashboard = lazy(() => import('./components/pages/dashboards/AdminDashboard'));
 const CoreDashboard = lazy(() => import('./components/pages/dashboards/CoreDashboard'));
 
-// ✅ Unauthorized page (simple, no lazy load needed)
+// âœ… Unauthorized page (simple, no lazy load needed)
 const UnauthorizedPage = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
     <div className="text-center">
@@ -44,8 +44,8 @@ const UnauthorizedPage = () => (
 
 const App = () => {
   const navigate = useNavigate();
-  // Try to populate Redux auth from server session (HTTP-only cookie)
-  // Skip fetching if user already in Redux to keep fast-path behavior
+  // Populate auth state from server session (HTTP-only cookie) on app mount.
+  // Skip if Redux already has a user to avoid unnecessary network call.
   const user = useAppSelector(selectUser);
   useGetMeQuery(undefined, { skip: !!user, refetchOnMountOrArgChange: false });
 
@@ -73,7 +73,7 @@ const App = () => {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/editor" element={<CereforgeEditor />} />
 
-          {/* ✅ MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
+          {/* âœ… MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
           <Route
             path="/meet/:roomId"
             element={
