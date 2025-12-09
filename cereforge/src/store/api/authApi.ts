@@ -122,9 +122,10 @@ export const authApi = createApi({
     getMe: builder.query<{ data: MeResponse }, void>({
       query: () => '/auth/me',
       providesTags: ['Auth'],
-      // ✅ Keep data fresh for 5 minutes
-      keepUnusedDataFor: 300,
-      // ✅ CRITICAL: Always refetch on mount if data is stale
+      
+      // ✅ CRITICAL: Cache for 5 minutes (no refetch unless invalidated)
+      keepUnusedDataFor: 300, // 5 minutes
+      
     }),
     // POST /auth/logout
     logout: builder.mutation<{ success: boolean }, void>({

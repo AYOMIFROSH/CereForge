@@ -19,9 +19,10 @@ interface Project {
 const LandingPage = () => {
     useDocumentTitle(
         "Cereforge - AI Software & Hardware Solutions",
-        "Cereforge builds complete AI-powered software solutions, firmware, and websites. From concept to deployment - get your first complete software solution in 30 days. Expert hardware integration & neural infrastructure platforms.",
+        "Cereforge builds complete software solutions, firmware, SaaS, Ai integration and Hardware system web integration. From concept to deployment - Expert hardware integration & neural infrastructure platforms. - get your first complete software solution in 30 days. ",
         "/"
     );
+    
     const [cardsSpread, setCardsSpread] = useState<boolean>(false);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [email, setEmail] = useState<string>('');
