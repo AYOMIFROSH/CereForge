@@ -8,7 +8,7 @@ import { SystemType, UserRole } from '../types/types';
 interface EmailVerificationResult {
   exists: boolean;
   role?: UserRole;
-  systemType?: SystemType; // ✅ NEW
+  systemType?: SystemType;
   displayInfo?: {
     partnerName?: string;
     category?: string;
@@ -27,20 +27,18 @@ interface LoginResult {
     email: string;
     name: string;
     role: UserRole;
-    systemType: SystemType; // ✅ NEW
+    systemType: SystemType;
     permissions?: Record<string, boolean>;
   };
 }
 
 /**
- * ✅ UPDATED: Verify email and return user role + system_type
- * Step 1 of Smart Login
+ * ✅ Verify email (no changes needed)
  */
 export async function verifyEmail(email: string): Promise<EmailVerificationResult> {
   try {
     const supabase = getFreshSupabase();
 
-    // ✅ NOW SELECTS system_type
     const { data: user, error } = await supabase
       .from('user_profiles')
       .select('id, email, role, system_type, status, full_name')
@@ -57,13 +55,11 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
       return { exists: false };
     }
 
-    // ✅ VALIDATION: Ensure system_type exists (should always be set after migration)
     if (!user.system_type) {
-      logger.error(`User ${user.id} missing system_type! Database migration incomplete.`);
+      logger.error(`User ${user.id} missing system_type!`);
       throw new Error('System configuration error. Please contact support.');
     }
 
-    // Get role-specific display info
     let displayInfo: EmailVerificationResult['displayInfo'] = {};
 
     if (user.role === 'partner') {
@@ -98,12 +94,12 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
       }
     }
 
-    logger.info(`Email verification: ${email} found with role ${user.role}, systemType ${user.system_type}`);
+    logger.info(`Email verification: ${email} found with role ${user.role}`);
 
     return {
       exists: true,
       role: user.role as UserRole,
-      systemType: user.system_type as SystemType, // ✅ NEW
+      systemType: user.system_type as SystemType,
       displayInfo,
       accountStatus: user.status,
       userId: user.id
@@ -115,8 +111,7 @@ export async function verifyEmail(email: string): Promise<EmailVerificationResul
 }
 
 /**
- * ✅ UPDATED: Login user with system_type support
- * Step 2 of Smart Login
+ * ✅ OPTIMIZED: Login with longer session expiry
  */
 export async function login(
   email: string,
@@ -148,25 +143,21 @@ export async function login(
       throw Errors.notFound('User profile');
     }
 
-    // Validate system_type exists
     if (!userProfile.system_type) {
       logger.error(`User ${userProfile.id} missing system_type during login!`);
-      throw Errors.internal('Account configuration error. Please contact support.');
+      throw Errors.internal('Account configuration error.');
     }
 
-    // Verify role matches
     if (userProfile.role !== role) {
-      logger.warn(`Role mismatch for ${email}: expected ${role}, got ${userProfile.role}`);
+      logger.warn(`Role mismatch for ${email}`);
       throw Errors.invalidCredentials();
     }
 
-    // SYSTEM_USERS validation
     if (userProfile.system_type !== SystemType.SYSTEM_USERS) {
       logger.warn(`Non-system user attempted system login: ${email}`);
       throw Errors.forbidden('This login endpoint is for system users only');
     }
 
-    // Check account status
     if (userProfile.status !== 'active') {
       if (userProfile.status === 'suspended') {
         throw Errors.accountSuspended();
@@ -215,30 +206,59 @@ export async function login(
       sessionId
     });
 
-    // Create session record
+    // ✅ FIX: Match session expiry to refreshToken expiry (7 days)
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setDate(expiresAt.getDate() + 7); // Match JWT_REFRESH_EXPIRY
 
-    const { error: sessionError } = await supabase
+    // ✅ OPTIMIZED: Check for existing active session and reuse it
+    const { data: existingSession } = await supabase
       .from('user_sessions')
-      .insert({
-        id: sessionId,
-        user_id: userProfile.id,
-        token_hash: token.substring(0, 50),
-        refresh_token_hash: refreshToken.substring(0, 50),
-        ip_address: ipAddress,
-        user_agent: userAgent,
-        expires_at: expiresAt.toISOString(),
-        is_active: true
-      });
+      .select('id')
+      .eq('user_id', userProfile.id)
+      .eq('is_active', true)
+      .maybeSingle();
 
-    if (sessionError) {
-      logger.error('Failed to create user session', {
-        userId: userProfile.id,
-        errorCode: sessionError.code,
-        errorMessage: sessionError.message
-      });
-      throw Errors.internal('Failed to create session. Please contact support.');
+    if (existingSession) {
+      // Update existing session instead of creating new
+      const { error: updateError } = await supabase
+        .from('user_sessions')
+        .update({
+          token_hash: token.substring(0, 50),
+          refresh_token_hash: refreshToken.substring(0, 50),
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          expires_at: expiresAt.toISOString(),
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', existingSession.id);
+
+      if (updateError) {
+        logger.error('Failed to update session:', updateError);
+        throw Errors.internal('Failed to update session.');
+      }
+
+      logger.info(`Updated existing session for user ${email}`);
+    } else {
+      // Create new session
+      const { error: sessionError } = await supabase
+        .from('user_sessions')
+        .insert({
+          id: sessionId,
+          user_id: userProfile.id,
+          token_hash: token.substring(0, 50),
+          refresh_token_hash: refreshToken.substring(0, 50),
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          expires_at: expiresAt.toISOString(),
+          is_active: true
+        });
+
+      if (sessionError) {
+        logger.error('Failed to create session:', sessionError);
+        throw Errors.internal('Failed to create session.');
+      }
+
+      logger.info(`Created new session for user ${email}`);
     }
 
     // Update last login
@@ -247,7 +267,7 @@ export async function login(
       .update({ last_login: new Date().toISOString() })
       .eq('id', userProfile.id);
 
-    logger.info(`User ${email} logged in successfully (${userProfile.system_type})`);
+    logger.info(`User ${email} logged in successfully`);
 
     return {
       token,
@@ -266,13 +286,13 @@ export async function login(
     if (error instanceof Errors) {
       throw error;
     }
-    logger.error('Login failed with unexpected error', { error });
+    logger.error('Login failed:', error);
     throw Errors.internal('Login failed');
   }
 }
 
 /**
- * Logout user (no changes needed)
+ * ✅ Logout (no changes needed)
  */
 export async function logout(sessionId: string): Promise<void> {
   try {
@@ -289,29 +309,45 @@ export async function logout(sessionId: string): Promise<void> {
 }
 
 /**
- * ✅ UPDATED: Refresh access token with system_type
+ * ✅ OPTIMIZED: Refresh with better error handling
  */
 export async function refreshAccessToken(
   userId: string,
   sessionId: string,
   role: UserRole,
-  systemType: SystemType // ✅ NEW parameter
+  systemType: SystemType
 ): Promise<string> {
   try {
-    // Verify session is still active
+    // ✅ FIX: Better session validation
     const { data: session, error } = await supabase
       .from('user_sessions')
       .select('is_active, expires_at')
       .eq('id', sessionId)
       .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
+      .maybeSingle();
 
+    // Session not found
     if (error || !session) {
+      logger.warn(`Session ${sessionId} not found for user ${userId}`);
       throw Errors.unauthorized('Session not found or expired');
     }
 
+    // Session inactive
+    if (!session.is_active) {
+      logger.warn(`Session ${sessionId} is inactive`);
+      throw Errors.unauthorized('Session has been terminated');
+    }
+
+    // Session expired
     if (new Date(session.expires_at) < new Date()) {
+      logger.warn(`Session ${sessionId} expired at ${session.expires_at}`);
+      
+      // Mark as inactive
+      await supabase
+        .from('user_sessions')
+        .update({ is_active: false })
+        .eq('id', sessionId);
+      
       throw Errors.unauthorized('Session has expired');
     }
 
@@ -351,22 +387,28 @@ export async function refreshAccessToken(
       throw Errors.notFound('User');
     }
 
-    // ✅ UPDATED: Generate new access token with systemType
+    // Generate new access token
     const token = generateAccessToken({
       userId,
       email: user.email,
       role,
-      systemType, // ✅ NEW
+      systemType,
       sessionId,
       permissions
     });
 
-    // Update session activity
-    await supabase
+    // ✅ OPTIMIZED: Update session activity (fire-and-forget)
+    supabase
       .from('user_sessions')
       .update({ last_activity: new Date().toISOString() })
-      .eq('id', sessionId);
+      .eq('id', sessionId)
+      .then(({ error }) => {
+        if (error) {
+          logger.warn('Failed to update session activity:', error);
+        }
+      });
 
+    logger.info(`Access token refreshed for user ${userId}`);
     return token;
   } catch (error) {
     if (error instanceof Errors) {

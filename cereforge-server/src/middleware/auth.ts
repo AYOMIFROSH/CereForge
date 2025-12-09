@@ -1,4 +1,4 @@
-// src/middleware/auth.ts - PROPERLY FIXED VERSION
+// src/middleware/auth.ts - OPTIMIZED VERSION
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, JWTPayload } from '../utils/jwt';
 import { Errors } from '../utils/errors';
@@ -15,7 +15,7 @@ declare global {
 }
 
 /**
- * ✅ FIXED: JWT-first authentication with optional session validation
+ * ✅ OPTIMIZED: JWT-first with minimal DB queries
  */
 export async function authenticate(
   req: Request,
@@ -34,10 +34,14 @@ export async function authenticate(
     }
 
     if (!token) {
+      logger.warn('No authentication token provided', {
+        code: 'UNAUTHORIZED',
+        path: req.path
+      });
       throw Errors.unauthorized('No authentication token provided');
     }
 
-    // 2. ✅ Verify JWT token (PRIMARY authentication)
+    // 2. ✅ Verify JWT token (PRIMARY authentication - no DB query)
     const payload = verifyAccessToken(token);
     
     if (!payload) {
@@ -46,58 +50,11 @@ export async function authenticate(
 
     // 3. ✅ Validate systemType exists in token
     if (!payload.systemType) {
-      logger.warn(`Token for user ${payload.userId} missing systemType`);
+      logger.warn(`Token missing systemType for user ${payload.userId}`);
       throw Errors.invalidToken();
     }
 
-    // 4. ✅ OPTIONAL: Check database session if sessionId exists
-    if (payload.sessionId) {
-      try {
-        const { data: session, error: sessionError } = await supabase
-          .from('user_sessions')
-          .select('is_active, expires_at')
-          .eq('id', payload.sessionId)
-          .eq('user_id', payload.userId)
-          .maybeSingle();
-
-        // ✅ Only validate session if it exists and no error
-        if (!sessionError && session) {
-          // Check if session is active
-          if (!session.is_active) {
-            logger.warn(`Inactive session for user ${payload.userId}`);
-            throw Errors.unauthorized('Session has been terminated');
-          }
-
-          // Check session expiry
-          if (new Date(session.expires_at) < new Date()) {
-            // Mark session as inactive
-            await supabase
-              .from('user_sessions')
-              .update({ is_active: false })
-              .eq('id', payload.sessionId);
-            
-            throw Errors.unauthorized('Session has expired');
-          }
-
-          // ✅ Update last activity timestamp (fire and forget)
-          supabase
-            .from('user_sessions')
-            .update({ last_activity: new Date().toISOString() })
-            .eq('id', payload.sessionId)
-            .then(({ error }) => {
-              if (error) {
-                logger.warn('Failed to update session activity:', error);
-              }
-            });
-        }
-        // ✅ If session doesn't exist or error, that's OK - JWT is still valid
-      } catch (sessionCheckError) {
-        // ✅ Log but don't fail authentication
-        logger.warn('Session check failed, continuing with JWT auth:', sessionCheckError);
-      }
-    }
-
-    // 5. ✅ Verify user exists and is active (required)
+    // 4. ✅ OPTIMIZED: Single DB query for user validation (combined)
     const { data: user, error: userError } = await supabase
       .from('user_profiles')
       .select('status, system_type')
@@ -105,16 +62,17 @@ export async function authenticate(
       .single();
 
     if (userError || !user) {
+      logger.warn(`User ${payload.userId} not found in database`);
       throw Errors.unauthorized('User account not found');
     }
 
-    // 6. ✅ Validate system type matches
+    // 5. ✅ Validate system type matches
     if (user.system_type !== payload.systemType) {
-      logger.error(`System type mismatch for user ${payload.userId}: token=${payload.systemType}, db=${user.system_type}`);
+      logger.error(`System type mismatch for user ${payload.userId}`);
       throw Errors.unauthorized('Account configuration mismatch');
     }
 
-    // 7. ✅ Check user status
+    // 6. ✅ Check user status
     if (user.status !== 'active') {
       if (user.status === 'suspended') {
         throw Errors.accountSuspended();
@@ -125,7 +83,38 @@ export async function authenticate(
       }
     }
 
-    // 8. ✅ Attach user payload to request
+    // 7. ✅ OPTIONAL: Lightweight session check (async, non-blocking)
+    if (payload.sessionId) {
+      // Fire-and-forget session activity update
+      supabase
+        .from('user_sessions')
+        .select('is_active, expires_at')
+        .eq('id', payload.sessionId)
+        .eq('user_id', payload.userId)
+        .maybeSingle()
+        .then(({ data: session, error }) => {
+          if (!error && session) {
+            // Check if session is valid
+            if (!session.is_active || new Date(session.expires_at) < new Date()) {
+              logger.warn(`Invalid session ${payload.sessionId} for user ${payload.userId}`);
+              return;
+            }
+
+            // Update last activity (fire-and-forget)
+            supabase
+              .from('user_sessions')
+              .update({ last_activity: new Date().toISOString() })
+              .eq('id', payload.sessionId)
+              .then(({ error: updateError }) => {
+                if (updateError) {
+                  logger.warn('Failed to update session activity:', updateError);
+                }
+              });
+          }
+        });
+    }
+
+    // 8. ✅ Attach user payload to request (JWT is source of truth)
     req.user = payload;
     
     next();
@@ -135,7 +124,7 @@ export async function authenticate(
 }
 
 /**
- * ✅ UPDATED: Check if user has required role(s) AND is SYSTEM_USER
+ * ✅ Check if user has required role(s) AND is SYSTEM_USER
  */
 export function requireRole(...allowedRoles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
@@ -144,9 +133,9 @@ export function requireRole(...allowedRoles: UserRole[]) {
         throw Errors.unauthorized();
       }
 
-      // ✅ SYSTEM_USERS ONLY
+      // SYSTEM_USERS ONLY
       if (req.user.systemType !== SystemType.SYSTEM_USERS) {
-        logger.warn(`Non-system user ${req.user.userId} attempted to access system route`);
+        logger.warn(`Non-system user ${req.user.userId} attempted system route`);
         throw Errors.forbidden('This route is for system users only');
       }
 
@@ -163,7 +152,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
 }
 
 /**
- * ✅ NEW: Check if user is SYSTEM_USER
+ * ✅ Check if user is SYSTEM_USER
  */
 export function requireSystemUser() {
   return (req: Request, _res: Response, next: NextFunction): void => {
@@ -173,7 +162,7 @@ export function requireSystemUser() {
       }
 
       if (req.user.systemType !== SystemType.SYSTEM_USERS) {
-        logger.warn(`Non-system user ${req.user.userId} attempted to access system-only route`);
+        logger.warn(`Non-system user ${req.user.userId} attempted system route`);
         throw Errors.forbidden('This route is for system users only');
       }
 
@@ -185,7 +174,7 @@ export function requireSystemUser() {
 }
 
 /**
- * ✅ NEW: Check if user is COMMERCIAL_USER
+ * ✅ Check if user is COMMERCIAL_USER
  */
 export function requireCommercialUser() {
   return (req: Request, _res: Response, next: NextFunction): void => {
@@ -195,7 +184,7 @@ export function requireCommercialUser() {
       }
 
       if (req.user.systemType !== SystemType.COMMERCIAL_USERS) {
-        logger.warn(`Non-commercial user ${req.user.userId} attempted to access commercial route`);
+        logger.warn(`Non-commercial user ${req.user.userId} attempted commercial route`);
         throw Errors.forbidden('This route is for commercial users only');
       }
 

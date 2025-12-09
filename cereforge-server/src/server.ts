@@ -3,6 +3,7 @@ import app from './app';
 import logger from './utils/logger';
 import { testDatabaseConnection } from './config/database';
 import { closeEmailQueue } from './queues/email.queue';
+import { startSessionCleanup } from './services/session.cleanup.services'; // ✅ NEW
 
 // Load environment variables
 dotenv.config();
@@ -27,10 +28,14 @@ async function startServer() {
       process.exit(1);
     }
 
+    // ✅ NEW: Start session cleanup scheduler
+    logger.info('🧹 Starting session cleanup scheduler...');
+    startSessionCleanup();
+
     // Start Express server
     const server = app.listen(PORT, () => {
       logger.info(`✅ Server running on port ${PORT}`);
-      logger.info(`🌍 API URL: http://localhost:${PORT}/api/v1`);
+      logger.info(`🌐 API URL: http://localhost:${PORT}/api/v1`);
       logger.info(`💚 Health check: http://localhost:${PORT}/health`);
     });
 
@@ -43,7 +48,7 @@ async function startServer() {
       server.close(async () => {
         logger.info('✅ HTTP server closed');
         
-        // ✅ Step 1: Close email queue (wait for active jobs)
+        // ✅ Step 1: Close email queue
         try {
           logger.info('📧 Closing email queue...');
           await closeEmailQueue();
@@ -52,19 +57,18 @@ async function startServer() {
           logger.error('❌ Error closing email queue:', error);
         }
         
-        // ✅ Step 2: Close database connections
-        // (Supabase client handles this automatically)
+        // ✅ Step 2: Database cleanup happens automatically
         logger.info('✅ Database connections closed');
         
         logger.info('👋 Server shut down complete');
         process.exit(0);
       });
 
-      // Force shutdown after 15 seconds (increased for queue processing)
+      // Force shutdown after 15 seconds
       setTimeout(() => {
-        logger.error('⚠️  Forced shutdown after timeout');
+        logger.error('⚠️ Forced shutdown after timeout');
         process.exit(1);
-      }, 15000); // 15 seconds (was 10)
+      }, 15000);
     };
 
     // Handle shutdown signals
