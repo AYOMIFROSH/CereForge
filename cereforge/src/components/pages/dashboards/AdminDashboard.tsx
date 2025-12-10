@@ -14,6 +14,8 @@ import {
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useDraggable } from '@/utils/useDraggable';
 import VideoOverview from '@/components/video/VideoOverview';
+import CereforgeEditor from '@/components/textEditor/RichtextEditor';
+import CalendarPage from '../CalendarPage';
 
 type TabType = 'overview' | 'editor' | 'calendar' | 'video';
 
@@ -37,23 +39,6 @@ const AdminOverview = () => (
   </div>
 );
 
-const EditorComponent = () => (
-  <div className="h-screen bg-white">
-    <div className="p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Document Editor</h2>
-      <p className="text-gray-600">Fullscreen editor component</p>
-    </div>
-  </div>
-);
-
-const CalendarComponent = () => (
-  <div className="h-screen bg-white">
-    <div className="p-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Calendar</h2>
-      <p className="text-gray-600">Fullscreen calendar component</p>
-    </div>
-  </div>
-);
 
 const AdminDashboard = () => {
   const dispatch = useDispatch();
@@ -101,9 +86,9 @@ const AdminDashboard = () => {
       case 'overview':
         return <AdminOverview />;
       case 'editor':
-        return <EditorComponent />;
+        return <CereforgeEditor />;
       case 'calendar':
-        return <CalendarComponent />;
+        return <CalendarPage />;
       case 'video':
         return <VideoOverview />;
       default:
