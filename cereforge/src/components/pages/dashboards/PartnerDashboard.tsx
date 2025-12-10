@@ -1,13 +1,45 @@
-import { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '@/store/store';
+import { useState, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
 import { logout } from '@/store/slices/authSlice';
 import { useLogoutMutation } from '@/store/api/authApi';
-import { Building, LogOut, User, Mail, Video, LayoutDashboard, FolderOpen, Settings } from 'lucide-react';
+import { 
+  LogOut, 
+  LayoutDashboard, 
+  Video, 
+  FileEdit,
+  Calendar as CalendarIcon,
+  Menu,
+  X
+} from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useDraggable } from '@/utils/useDraggable';
 import VideoOverview from '@/components/video/VideoOverview';
+import CalendarPage from '../CalendarPage';
+import CereforgeEditor from '@/components/textEditor/RichtextEditor';
 
-type TabType = 'overview' | 'video' | 'projects' | 'settings';
+type TabType = 'overview' | 'editor' | 'calendar' | 'video';
+
+// Placeholder components
+const PartnerOverview = () => (
+  <div className="p-6 space-y-6">
+    <h2 className="text-3xl font-bold text-gray-900">Partner Overview</h2>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-2">Recent Files</h3>
+        <p className="text-gray-600">Files overview</p>
+      </div>
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-2">Upcoming Events</h3>
+        <p className="text-gray-600">Events overview</p>
+      </div>
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <h3 className="text-lg font-semibold mb-2">Transcripts</h3>
+        <p className="text-gray-600">Transcripts overview</p>
+      </div>
+    </div>
+  </div>
+);
+
 
 const PartnerDashboard = () => {
   const dispatch = useDispatch();
@@ -17,14 +49,25 @@ const PartnerDashboard = () => {
     "/partner/dashboard"
   );
 
-  const { user } = useSelector((state: RootState) => state.auth);
   const [logoutApi, { isLoading }] = useLogoutMutation();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Draggable hook - starts at top-right
+  const { position, isDragging, handleMouseDown, handleTouchStart } = useDraggable(
+    window.innerWidth - 100,
+    20
+  );
+
+  const shouldShowFullTabs = activeTab === 'overview';
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [activeTab]);
 
   const handleLogout = async () => {
     try {
       await logoutApi().unwrap();
-      console.log('API logout successful');
     } catch (error) {
       console.error('API logout failed:', error);
     } finally {
@@ -35,151 +78,134 @@ const PartnerDashboard = () => {
 
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: LayoutDashboard },
+    { id: 'editor' as TabType, label: 'Editor', icon: FileEdit },
+    { id: 'calendar' as TabType, label: 'Calendar', icon: CalendarIcon },
     { id: 'video' as TabType, label: 'Video', icon: Video },
-    { id: 'projects' as TabType, label: 'Projects', icon: FolderOpen },
-    { id: 'settings' as TabType, label: 'Settings', icon: Settings },
   ];
 
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <PartnerOverview />;
+      case 'editor':
+        return <CereforgeEditor />;
+      case 'calendar':
+        return <CalendarPage />;
+      case 'video':
+        return <VideoOverview />;
+      default:
+        return <PartnerOverview />;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100">
-      {/* Header */}
-      <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <div className="bg-orange-500 p-2 rounded-lg">
-                <Building className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Partners Portal</h1>
-                <p className="text-sm text-gray-600">Welcome back, {user?.name || 'Partner'}</p>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-blue-50">
+      {/* Tab Header - Only shows in Overview */}
+      {shouldShowFullTabs && (
+        <header className="fixed top-0 left-0 right-0 z-50 animate-in slide-in-from-top duration-300">
+          <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="flex items-center">
+                <div className="flex-1 overflow-x-auto scrollbar-hide">
+                  <div className="flex items-center gap-1 py-2 min-w-max">
+                    {tabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 whitespace-nowrap ${
+                            isActive
+                              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg scale-105'
+                              : 'text-gray-700 hover:bg-gray-100 hover:scale-105'
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <span className="text-sm">{tab.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex-shrink-0 pl-4 py-2">
+                  <button
+                    onClick={handleLogout}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:from-red-400 disabled:to-red-500 text-white px-4 py-2.5 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 disabled:cursor-not-allowed"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm font-medium hidden sm:inline">
+                      {isLoading ? 'Logging out...' : 'Logout'}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
+          </div>
+        </header>
+      )}
+
+      {/* Draggable Floating Menu - Shows when NOT in Overview */}
+      {!shouldShowFullTabs && (
+        <div
+          className="fixed z-50 animate-in fade-in zoom-in duration-200"
+          style={{
+            left: `${position.x}px`,
+            top: `${position.y}px`,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            transition: isDragging ? 'none' : 'transform 0.2s ease'
+          }}
+        >
+          <div className="relative">
             <button
-              onClick={handleLogout}
-              disabled={isLoading}
-              className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white px-4 py-2 rounded-lg transition-colors"
+              onMouseDown={handleMouseDown}
+              onTouchStart={handleTouchStart}
+              onClick={() => !isDragging && setIsExpanded(!isExpanded)}
+              className={`bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full p-3.5 shadow-2xl transition-all duration-200 ${
+                isDragging ? 'scale-110' : 'hover:scale-110'
+              }`}
+              title={isExpanded ? "Close menu" : "Open menu"}
             >
-              <LogOut className="w-4 h-4" />
-              <span>{isLoading ? 'Logging out...' : 'Logout'}</span>
+              {isExpanded ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
+
+            {isExpanded && (
+              <div className="absolute right-0 top-full mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 p-3 min-w-[200px] animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="space-y-1">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 ${
+                          isActive
+                            ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white scale-105'
+                            : 'text-gray-700 hover:bg-gray-100 hover:scale-105'
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="text-sm">{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      </header>
+      )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs Navigation */}
-        <div className="bg-white rounded-xl shadow-md mb-6 p-2">
-          <div className="flex flex-wrap gap-2">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-200 ${
-                    isActive
-                      ? 'bg-orange-500 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="animate-in fade-in duration-300">
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* User Info Card */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Account Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-3">
-                    <User className="w-5 h-5 text-orange-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">Name</p>
-                      <p className="font-semibold text-gray-900">{user?.name || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Mail className="w-5 h-5 text-orange-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">Email</p>
-                      <p className="font-semibold text-gray-900">{user?.email || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Building className="w-5 h-5 text-orange-500" />
-                    <div>
-                      <p className="text-sm text-gray-600">Role</p>
-                      <p className="font-semibold text-gray-900 capitalize">{user?.role || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Success Message */}
-              <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-bold text-green-800">Authentication Successful!</h3>
-                    <p className="text-green-700 mt-1">
-                      You have successfully logged in as a <span className="font-semibold">Partner</span>. 
-                      Your dashboard is ready to use.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dashboard Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Projects</h3>
-                  <p className="text-3xl font-bold text-orange-500">0</p>
-                  <p className="text-sm text-gray-600 mt-2">Active projects</p>
-                </div>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Documents</h3>
-                  <p className="text-3xl font-bold text-orange-500">0</p>
-                  <p className="text-sm text-gray-600 mt-2">Shared documents</p>
-                </div>
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Messages</h3>
-                  <p className="text-3xl font-bold text-orange-500">0</p>
-                  <p className="text-sm text-gray-600 mt-2">Unread messages</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'video' && <VideoOverview />}
-
-          {activeTab === 'projects' && (
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Projects</h2>
-              <p className="text-gray-600">Your project management will appear here.</p>
-            </div>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Settings</h2>
-              <p className="text-gray-600">Configure your account settings here.</p>
-            </div>
-          )}
+      <main className={shouldShowFullTabs ? 'pt-16' : 'pt-0'}>
+        <div 
+          className="animate-in fade-in slide-in-from-bottom-2 duration-300"
+          key={activeTab}
+        >
+          {renderContent()}
         </div>
       </main>
     </div>
