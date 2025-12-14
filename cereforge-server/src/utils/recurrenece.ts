@@ -136,7 +136,6 @@ function getNextOccurrence(current: Dayjs, config: RecurrenceConfig): Dayjs {
  * (for future implementation of exception dates)
  */
 export function isRecurrenceException(
-    eventId: string,
     date: Date,
     exceptions: Date[]
 ): boolean {
