@@ -11,6 +11,7 @@ import logger, { stream } from './utils/logger';
 // Import routes
 import authRoutes from './routes/auth.routes';
 import publicRoutes from './routes/public.routes';
+import calendarRoutes from './routes/calendar.routes';
 
 // Create Express app
 const app = express();
@@ -175,6 +176,7 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
 // Mount routes
 app.use(`/api/${API_VERSION}/auth`, authRoutes);
 app.use(`/api/${API_VERSION}/public`, publicRoutes);
+app.use(`/api/${API_VERSION}/calendar`, calendarRoutes); 
 
 // ==========================================
 // 404 HANDLER

@@ -2,7 +2,7 @@
   "name": "cereforge-server",
   "version": "1.0.0",
   "description": "Cereforge Backend API - Production Grade Server",
-    "main": "dist/server.js",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc && cp -r src/assets dist/assets",
@@ -36,6 +36,7 @@
     "bull": "^4.16.5",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "dayjs": "^1.11.19",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
