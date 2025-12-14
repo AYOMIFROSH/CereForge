@@ -1,99 +1,173 @@
-// calendar.types.ts - Type definitions for Cereforge Calendar
+// src/types/calendar.types.ts - FIXED & UNIFIED
 import { Dayjs } from 'dayjs';
 
-// Event Label Types
-export type EventLabel = 'indigo' | 'grey' | 'green' | 'blue' | 'red' | 'purple';
+// ============================================
+// CORE EVENT TYPES (Matches Backend)
+// ============================================
 
-// Guest Interface
+export type EventLabel = 'indigo' | 'grey' | 'green' | 'blue' | 'red' | 'purple';
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'annually' | 'weekdays' | 'custom';
+export type EventStatus = 'active' | 'cancelled' | 'completed';
+
 export interface Guest {
   name: string;
   email: string;
+  id?: string;
+  response_status?: 'pending' | 'accepted' | 'declined' | 'maybe';
 }
 
-// Notification Settings
 export interface NotificationSettings {
   type: 'Email' | 'Number' | 'Snooze';
   interval: number | null;
-  timeUnit: 'Day' | 'Minute' | 'Hour' | null;
+  timeUnit?: 'Day' | 'Minute' | 'Hour' | null;
   email?: string;
   phone?: string;
   country?: string;
 }
 
-// Recurrence Types
-export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'annually' | 'weekdays';
-
-export interface RecurrenceCustom {
-  type: 'custom';
-  label: string;
-  repeatEvery: number;
-  repeatUnit: 'day' | 'week' | 'month' | 'year';
-  repeatOn: number[];
-  end: {
-    type: 'never' | 'on' | 'after';
-    date: Date | null;
-    occurrences: number | null;
-  };
+export interface RecurrenceConfig {
+  type: RecurrenceType;
+  interval?: number;
+  daysOfWeek?: number[];
+  endType?: 'never' | 'on' | 'after';
+  endDate?: string | Date;
+  occurrences?: number;
+  config?: any; // ✅ Added for backend compatibility
 }
 
-// Main Calendar Event Interface
+// ============================================
+// MAIN CALENDAR EVENT (Frontend Normalized)
+// ============================================
+
 export interface CalendarEvent {
-  eventId: string;
-  parentId?: string | null;
-  event: string;
-  description: string;
-  location: string;
-  day: number;
-  startTime: string;
-  endTime: string;
+  // IDs
+  id: string;
+  eventId?: string; // Legacy support
+  userId?: string;
+  
+  // Core Details
+  title: string;
+  event?: string; // Legacy (maps to title)
+  description?: string;
+  location?: string;
+  
+  // Timing (Frontend uses both formats)
+  startTime: string; // ISO 8601 OR HH:mm format
+  endTime: string; // ISO 8601 OR HH:mm format
+  day: number; // Unix timestamp for grouping/filtering
   allDay: boolean;
-  label: EventLabel;
   timezone: string;
-  recurrence: RecurrenceType | RecurrenceCustom;
-  selectedGuest: Guest[];
-  userId: string | null;
-  notification: NotificationSettings;
-  createdAt?: Date;
-  updatedAt?: Date;
+  
+  // Recurrence
+  recurrenceType?: RecurrenceType;
+  recurrence?: RecurrenceConfig;
+  recurrenceConfig?: any;
+  parentEventId?: string | null;
+  isRecurringParent?: boolean;
+  
+  // Visual
+  label: EventLabel;
+  
+  // Notifications
+  notificationSettings?: NotificationSettings;
+  notification?: NotificationSettings; // Legacy support
+  
+  // Guests
+  guests?: Guest[];
+  selectedGuest?: Guest[]; // Legacy support
+  
+  // Status
+  status?: EventStatus;
+  
+  // Metadata
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  
+  // Special flags
+  isPublicHoliday?: boolean;
+  isEditable?: boolean;
+  isInstance?: boolean; // For recurring instances
 }
 
-// Label Filter Interface
+// ============================================
+// API REQUEST/RESPONSE TYPES
+// ============================================
+
+export interface CreateEventInput {
+  title: string;
+  description?: string;
+  location?: string;
+  startTime: string; // ISO 8601
+  endTime: string; // ISO 8601
+  allDay: boolean;
+  timezone: string;
+  recurrence: {
+    type: RecurrenceType;
+    config?: RecurrenceConfig;
+  };
+  label: EventLabel;
+  guests?: Guest[];
+  sendInvitations?: boolean;
+  notification: NotificationSettings;
+}
+
+export interface UpdateEventInput {
+  id: string;
+  title?: string;
+  description?: string;
+  location?: string;
+  startTime?: string;
+  endTime?: string;
+  allDay?: boolean;
+  timezone?: string;
+  recurrence?: {
+    type: RecurrenceType;
+    config?: RecurrenceConfig;
+  };
+  label?: EventLabel;
+  guests?: Guest[];
+  notification?: NotificationSettings;
+  status?: EventStatus;
+}
+
+export interface DeleteEventInput {
+  id: string;
+  deleteType?: 'single' | 'thisAndFuture' | 'all';
+}
+
+export interface PublicHoliday {
+  id: string;
+  title: string;
+  description?: string;
+  holidayDate: string; // YYYY-MM-DD
+  isRecurring: boolean;
+  countries?: string[];
+  isActive: boolean;
+}
+
+export interface GetEventsParams {
+  startDate: string;
+  endDate: string;
+  includeRecurring?: boolean;
+}
+
+export interface CalendarEventsResponse {
+  success: boolean;
+  data: {
+    userEvents: CalendarEvent[];
+    publicHolidays: PublicHoliday[];
+  };
+  timestamp: string;
+}
+
+// ============================================
+// UI COMPONENT PROPS
+// ============================================
+
 export interface LabelFilter {
   label: EventLabel;
   checked: boolean;
-}
-
-// Consultation Types
-export type ConsultationType = 'discovery' | 'technical' | 'follow-up';
-
-export interface ConsultationSlot {
-  id: string;
-  date: Date;
-  startTime: string;
-  endTime: string;
-  available: boolean;
-  consultationType: ConsultationType;
-}
-
-export interface ConsultationBooking {
-  id: string;
-  clientName: string;
-  clientEmail: string;
-  clientCompany?: string;
-  slot: ConsultationSlot;
-  projectDescription: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  createdAt?: Date;
-}
-
-// Calendar View Types
-export type CalendarView = 'month' | 'week' | 'day';
-
-// Component Props Interfaces
-export interface CalendarHeaderProps {
-  monthIndex: number;
-  setMonthIndex: (index: number) => void;
-  onConsultationClick?: () => void;
 }
 
 export interface CalendarSidebarProps {
@@ -131,12 +205,10 @@ export interface EventModalProps {
   onDelete?: (eventId: string) => void;
 }
 
-export interface ConsultationBookingProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
+// ============================================
+// UTILITY TYPES
+// ============================================
 
-// Label Color Mapping
 export const LABEL_COLORS: Record<EventLabel, string> = {
   indigo: '#6366f1',
   grey: '#6b7280',
@@ -146,51 +218,11 @@ export const LABEL_COLORS: Record<EventLabel, string> = {
   purple: '#a855f7'
 };
 
-
-
-// Label Tailwind Classes
 export const LABEL_CLASSES: Record<EventLabel, string> = {
-  indigo: 'bg-indigo-500 text-white',
-  grey: 'bg-gray-500 text-white',
-  green: 'bg-green-500 text-white',
-  blue: 'bg-blue-500 text-white',
-  red: 'bg-red-500 text-white',
-  purple: 'bg-purple-500 text-white'
+  indigo: 'bg-indigo-500',
+  grey: 'bg-gray-500',
+  green: 'bg-green-500',
+  blue: 'bg-blue-500',
+  red: 'bg-red-500',
+  purple: 'bg-purple-500'
 };
-
-// Consultation Type Configuration
-export interface ConsultationTypeConfig {
-  id: ConsultationType;
-  title: string;
-  duration: string;
-  description: string;
-  icon: string;
-  color: string;
-}
-
-export const CONSULTATION_TYPES: ConsultationTypeConfig[] = [
-  {
-    id: 'discovery',
-    title: 'Discovery Call',
-    duration: '30 minutes',
-    description: 'Initial project discussion and requirements gathering',
-    icon: '🎯',
-    color: 'from-blue-500 to-blue-600'
-  },
-  {
-    id: 'technical',
-    title: 'Technical Review',
-    duration: '60 minutes',
-    description: 'Deep dive into technical architecture and implementation',
-    icon: '⚙️',
-    color: 'from-green-500 to-green-600'
-  },
-  {
-    id: 'follow-up',
-    title: 'Follow-up Meeting',
-    duration: '30 minutes',
-    description: 'Progress review and next steps discussion',
-    icon: '📊',
-    color: 'from-orange-500 to-orange-600'
-  }
-];

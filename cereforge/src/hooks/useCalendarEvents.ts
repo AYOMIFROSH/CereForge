@@ -1,15 +1,69 @@
-// useCalendarEvents.ts - Custom hook for managing calendar events
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import dayjs, { Dayjs } from 'dayjs';
-import { CalendarEvent, LabelFilter } from '../types/calendar.types';
+// src/hooks/useCalendarEvents.ts - FIXED
+import { useState, useMemo, useCallback } from 'react';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import { 
+  useGetEventsQuery, 
+  useCreateEventMutation, 
+  useUpdateEventMutation, 
+  useDeleteEventMutation,
+  useGetPublicHolidaysQuery 
+} from '../store/api/calendarApi';
+import type { CalendarEvent, LabelFilter, CreateEventInput, UpdateEventInput } from '../types/calendar.types';
 
-// Custom hook
-export const useCalendarEvents = () => {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, _setLoading] = useState(false);
-  const [error, _setError] = useState<string | null>(null);
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
-  // Label filters
+interface UseCalendarEventsParams {
+  monthIndex: number;
+  year?: number;
+}
+
+export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams) => {
+  const currentYear = year || dayjs().year();
+  
+  // ✅ Calculate date range for current month
+  // ✅ Add 7-day buffer for smoother navigation
+const dateRange = useMemo(() => {
+  // ✅ Calculate the FULL visible calendar grid (6 weeks = 42 days)
+  const firstDayOfMonth = dayjs().year(currentYear).month(monthIndex).startOf('month');
+  const firstDayOfGrid = firstDayOfMonth.startOf('week'); // Sunday of first week
+  
+  const lastDayOfMonth = dayjs().year(currentYear).month(monthIndex).endOf('month');
+  const lastDayOfGrid = lastDayOfMonth.endOf('week'); // Saturday of last week
+  
+  return {
+    startDate: firstDayOfGrid.toISOString(),
+    endDate: lastDayOfGrid.toISOString()
+  };
+}, [currentYear, monthIndex]);
+
+  console.log('📅 Fetching events for range:', dateRange);
+
+  // ✅ Fetch events from server
+  const { 
+    data: eventsData, 
+    isLoading: eventsLoading, 
+    error: eventsError,
+    refetch: refetchEvents
+  } = useGetEventsQuery({
+    ...dateRange,
+    includeRecurring: true
+  });
+
+  // ✅ Fetch public holidays (cached for 24h)
+  useGetPublicHolidaysQuery(
+    { year: currentYear },
+    { skip: false }
+  );
+
+  // ✅ Mutations
+  const [createEventMutation, { isLoading: isCreating }] = useCreateEventMutation();
+  const [updateEventMutation, { isLoading: isUpdating }] = useUpdateEventMutation();
+  const [deleteEventMutation, { isLoading: isDeleting }] = useDeleteEventMutation();
+
+  // ✅ Label filters (in-memory only)
   const [labels, setLabels] = useState<LabelFilter[]>([
     { label: 'indigo', checked: true },
     { label: 'grey', checked: true },
@@ -19,189 +73,169 @@ export const useCalendarEvents = () => {
     { label: 'purple', checked: true }
   ]);
 
-  // Load events from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedEvents = localStorage.getItem('cereforge_calendar_events');
-      if (savedEvents) {
-        setEvents(JSON.parse(savedEvents));
-      }
-    } catch (err) {
-      console.error('Failed to load events from localStorage:', err);
-    }
-  }, []);
-
-  // Save events to localStorage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem('cereforge_calendar_events', JSON.stringify(events));
-    } catch (err) {
-      console.error('Failed to save events to localStorage:', err);
-    }
-  }, [events]);
-
-  // Add new event
-  const addEvent = useCallback((event: CalendarEvent) => {
-    setEvents(prev => [...prev, event]);
-  }, []);
-
-  // Update existing event
-  const updateEvent = useCallback((updatedEvent: CalendarEvent) => {
-    setEvents(prev =>
-      prev.map(evt => evt.eventId === updatedEvent.eventId ? updatedEvent : evt)
-    );
-  }, []);
-
-  // Delete single event
-  const deleteEvent = useCallback((eventId: string) => {
-    setEvents(prev => prev.filter(evt => evt.eventId !== eventId));
-  }, []);
-
-  // Delete recurring events
-  const deleteRecurringEvents = useCallback((eventId: string) => {
-    setEvents(prev =>
-      prev.filter(evt => evt.eventId !== eventId && evt.parentId !== eventId)
-    );
-  }, []);
-
-  // Get events for specific date
-  const getEventsForDate = useCallback((date: Dayjs): CalendarEvent[] => {
-    return events.filter(
-      evt => dayjs(evt.day).format('YYYY-MM-DD') === date.format('YYYY-MM-DD')
-    );
-  }, [events]);
-
-  // Get events for specific month
-  const getEventsForMonth = useCallback((monthIndex: number, year: number = dayjs().year()): CalendarEvent[] => {
-    return events.filter(evt => {
-      const eventDate = dayjs(evt.day);
-      return eventDate.month() === monthIndex && eventDate.year() === year;
-    });
-  }, [events]);
-
-  // Get events for specific week
-  const getEventsForWeek = useCallback((date: Dayjs): CalendarEvent[] => {
-    const startOfWeek = date.startOf('week');
-    const endOfWeek = date.endOf('week');
-    
-    return events.filter(evt => {
-      const eventDate = dayjs(evt.day);
-      return eventDate.isAfter(startOfWeek) && eventDate.isBefore(endOfWeek);
-    });
-  }, [events]);
-
-  // Filter events by labels
+  // ✅ Filter events by label
   const filteredEvents = useMemo(() => {
-    return events.filter(evt =>
+    if (!eventsData?.data?.userEvents) {
+      console.log('⚠️ No events data available');
+      return [];
+    }
+    
+    const filtered = eventsData.data.userEvents.filter(evt =>
       labels.find(lbl => lbl.label === evt.label && lbl.checked)
     );
-  }, [events, labels]);
+    
+    console.log('✅ Filtered Events:', filtered.length, 'from', eventsData.data.userEvents.length);
+    return filtered;
+  }, [eventsData?.data?.userEvents, labels]);
 
-  // Update label filter
-  const updateLabel = useCallback((updatedLabel: LabelFilter) => {
-    setLabels(prev =>
-      prev.map(lbl => lbl.label === updatedLabel.label ? updatedLabel : lbl)
+  // ✅ Public holidays as calendar events (already transformed in API)
+  const publicHolidays = useMemo((): CalendarEvent[] => {
+    if (!eventsData?.data?.publicHolidays) return [];
+    
+    // Holidays are already transformed in calendarApi
+    return eventsData.data.publicHolidays as any[];
+  }, [eventsData?.data?.publicHolidays]);
+
+  // ✅ All events combined
+  const allEvents = useMemo((): CalendarEvent[] => {
+    const combined = [...filteredEvents, ...publicHolidays];
+    console.log('🎯 All Events (filtered + holidays):', combined.length);
+    return combined;
+  }, [filteredEvents, publicHolidays]);
+
+  // ✅ Update label filter
+  const updateLabel = useCallback((updated: LabelFilter) => {
+    setLabels(prev => 
+      prev.map(lbl => lbl.label === updated.label ? updated : lbl)
     );
   }, []);
 
-  // Search events
-  const searchEvents = useCallback((query: string): CalendarEvent[] => {
-    const lowerQuery = query.toLowerCase();
-    return events.filter(evt =>
-      evt.event.toLowerCase().includes(lowerQuery) ||
-      evt.description.toLowerCase().includes(lowerQuery) ||
-      evt.location.toLowerCase().includes(lowerQuery)
-    );
-  }, [events]);
+  // ✅ Create event wrapper
+  const addEvent = useCallback(async (event: CalendarEvent) => {
+    try {
+      console.log('➕ Creating event:', event);
+      
+      const backendEvent: CreateEventInput = {
+        title: event.event || event.title,
+        description: event.description || '',
+        location: event.location || '',
+        startTime: event.allDay 
+          ? dayjs(event.day).startOf('day').toISOString()
+          : dayjs(event.day)
+              .hour(parseInt(event.startTime.split(':')[0]))
+              .minute(parseInt(event.startTime.split(':')[1]))
+              .toISOString(),
+        endTime: event.allDay
+          ? dayjs(event.day).endOf('day').toISOString()
+          : dayjs(event.day)
+              .hour(parseInt(event.endTime.split(':')[0]))
+              .minute(parseInt(event.endTime.split(':')[1]))
+              .toISOString(),
+        allDay: event.allDay,
+        timezone: event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        recurrence: {
+          type: typeof event.recurrence === 'object' ? event.recurrence.type : event.recurrence || 'none',
+          config: typeof event.recurrence === 'object' && event.recurrence.type === 'custom' 
+            ? event.recurrence 
+            : undefined
+        },
+        label: event.label,
+        guests: event.selectedGuest || event.guests || [],
+        sendInvitations: false,
+        notification: event.notification || event.notificationSettings || { type: 'Snooze', interval: null }
+      };
 
-  // Get upcoming events
-  const getUpcomingEvents = useCallback((limit: number = 5): CalendarEvent[] => {
-    const now = dayjs();
-    return events
-      .filter(evt => dayjs(evt.day).isAfter(now))
-      .sort((a, b) => dayjs(a.day).diff(dayjs(b.day)))
-      .slice(0, limit);
-  }, [events]);
+      console.log('📤 Sending to API:', backendEvent);
+      await createEventMutation(backendEvent).unwrap();
+      console.log('✅ Event created successfully');
+    } catch (error) {
+      console.error('❌ Failed to create event:', error);
+      throw error;
+    }
+  }, [createEventMutation]);
 
-  // Get today's events
-  const getTodaysEvents = useCallback((): CalendarEvent[] => {
-    return getEventsForDate(dayjs());
-  }, [getEventsForDate]);
+  // ✅ Update event wrapper
+  const editEvent = useCallback(async (event: CalendarEvent) => {
+    try {
+      console.log('✏️ Updating event:', event);
+      
+      const backendEvent: UpdateEventInput = {
+        id: event.id || event.eventId!,
+        title: event.event || event.title,
+        description: event.description,
+        location: event.location,
+        startTime: event.allDay 
+          ? dayjs(event.day).startOf('day').toISOString()
+          : dayjs(event.day)
+              .hour(parseInt(event.startTime.split(':')[0]))
+              .minute(parseInt(event.startTime.split(':')[1]))
+              .toISOString(),
+        endTime: event.allDay
+          ? dayjs(event.day).endOf('day').toISOString()
+          : dayjs(event.day)
+              .hour(parseInt(event.endTime.split(':')[0]))
+              .minute(parseInt(event.endTime.split(':')[1]))
+              .toISOString(),
+        allDay: event.allDay,
+        timezone: event.timezone,
+        recurrence: {
+          type: typeof event.recurrence === 'object' ? event.recurrence.type : event.recurrence || 'none',
+          config: typeof event.recurrence === 'object' && event.recurrence.type === 'custom' 
+            ? event.recurrence 
+            : undefined
+        },
+        label: event.label,
+        guests: event.selectedGuest || event.guests,
+        notification: event.notification || event.notificationSettings
+      };
 
-  // Get event statistics
-  const getEventStats = useCallback(() => {
-    const today = dayjs();
-    const thisWeek = events.filter(evt => {
-      const eventDate = dayjs(evt.day);
-      return eventDate.isSame(today, 'week');
-    });
-    const thisMonth = events.filter(evt => {
-      const eventDate = dayjs(evt.day);
-      return eventDate.isSame(today, 'month');
-    });
+      await updateEventMutation(backendEvent).unwrap();
+      console.log('✅ Event updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update event:', error);
+      throw error;
+    }
+  }, [updateEventMutation]);
 
-    return {
-      total: events.length,
-      today: getTodaysEvents().length,
-      thisWeek: thisWeek.length,
-      thisMonth: thisMonth.length,
-      upcoming: getUpcomingEvents().length
-    };
-  }, [events, getTodaysEvents, getUpcomingEvents]);
-
-  // Clear all events
-  const clearAllEvents = useCallback(() => {
-    setEvents([]);
-    localStorage.removeItem('cereforge_calendar_events');
-  }, []);
-
-  // Export events (for backup/download)
-  const exportEvents = useCallback(() => {
-    const dataStr = JSON.stringify(events, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `cereforge-calendar-events-${dayjs().format('YYYY-MM-DD')}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [events]);
-
-  // Import events (from backup/file)
-  const importEvents = useCallback((importedEvents: CalendarEvent[]) => {
-    setEvents(importedEvents);
-  }, []);
+  // ✅ Delete event wrapper
+  const removeEvent = useCallback(async (
+    eventId: string, 
+    deleteType: 'single' | 'thisAndFuture' | 'all' = 'single'
+  ) => {
+    try {
+      console.log('🗑️ Deleting event:', eventId, 'type:', deleteType);
+      await deleteEventMutation({ id: eventId, deleteType }).unwrap();
+      console.log('✅ Event deleted successfully');
+    } catch (error) {
+      console.error('❌ Failed to delete event:', error);
+      throw error;
+    }
+  }, [deleteEventMutation]);
 
   return {
-    // State
-    events,
-    filteredEvents,
-    loading,
-    error,
-    labels,
-
-    // Event operations
+    // Data
+    events: filteredEvents,
+    publicHolidays,
+    allEvents,
+    
+    // Loading states
+    loading: eventsLoading,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    
+    // Error
+    error: eventsError,
+    
+    // Actions
     addEvent,
-    updateEvent,
-    deleteEvent,
-    deleteRecurringEvents,
-
-    // Queries
-    getEventsForDate,
-    getEventsForMonth,
-    getEventsForWeek,
-    searchEvents,
-    getUpcomingEvents,
-    getTodaysEvents,
-    getEventStats,
-
-    // Label operations
-    updateLabel,
-
-    // Utility
-    clearAllEvents,
-    exportEvents,
-    importEvents
+    updateEvent: editEvent,
+    deleteEvent: removeEvent,
+    refetchEvents,
+    
+    // Filters
+    labels,
+    updateLabel
   };
 };
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '@/store/slices/authSlice';
 import { useLogoutMutation } from '@/store/api/authApi';
@@ -39,9 +40,10 @@ const CoreOverview = () => (
   </div>
 );
 
-
 const CoreDashboard = () => {
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   useDocumentTitle(
     "Core Dashboard - Cereforge",
     "Core system dashboard",
@@ -49,8 +51,18 @@ const CoreDashboard = () => {
   );
 
   const [logoutApi, { isLoading }] = useLogoutMutation();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  
+  // ✅ Get tab from URL or default to 'overview'
+  const tabFromURL = (searchParams.get('tab') as TabType) || 'overview';
+  const [activeTab, setActiveTab] = useState<TabType>(tabFromURL);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // ✅ Sync URL when tab changes (no racing, replace history)
+  useEffect(() => {
+    if (activeTab !== tabFromURL) {
+      setSearchParams({ tab: activeTab }, { replace: true });
+    }
+  }, [activeTab, tabFromURL, setSearchParams]);
 
   const { position, isDragging, handleMouseDown, handleTouchStart } = useDraggable(
     window.innerWidth - 100,

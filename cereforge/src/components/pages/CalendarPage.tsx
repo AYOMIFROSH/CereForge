@@ -1,3 +1,4 @@
+// pages/CalendarPage.tsx - WITH PUBLIC HOLIDAY MODAL ROUTING
 import { useState, useEffect } from 'react';
 import dayjs, { Dayjs } from 'dayjs';
 import { useCalendarEvents } from '../../hooks/useCalendarEvents';
@@ -9,236 +10,361 @@ import CalendarWeekView from '../../components/calendar/CalendarWeekView';
 import CalendarYearView from '../../components/calendar/CalendarYearView';
 import MobileCalendarView from '../../components/calendar/MobileCalendarView';
 import EventModal from '../../components/calendar/EventModal';
-import { CalendarEvent } from '../../types/calendar.types';
+import PublicHolidayViewModal from '../../components/calendar/modals/PublicHolidayModal'; // ✅ IMPORT
+import CalendarLoadingToast from '../../components/calendar/modals/CalendarLoadingToats';
+import type { CalendarEvent } from '../../types/calendar.types';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { useAppDispatch } from '@/store/hook';
+import { addToast } from '@/store/slices/uiSlice';
 
 type CalendarView = 'day' | 'week' | 'month' | 'year';
 
 const CalendarPage = () => {
-    useDocumentTitle(
-        "Cereforge - Calendar",
-        "Calendar - Manage your events and schedules at Cereforge",
-        "/Calender"
-    );
+  useDocumentTitle(
+    "Cereforge - Calendar",
+    "Calendar - Manage your events and schedules at Cereforge",
+    "/calendar"
+  );
 
-    // Custom hook for event management
-    const {
-        filteredEvents,
-        labels,
-        addEvent,
-        updateEvent,
-        deleteEvent,
-        updateLabel
-    } = useCalendarEvents();
+  const dispatch = useAppDispatch();
 
-    // Responsive state - detect if mobile
-    const [isMobile, setIsMobile] = useState(false);
+  // Responsive state
+  const [isMobile, setIsMobile] = useState(false);
 
-    // Calendar state
-    const [monthIndex, setMonthIndex] = useState(dayjs().month());
-    const [daySelected, setDaySelected] = useState<Dayjs>(dayjs());
-    const [smallCalendarMonth, setSmallCalendarMonth] = useState<number | null>(null);
-    const [showEventModal, setShowEventModal] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-    const [currentView, setCurrentView] = useState<CalendarView>('month');
+  // Calendar state
+  const [monthIndex, setMonthIndex] = useState(dayjs().month());
+  const [yearIndex] = useState(dayjs().year());
+  const [daySelected, setDaySelected] = useState<Dayjs>(dayjs());
+  const [smallCalendarMonth, setSmallCalendarMonth] = useState<number | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showHolidayModal, setShowHolidayModal] = useState(false); // ✅ NEW STATE
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [currentView, setCurrentView] = useState<CalendarView>('month');
 
-    // Detect screen size for mobile/desktop
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 1024);
-        };
+  // Server-connected hook
+  const {
+    allEvents,
+    loading,
+    error,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    labels,
+    updateLabel
+  } = useCalendarEvents({
+    monthIndex,
+    year: yearIndex
+  });
 
-        // Check on mount
-        checkMobile();
-
-        // Add resize listener
-        window.addEventListener('resize', checkMobile);
-
-        // Cleanup
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    // Sync small calendar with main calendar
-    useEffect(() => {
-        if (smallCalendarMonth !== null) {
-            setMonthIndex(smallCalendarMonth);
-        }
-    }, [smallCalendarMonth]);
-
-    // Calculate week start for week view
-    const weekStart = daySelected.startOf('week');
-
-    // Get current year for year view
-    const currentYear = dayjs(new Date(dayjs().year(), monthIndex)).year();
-
-    // Handlers
-    const handleDayClick = (day: Dayjs) => {
-        setDaySelected(day);
-        setSelectedEvent(null);
-        setShowEventModal(true);
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
     };
 
-    const handleEventClick = (event: CalendarEvent) => {
-        setSelectedEvent(event);
-        setDaySelected(dayjs(event.day));
-        setShowEventModal(true);
-    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
 
-    const handleSaveEvent = (event: CalendarEvent) => {
-        if (selectedEvent) {
-            updateEvent(event);
-        } else {
-            addEvent(event);
-        }
-        setShowEventModal(false);
-        setSelectedEvent(null);
-    };
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
-    const handleCreateEvent = () => {
-        setSelectedEvent(null);
-        setShowEventModal(true);
-    };
+  // Sync small calendar with main calendar
+  useEffect(() => {
+    if (smallCalendarMonth !== null) {
+      setMonthIndex(smallCalendarMonth);
+    }
+  }, [smallCalendarMonth]);
 
-    const handleDeleteEvent = (eventId: string) => {
-        deleteEvent(eventId);
-        setShowEventModal(false);
-        setSelectedEvent(null);
-    };
+  // Show error toast if API fails
+  useEffect(() => {
+    if (error) {
+      dispatch(addToast({
+        message: 'Failed to load calendar events. Please try again.',
+        type: 'error'
+      }));
+    }
+  }, [error, dispatch]);
 
-    const handleTimeSlotClick = (time: string) => {
-        const selectedTime = daySelected.hour(parseInt(time.split(':')[0])).minute(0);
-        setDaySelected(selectedTime);
-        setSelectedEvent(null);
-        setShowEventModal(true);
-    };
+  // Calculate week start for week view
+  const weekStart = daySelected.startOf('week');
 
-    const handleMonthClick = (monthIdx: number) => {
-        setMonthIndex(monthIdx);
-        setCurrentView('month');
-    };
+  // Handlers
+  const handleDayClick = (day: Dayjs) => {
+    setDaySelected(day);
+    setSelectedEvent(null);
+    setShowEventModal(true);
+    setShowHolidayModal(false); // ✅ ENSURE HOLIDAY MODAL CLOSED
+  };
 
-    // Render current view (Desktop only)
-    const renderView = () => {
-        switch (currentView) {
-            case 'day':
-                return (
-                    <CalendarDayView
-                        daySelected={daySelected}
-                        filteredEvents={filteredEvents}
-                        onEventClick={handleEventClick}
-                        onTimeSlotClick={handleTimeSlotClick}
-                    />
-                );
+  // ✅ FIXED: Smart event click routing
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setDaySelected(dayjs(event.day));
+    
+    // ✅ Route to correct modal based on event type
+    if (event.isPublicHoliday) {
+      setShowHolidayModal(true);
+      setShowEventModal(false);
+    } else {
+      setShowEventModal(true);
+      setShowHolidayModal(false);
+    }
+  };
 
-            case 'week':
-                return (
-                    <CalendarWeekView
-                        weekStart={weekStart}
-                        filteredEvents={filteredEvents}
-                        onEventClick={handleEventClick}
-                        onDayClick={handleDayClick}
-                    />
-                );
+  const handleSaveEvent = async (event: CalendarEvent) => {
+    try {
+      if (selectedEvent) {
+        await updateEvent(event);
+        dispatch(addToast({
+          message: 'Event updated successfully!',
+          type: 'success'
+        }));
+      } else {
+        await addEvent(event);
+        dispatch(addToast({
+          message: 'Event created successfully!',
+          type: 'success'
+        }));
+      }
+      setShowEventModal(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      dispatch(addToast({
+        message: 'Failed to save event. Please try again.',
+        type: 'error'
+      }));
+    }
+  };
 
-            case 'year':
-                return (
-                    <CalendarYearView
-                        year={currentYear}
-                        filteredEvents={filteredEvents}
-                        onDayClick={handleDayClick}
-                        onMonthClick={handleMonthClick}
-                    />
-                );
+  const handleCreateEvent = () => {
+    setSelectedEvent(null);
+    setShowEventModal(true);
+    setShowHolidayModal(false); // ✅ ENSURE HOLIDAY MODAL CLOSED
+  };
 
-            case 'month':
-            default:
-                return (
-                    <CalendarGrid
-                        monthIndex={monthIndex}
-                        filteredEvents={filteredEvents}
-                        onDayClick={handleDayClick}
-                        onEventClick={handleEventClick}
-                    />
-                );
-        }
-    };
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      await deleteEvent(eventId);
+      dispatch(addToast({
+        message: 'Event deleted successfully!',
+        type: 'success'
+      }));
+      setShowEventModal(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      dispatch(addToast({
+        message: 'Failed to delete event. Please try again.',
+        type: 'error'
+      }));
+    }
+  };
 
-    // Mobile View
-    if (isMobile) {
-        return (
-            <>
-                <MobileCalendarView
-                    events={filteredEvents}
-                    onEventClick={handleEventClick}
-                    onDayClick={handleDayClick}
-                    onCreateEvent={handleCreateEvent}
-                    daySelected={daySelected}
-                />
+  const handleTimeSlotClick = (time: string) => {
+    const selectedTime = daySelected.hour(parseInt(time.split(':')[0])).minute(0);
+    setDaySelected(selectedTime);
+    setSelectedEvent(null);
+    setShowEventModal(true);
+    setShowHolidayModal(false); // ✅ ENSURE HOLIDAY MODAL CLOSED
+  };
 
-                {/* Event Modal for Mobile */}
-                {showEventModal && (
-                    <EventModal
-                        isOpen={showEventModal}
-                        onClose={() => {
-                            setShowEventModal(false);
-                            setSelectedEvent(null);
-                        }}
-                        daySelected={daySelected}
-                        selectedEvent={selectedEvent}
-                        onSave={handleSaveEvent}
-                        onDelete={handleDeleteEvent}
-                    />
-                )}
-            </>
-        );
+  const handleMonthClick = (monthIdx: number) => {
+    setMonthIndex(monthIdx);
+    setCurrentView('month');
+  };
+
+  // ✅ UNIFIED MODAL CLOSE HANDLER
+  const handleCloseModals = () => {
+    setShowEventModal(false);
+    setShowHolidayModal(false);
+    setSelectedEvent(null);
+  };
+
+  // Render current view (Desktop only)
+  const renderView = () => {
+    // Show loading state (initial load only)
+    if (loading && !allEvents.length) {
+      return (
+        <div className="h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+            <p className="text-gray-600">Loading calendar...</p>
+          </div>
+        </div>
+      );
     }
 
-    // Desktop View
+    switch (currentView) {
+      case 'day':
+        return (
+          <CalendarDayView
+            daySelected={daySelected}
+            filteredEvents={allEvents}
+            onEventClick={handleEventClick}
+            onTimeSlotClick={handleTimeSlotClick}
+          />
+        );
+
+      case 'week':
+        return (
+          <CalendarWeekView
+            weekStart={weekStart}
+            filteredEvents={allEvents}
+            onEventClick={handleEventClick}
+            onDayClick={handleDayClick}
+          />
+        );
+
+      case 'year':
+        return (
+          <CalendarYearView
+            year={yearIndex}
+            filteredEvents={allEvents}
+            onDayClick={handleDayClick}
+            onMonthClick={handleMonthClick}
+          />
+        );
+
+      case 'month':
+      default:
+        return (
+          <CalendarGrid
+            monthIndex={monthIndex}
+            filteredEvents={allEvents}
+            onDayClick={handleDayClick}
+            onEventClick={handleEventClick}
+          />
+        );
+    }
+  };
+
+  // Mobile View
+  if (isMobile) {
     return (
-        <div className="flex h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden">
-            {/* Sidebar - Fixed with independent scroll */}
-            <CalendarSidebar
-                monthIndex={monthIndex}
-                daySelected={daySelected}
-                setDaySelected={setDaySelected}
-                setSmallCalendarMonth={setSmallCalendarMonth}
-                onCreateEvent={handleCreateEvent}
-                labels={labels}
-                updateLabel={updateLabel}
-            />
+      <>
+        <MobileCalendarView
+          events={allEvents}
+          onEventClick={handleEventClick}
+          onDayClick={handleDayClick}
+          onCreateEvent={handleCreateEvent}
+          daySelected={daySelected}
+        />
 
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Calendar Header - Fixed at top */}
-                <CalendarHeader
-                    monthIndex={monthIndex}
-                    setMonthIndex={setMonthIndex}
-                    currentView={currentView}
-                    onViewChange={setCurrentView}
-                />
+        {/* ✅ Event Modal */}
+        {showEventModal && selectedEvent && !selectedEvent.isPublicHoliday && (
+          <EventModal
+            isOpen={showEventModal}
+            onClose={handleCloseModals}
+            daySelected={daySelected}
+            selectedEvent={selectedEvent}
+            onSave={handleSaveEvent}
+            onDelete={handleDeleteEvent}
+          />
+        )}
 
-                {/* Calendar View - Scrollable */}
-                <div className="flex-1 overflow-auto">
-                    {renderView()}
-                </div>
-            </div>
+        {/* ✅ Create Event Modal */}
+        {showEventModal && !selectedEvent && (
+          <EventModal
+            isOpen={showEventModal}
+            onClose={handleCloseModals}
+            daySelected={daySelected}
+            selectedEvent={null}
+            onSave={handleSaveEvent}
+            onDelete={handleDeleteEvent}
+          />
+        )}
 
-            {/* Event Modal */}
-            {showEventModal && (
-                <EventModal
-                    isOpen={showEventModal}
-                    onClose={() => {
-                        setShowEventModal(false);
-                        setSelectedEvent(null);
-                    }}
-                    daySelected={daySelected}
-                    selectedEvent={selectedEvent}
-                    onSave={handleSaveEvent}
-                    onDelete={handleDeleteEvent}
-                />
-            )}
-        </div>
+        {/* ✅ Public Holiday Modal */}
+        {showHolidayModal && selectedEvent && selectedEvent.isPublicHoliday && (
+          <PublicHolidayViewModal
+            isOpen={showHolidayModal}
+            onClose={handleCloseModals}
+            holiday={selectedEvent}
+          />
+        )}
+
+        <CalendarLoadingToast 
+          isLoading={loading} 
+          isFetching={loading}
+          delayMs={300}
+        />
+      </>
     );
+  }
+
+  // Desktop View
+  return (
+    <div className="flex h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-hidden">
+      {/* Sidebar */}
+      <CalendarSidebar
+        monthIndex={monthIndex}
+        daySelected={daySelected}
+        setDaySelected={setDaySelected}
+        setSmallCalendarMonth={setSmallCalendarMonth}
+        onCreateEvent={handleCreateEvent}
+        labels={labels}
+        updateLabel={updateLabel}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <CalendarHeader
+          monthIndex={monthIndex}
+          setMonthIndex={setMonthIndex}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+
+        {/* Calendar View */}
+        <div className="flex-1 overflow-auto">
+          {renderView()}
+        </div>
+
+        <CalendarLoadingToast 
+          isLoading={loading} 
+          isFetching={loading}
+          delayMs={300}
+        />
+
+        {/* Loading Overlay (for mutations - create/update/delete) */}
+        {(isCreating || isUpdating || isDeleting) && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 shadow-2xl flex items-center space-x-3">
+              <div className="w-6 h-6 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+              <span className="text-gray-700 font-medium">
+                {isCreating && 'Creating event...'}
+                {isUpdating && 'Updating event...'}
+                {isDeleting && 'Deleting event...'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ✅ Event Modal - Regular Events */}
+      {showEventModal && !selectedEvent?.isPublicHoliday && (
+        <EventModal
+          isOpen={showEventModal}
+          onClose={handleCloseModals}
+          daySelected={daySelected}
+          selectedEvent={selectedEvent}
+          onSave={handleSaveEvent}
+          onDelete={handleDeleteEvent}
+        />
+      )}
+
+      {/* ✅ Public Holiday Modal - Read-Only */}
+      {showHolidayModal && selectedEvent?.isPublicHoliday && (
+        <PublicHolidayViewModal
+          isOpen={showHolidayModal}
+          onClose={handleCloseModals}
+          holiday={selectedEvent}
+        />
+      )}
+    </div>
+  );
 };
 
 export default CalendarPage;

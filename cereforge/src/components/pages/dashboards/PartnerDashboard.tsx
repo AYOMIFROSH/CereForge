@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '@/store/slices/authSlice';
 import { useLogoutMutation } from '@/store/api/authApi';
@@ -19,7 +20,6 @@ import CereforgeEditor from '@/components/textEditor/RichtextEditor';
 
 type TabType = 'overview' | 'editor' | 'calendar' | 'video';
 
-// Placeholder components
 const PartnerOverview = () => (
   <div className="p-6 space-y-6">
     <h2 className="text-3xl font-bold text-gray-900">Partner Overview</h2>
@@ -40,9 +40,10 @@ const PartnerOverview = () => (
   </div>
 );
 
-
 const PartnerDashboard = () => {
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   useDocumentTitle(
     "Partner Dashboard - Cereforge",
     "Partner portal dashboard",
@@ -50,10 +51,19 @@ const PartnerDashboard = () => {
   );
 
   const [logoutApi, { isLoading }] = useLogoutMutation();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  
+  // ✅ Get tab from URL or default to 'overview'
+  const tabFromURL = (searchParams.get('tab') as TabType) || 'overview';
+  const [activeTab, setActiveTab] = useState<TabType>(tabFromURL);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Draggable hook - starts at top-right
+  // ✅ Sync URL when tab changes (no racing, replace history)
+  useEffect(() => {
+    if (activeTab !== tabFromURL) {
+      setSearchParams({ tab: activeTab }, { replace: true });
+    }
+  }, [activeTab, tabFromURL, setSearchParams]);
+
   const { position, isDragging, handleMouseDown, handleTouchStart } = useDraggable(
     window.innerWidth - 100,
     20
@@ -100,7 +110,6 @@ const PartnerDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-blue-50">
-      {/* Tab Header - Only shows in Overview */}
       {shouldShowFullTabs && (
         <header className="fixed top-0 left-0 right-0 z-50 animate-in slide-in-from-top duration-300">
           <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
@@ -147,7 +156,6 @@ const PartnerDashboard = () => {
         </header>
       )}
 
-      {/* Draggable Floating Menu - Shows when NOT in Overview */}
       {!shouldShowFullTabs && (
         <div
           className="fixed z-50 animate-in fade-in zoom-in duration-200"
@@ -199,7 +207,6 @@ const PartnerDashboard = () => {
         </div>
       )}
 
-      {/* Main Content */}
       <main className={shouldShowFullTabs ? 'pt-16' : 'pt-0'}>
         <div 
           className="animate-in fade-in slide-in-from-bottom-2 duration-300"

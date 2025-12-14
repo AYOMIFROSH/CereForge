@@ -1,3 +1,4 @@
+// src/store/api/authApi.ts - FIXED RACE CONDITION
 import { createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 
@@ -65,7 +66,18 @@ const baseQueryWithRetry = retry(
   }
 );
 
-// ✅ Custom error handling with token refresh
+// ============================================
+// ✅ FIX 1: TOKEN REFRESH LOCK (CRITICAL)
+// ============================================
+
+// Global lock to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshPromise: ReturnType<typeof baseQuery> | null = null;
+
+/**
+ * ✅ FIXED: Custom error handling with token refresh LOCK
+ * Prevents race condition when multiple requests fail simultaneously
+ */
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
@@ -73,25 +85,63 @@ const baseQueryWithReauth: BaseQueryFn<
 > = async (args, api, extraOptions) => {
   let result = await baseQueryWithRetry(args, api, extraOptions);
 
-  // ✅ Handle 401: Try token refresh ONCE
+  // ✅ Handle 401: Try token refresh ONCE (with global lock)
   if (result.error && result.error.status === 401) {
-    console.log('Token expired, attempting refresh...');
+    console.log('🔒 Token expired, attempting refresh...');
 
-    // Try to refresh token
-    const refreshResult = await baseQuery(
+    // ✅ CRITICAL FIX: Check if refresh is already in progress
+    if (isRefreshing && refreshPromise) {
+      console.log('⏳ Refresh already in progress, waiting...');
+      
+      // Wait for existing refresh to complete
+      try {
+        const refreshResult = await refreshPromise;
+        
+        if (refreshResult.data) {
+          console.log('✅ Refresh completed by another request, retrying...');
+          
+          // Retry original request with new token
+          result = await baseQueryWithRetry(args, api, extraOptions);
+          return result;
+        } else {
+          console.log('❌ Refresh failed, logging out...');
+          api.dispatch({ type: 'auth/logout' });
+          return result;
+        }
+      } catch (refreshError) {
+        console.log('❌ Refresh error, logging out...');
+        api.dispatch({ type: 'auth/logout' });
+        return result;
+      }
+    }
+
+    // ✅ CRITICAL FIX: Set lock and create refresh promise
+    isRefreshing = true;
+    refreshPromise = baseQuery(
       { url: '/auth/refresh', method: 'POST' },
       api,
       extraOptions
     );
 
-    if (refreshResult.data) {
-      console.log('Token refreshed, retrying request...');
-      result = await baseQueryWithRetry(args, api, extraOptions);
-    } else {
-      console.log('Token refresh failed, logging out...');
-      // Clear client state but avoid forcing a global redirect here.
-      // Let route-level logic (ProtectedRoute / pages) handle navigation.
+    try {
+      const refreshResult = await refreshPromise;
+
+      if (refreshResult.data) {
+        console.log('✅ Token refreshed successfully, retrying request...');
+        
+        // Retry original request with new token
+        result = await baseQueryWithRetry(args, api, extraOptions);
+      } else {
+        console.log('❌ Token refresh failed, logging out...');
+        api.dispatch({ type: 'auth/logout' });
+      }
+    } catch (error) {
+      console.log('❌ Token refresh error:', error);
       api.dispatch({ type: 'auth/logout' });
+    } finally {
+      // ✅ CRITICAL: Always release lock
+      isRefreshing = false;
+      refreshPromise = null;
     }
   }
 

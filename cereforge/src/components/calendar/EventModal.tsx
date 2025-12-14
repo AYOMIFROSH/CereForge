@@ -1,14 +1,30 @@
+// src/components/calendar/EventModal.tsx - WITH GUEST MANAGEMENT
 import React, { useState } from 'react';
-import { X, Calendar, Clock, MapPin, FileText, Users, Bell, Trash2, Save, Repeat, Globe } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, FileText, Users, Bell, Trash2, Save, Repeat, Globe, Mail, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
+import CustomRecurrenceModal from './CustomRecurrenceModal';
+import type { CalendarEvent, RecurrenceType, EventLabel, Guest } from '@/types/calendar.types';
+
+interface RecurrenceCustom {
+  type: 'custom';
+  label: string;
+  repeatEvery: number;
+  repeatUnit: 'day' | 'week' | 'month' | 'year';
+  repeatOn: number[];
+  end: {
+    type: 'never' | 'on' | 'after';
+    date: Date | null;
+    occurrences: number | null;
+  };
+}
 
 interface EventModalProps {
   isOpen: boolean;
   onClose: () => void;
   daySelected: Dayjs;
-  selectedEvent?: any | null;
-  onSave: (event: any) => void;
+  selectedEvent?: CalendarEvent | null;
+  onSave: (event: CalendarEvent) => void;
   onDelete?: (eventId: string) => void;
 }
 
@@ -20,28 +36,40 @@ const EventModal: React.FC<EventModalProps> = ({
   onSave,
   onDelete
 }) => {
-  const [event, setEvent] = useState(selectedEvent?.event || '');
+  // ✅ Basic event fields
+  const [event, setEvent] = useState(selectedEvent?.event || selectedEvent?.title || '');
   const [description, setDescription] = useState(selectedEvent?.description || '');
   const [location, setLocation] = useState(selectedEvent?.location || '');
   const [allDay, setAllDay] = useState(selectedEvent?.allDay ?? true);
   const [startTime, setStartTime] = useState(selectedEvent?.startTime || '09:00');
   const [endTime, setEndTime] = useState(selectedEvent?.endTime || '10:00');
-  const [selectedLabel, setSelectedLabel] = useState(selectedEvent?.label || 'blue');
-  const [recurrence, setRecurrence] = useState(selectedEvent?.recurrence || 'none');
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [timezone, _setTimezone] = useState(selectedEvent?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [selectedLabel, setSelectedLabel] = useState<EventLabel>(selectedEvent?.label || 'blue');
   
-  // Guest management
-  const [guests, setGuests] = useState<string[]>(selectedEvent?.selectedGuest?.map((g: any) => g.email) || []);
-  const [guestInput, setGuestInput] = useState('');
+  // ✅ FIXED: Handle recurrence initialization properly
+  const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceCustom>(() => {
+    if (!selectedEvent?.recurrence) return 'none';
+    if (typeof selectedEvent.recurrence === 'string') return selectedEvent.recurrence;
+    return selectedEvent.recurrence.type || 'none';
+  });
   
-  // Notification settings
+  const [timezone] = useState(selectedEvent?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  
+  // ✅ Guest management
+  const [guests, setGuests] = useState<Guest[]>(selectedEvent?.selectedGuest || selectedEvent?.guests || []);
+  
+  // ✅ Notifications
   const [notificationType, setNotificationType] = useState(selectedEvent?.notification?.type || 'Snooze');
   const [notificationInterval, setNotificationInterval] = useState(selectedEvent?.notification?.interval || 15);
-
-  const labels = ['indigo', 'grey', 'green', 'blue', 'red', 'purple'];
   
-  const labelColors: Record<string, string> = {
+  // ✅ UI state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCustomRecurrence, setShowCustomRecurrence] = useState(false);
+  const [showGuestConfirm, setShowGuestConfirm] = useState(false);
+  const [guestInput, setGuestInput] = useState('');
+
+  const labels: EventLabel[] = ['indigo', 'grey', 'green', 'blue', 'red', 'purple'];
+  
+  const labelColors: Record<EventLabel, string> = {
     indigo: 'bg-indigo-500',
     grey: 'bg-gray-500',
     green: 'bg-green-500',
@@ -55,18 +83,25 @@ const EventModal: React.FC<EventModalProps> = ({
     { value: 'daily', label: 'Daily' },
     { value: 'weekly', label: 'Weekly' },
     { value: 'monthly', label: 'Monthly' },
-    { value: 'annually', label: 'Annually' }
+    { value: 'annually', label: 'Annually' },
+    { value: 'weekdays', label: 'Every weekday (Mon-Fri)' },
+    { value: 'custom', label: 'Custom...' }
   ];
 
+  // ✅ Guest management functions
   const handleAddGuest = () => {
     if (guestInput && guestInput.includes('@')) {
-      setGuests([...guests, guestInput]);
+      const newGuest: Guest = {
+        email: guestInput,
+        name: guestInput.split('@')[0]
+      };
+      setGuests([...guests, newGuest]);
       setGuestInput('');
     }
   };
 
   const handleRemoveGuest = (email: string) => {
-    setGuests(guests.filter(g => g !== email));
+    setGuests(guests.filter(g => g.email !== email));
   };
 
   const calculateDuration = () => {
@@ -81,38 +116,74 @@ const EventModal: React.FC<EventModalProps> = ({
     return `${minutes} minutes`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRecurrenceChange = (value: string) => {
+    if (value === 'custom') {
+      setShowCustomRecurrence(true);
+    } else {
+      setRecurrence(value as RecurrenceType);
+    }
+  };
+
+  const handleCustomRecurrenceSave = (customRecurrence: RecurrenceCustom) => {
+    setRecurrence(customRecurrence);
+  };
+
+  // ✅ Save with guest confirmation (as per PDF)
+  const handleSubmit = () => {
     if (!event.trim()) return;
 
-    const eventData = {
+    // ✅ Show guest confirmation if guests added
+    if (guests.length > 0 && !selectedEvent) {
+      setShowGuestConfirm(true);
+      return;
+    }
+
+    saveEvent(false);
+  };
+
+  const saveEvent = (sendInvites: boolean) => {
+    const eventData: CalendarEvent = {
+      id: selectedEvent?.id || selectedEvent?.eventId || `event_${Date.now()}`,
       eventId: selectedEvent?.eventId || `event_${Date.now()}`,
-      event,
+      title: event,
+      event: event,
       description,
       location,
       day: daySelected.valueOf(),
       allDay,
-      startTime: allDay ? '12:00 AM' : startTime,
-      endTime: allDay ? '11:59 PM' : endTime,
+      startTime: allDay ? '00:00' : startTime,
+      endTime: allDay ? '23:59' : endTime,
       label: selectedLabel,
       timezone,
-      recurrence,
-      selectedGuest: guests.map(email => ({ email, name: email.split('@')[0] })),
-      userId: null,
+      recurrence: typeof recurrence === 'string' 
+        ? { type: recurrence, config: undefined }
+        : recurrence as any,
+      guests: guests,
+      selectedGuest: guests,
+      userId: selectedEvent?.userId,
       notification: {
+        type: notificationType,
+        interval: notificationType === 'Snooze' ? null : notificationInterval,
+        timeUnit: notificationType === 'Snooze' ? null : 'Minute'
+      },
+      notificationSettings: {
         type: notificationType,
         interval: notificationType === 'Snooze' ? null : notificationInterval,
         timeUnit: notificationType === 'Snooze' ? null : 'Minute'
       }
     };
 
+    // ✅ Add sendInvitations flag for backend
+    (eventData as any).sendInvitations = sendInvites;
+
     onSave(eventData);
+    setShowGuestConfirm(false);
     onClose();
   };
 
   const handleDelete = () => {
     if (selectedEvent && onDelete) {
-      onDelete(selectedEvent.eventId);
+      onDelete(selectedEvent.id || selectedEvent.eventId!);
       onClose();
     }
   };
@@ -168,7 +239,7 @@ const EventModal: React.FC<EventModalProps> = ({
           </div>
 
           {/* Form Content */}
-          <form onSubmit={handleSubmit} className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+          <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 160px)' }}>
             <div className="p-6 space-y-6">
               {/* Event Title */}
               <div>
@@ -181,12 +252,11 @@ const EventModal: React.FC<EventModalProps> = ({
                   onChange={(e) => setEvent(e.target.value)}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-lg font-medium"
                   placeholder="Add event title"
-                  required
                   autoFocus
                 />
               </div>
 
-              {/* All Day Toggle & Duration Display */}
+              {/* All Day Toggle */}
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center space-x-3">
                   <input
@@ -256,17 +326,36 @@ const EventModal: React.FC<EventModalProps> = ({
                   <Repeat className="w-4 h-4 inline mr-1" />
                   Repeat
                 </label>
-                <select
-                  value={recurrence}
-                  onChange={(e) => setRecurrence(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
-                >
-                  {recurrenceOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                
+                {typeof recurrence !== 'string' && recurrence.type === 'custom' ? (
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 mb-1">Custom Recurrence</p>
+                        <p className="text-sm text-gray-700">{recurrence.label}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomRecurrence(true)}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={typeof recurrence === 'string' ? recurrence : 'custom'}
+                    onChange={(e) => handleRecurrenceChange(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+                  >
+                    {recurrenceOptions.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Location */}
@@ -299,7 +388,7 @@ const EventModal: React.FC<EventModalProps> = ({
                 />
               </div>
 
-              {/* Guests */}
+              {/* ✅ GUEST MANAGEMENT (AS PER PDF) */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Users className="w-4 h-4 inline mr-1" />
@@ -333,10 +422,11 @@ const EventModal: React.FC<EventModalProps> = ({
                         animate={{ scale: 1 }}
                         className="flex items-center space-x-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg"
                       >
-                        <span className="text-sm text-blue-800">{guest}</span>
+                        <Mail className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm text-blue-800">{guest.email}</span>
                         <button
                           type="button"
-                          onClick={() => handleRemoveGuest(guest)}
+                          onClick={() => handleRemoveGuest(guest.email)}
                           className="text-blue-600 hover:text-red-600 transition-colors"
                         >
                           <X className="w-4 h-4" />
@@ -356,7 +446,7 @@ const EventModal: React.FC<EventModalProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                   <select
                     value={notificationType}
-                    onChange={(e) => setNotificationType(e.target.value)}
+                    onChange={(e) => setNotificationType(e.target.value as any)}
                     className="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
                   >
                     <option value="Snooze">Snooze</option>
@@ -425,14 +515,65 @@ const EventModal: React.FC<EventModalProps> = ({
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                type="submit"
-                className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg transition-all"
+                onClick={handleSubmit}
+                disabled={!event.trim()}
+                className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-5 h-5" />
                 <span>{selectedEvent ? 'Update Event' : 'Create Event'}</span>
               </motion.button>
             </div>
-          </form>
+          </div>
+
+          {/* ✅ GUEST CONFIRMATION MODAL (AS PER PDF SECTION 6.1) */}
+          <AnimatePresence>
+            {showGuestConfirm && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-20"
+              >
+                <motion.div
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.95 }}
+                  className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                >
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Send className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Send Invitations?</h3>
+                    <p className="text-gray-600">
+                      You've added {guests.length} guest{guests.length > 1 ? 's' : ''}. Would you like to send email invitations?
+                    </p>
+                  </div>
+                  <div className="flex flex-col space-y-3">
+                    <button
+                      onClick={() => saveEvent(true)}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all flex items-center justify-center space-x-2"
+                    >
+                      <Send className="w-5 h-5" />
+                      <span>Create & Send Invitations</span>
+                    </button>
+                    <button
+                      onClick={() => saveEvent(false)}
+                      className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-xl transition-all"
+                    >
+                      Create Silently
+                    </button>
+                    <button
+                      onClick={() => setShowGuestConfirm(false)}
+                      className="text-gray-500 hover:text-gray-700 text-sm font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Delete Confirmation Modal */}
           <AnimatePresence>
@@ -478,6 +619,15 @@ const EventModal: React.FC<EventModalProps> = ({
           </AnimatePresence>
         </motion.div>
       </div>
+
+      {/* Custom Recurrence Modal */}
+      <CustomRecurrenceModal
+        isOpen={showCustomRecurrence}
+        onClose={() => setShowCustomRecurrence(false)}
+        onSave={handleCustomRecurrenceSave}
+        initialRecurrence={typeof recurrence !== 'string' ? recurrence : null}
+        eventStartDate={daySelected}
+      />
     </AnimatePresence>
   );
 };

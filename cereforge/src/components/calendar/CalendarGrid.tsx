@@ -1,11 +1,12 @@
+// src/components/calendar/CalendarGrid.tsx - FIXED EVENT DISPLAY
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
-import { CalendarEvent, CalendarDayProps } from '@/types/calendar.types'; // ✅ use the shared types
+import { CalendarEvent, CalendarDayProps } from '@/types/calendar.types';
+import DayEventsModal from './modals/DayEventsModals';
 
-
-// Utility function
+// ✅ FIXED: Generate month calendar grid
 const getMonth = (month: number = dayjs().month()): Dayjs[][] => {
   const year = dayjs().year();
   const firstDayOfMonth = dayjs(new Date(year, month, 1)).day();
@@ -21,6 +22,10 @@ const getMonth = (month: number = dayjs().month()): Dayjs[][] => {
   return daysMatrix;
 };
 
+// ============================================
+// CALENDAR DAY COMPONENT
+// ============================================
+
 const CalendarDay: React.FC<CalendarDayProps> = ({
   day,
   rowIdx,
@@ -29,11 +34,16 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
   onEventClick,
   monthIndex
 }) => {
-  const dayEvents = events.filter(
-    evt => dayjs(evt.day).format('DD-MM-YY') === day.format('DD-MM-YY')
-  );
+  // ✅ State for showing all events modal
+  const [showAllEvents, setShowAllEvents] = useState(false);
+  
+  // ✅ FIXED: Filter events for this specific day
+  const dayEvents = events.filter(evt => {
+    const eventDay = dayjs(evt.day);
+    return eventDay.format('YYYY-MM-DD') === day.format('YYYY-MM-DD');
+  });
 
-  const isToday = day.format('DD-MM-YY') === dayjs().format('DD-MM-YY');
+  const isToday = day.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
   const isCurrentMonth = day.month() === monthIndex;
   const MAX_VISIBLE_EVENTS = 2;
 
@@ -45,6 +55,11 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
     red: 'bg-red-500',
     purple: 'bg-purple-500'
   };
+
+  // ✅ Debug log for first day of month
+  if (rowIdx === 0 && day.date() === 1) {
+    console.log(`📅 Day ${day.format('YYYY-MM-DD')} has ${dayEvents.length} events:`, dayEvents);
+  }
 
   return (
     <motion.div
@@ -79,7 +94,7 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
       <div className="space-y-1">
         {dayEvents.slice(0, MAX_VISIBLE_EVENTS).map((evt, idx) => (
           <motion.div
-            key={idx}
+            key={evt.id || idx}
             whileHover={{ scale: 1.02, x: 2 }}
             onClick={(e) => {
               e.stopPropagation();
@@ -89,18 +104,25 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
               ${labelColors[evt.label]} text-white text-xs px-2 py-1 rounded
               truncate cursor-pointer shadow-sm hover:shadow-md transition-all
             `}
+            title={evt.title || evt.event}
           >
-            {evt.allDay ? evt.event : `${evt.startTime} - ${evt.event}`}
+            {evt.allDay ? (evt.title || evt.event) : `${evt.startTime} - ${evt.title || evt.event}`}
           </motion.div>
         ))}
 
+        {/* ✅ FIXED: Clickable "+X more" button */}
         {dayEvents.length > MAX_VISIBLE_EVENTS && (
-          <motion.div
+          <motion.button
             whileHover={{ scale: 1.05 }}
-            className="text-xs text-blue-600 font-semibold cursor-pointer hover:text-blue-800"
+            whileTap={{ scale: 0.95 }}
+            className="text-xs text-blue-600 font-semibold cursor-pointer hover:text-blue-800 hover:underline w-full text-left transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAllEvents(true);
+            }}
           >
             +{dayEvents.length - MAX_VISIBLE_EVENTS} more
-          </motion.div>
+          </motion.button>
         )}
       </div>
 
@@ -116,9 +138,22 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
       >
         <Plus className="w-4 h-4" />
       </motion.button>
+
+      {/* ✅ Day Events Modal */}
+      <DayEventsModal
+        isOpen={showAllEvents}
+        onClose={() => setShowAllEvents(false)}
+        day={day}
+        events={dayEvents}
+        onEventClick={onEventClick}
+      />
     </motion.div>
   );
 };
+
+// ============================================
+// CALENDAR GRID COMPONENT
+// ============================================
 
 interface CalendarGridProps {
   monthIndex: number;
@@ -139,10 +174,18 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
     setMonth(getMonth(monthIndex));
   }, [monthIndex]);
 
+  // ✅ Debug log
+  useEffect(() => {
+    console.log(`📊 CalendarGrid rendering for month ${monthIndex + 1}:`, {
+      totalEvents: filteredEvents.length,
+      eventDates: filteredEvents.map(e => dayjs(e.day).format('YYYY-MM-DD'))
+    });
+  }, [monthIndex, filteredEvents]);
+
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   return (
-    <div className="p-4 h-full">
+    <div className="p-2 h-full">
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden h-full flex flex-col">
         {/* Week Day Headers */}
         <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
@@ -163,7 +206,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
             <React.Fragment key={i}>
               {row.map((day, idx) => (
                 <CalendarDay
-                  key={idx}
+                  key={`${i}-${idx}`}
                   day={day}
                   rowIdx={i}
                   events={filteredEvents}

@@ -4,7 +4,8 @@ import { setupListeners } from '@reduxjs/toolkit/query';
 // Import API slices
 import { authApi } from './api/authApi';
 import { userApi } from './api/userApi';
-import { getStartedApi } from './api/getStartedApi';  // ✅ NEW
+import { getStartedApi } from './api/getStartedApi';
+import { calendarApi } from './api/calendarApi';  // ✅ ADD THIS
 
 // Import regular slices
 import authReducer from './slices/authSlice';
@@ -16,7 +17,8 @@ export const store = configureStore({
     // RTK Query API slices (auto-cached in memory)
     [authApi.reducerPath]: authApi.reducer,
     [userApi.reducerPath]: userApi.reducer,
-    [getStartedApi.reducerPath]: getStartedApi.reducer,  // ✅ NEW
+    [getStartedApi.reducerPath]: getStartedApi.reducer,
+    [calendarApi.reducerPath]: calendarApi.reducer,  // ✅ ADD THIS
     
     // Regular slices (memory-only, no localStorage)
     auth: authReducer,
@@ -30,7 +32,8 @@ export const store = configureStore({
     })
       .concat(authApi.middleware)
       .concat(userApi.middleware)
-      .concat(getStartedApi.middleware),  // ✅ NEW
+      .concat(getStartedApi.middleware)
+      .concat(calendarApi.middleware),  // ✅ ADD THIS
   
   devTools: import.meta.env.DEV // Only in development
 });
