@@ -1,4 +1,4 @@
-// src/hooks/useCalendarEvents.ts - FIXED
+// src/hooks/useCalendarEvents.ts - FIXED UPDATE/DELETE
 import { useState, useMemo, useCallback } from 'react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -20,28 +20,31 @@ interface UseCalendarEventsParams {
   year?: number;
 }
 
+// ✅ HELPER: Extract parent ID from instance ID
+const extractParentId = (eventId: string): string => {
+  // If ID contains "_instance_", extract parent ID
+  if (eventId.includes('_instance_')) {
+    return eventId.split('_instance_')[0];
+  }
+  return eventId;
+};
+
 export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams) => {
   const currentYear = year || dayjs().year();
   
-  // ✅ Calculate date range for current month
-  // ✅ Add 7-day buffer for smoother navigation
-const dateRange = useMemo(() => {
-  // ✅ Calculate the FULL visible calendar grid (6 weeks = 42 days)
-  const firstDayOfMonth = dayjs().year(currentYear).month(monthIndex).startOf('month');
-  const firstDayOfGrid = firstDayOfMonth.startOf('week'); // Sunday of first week
-  
-  const lastDayOfMonth = dayjs().year(currentYear).month(monthIndex).endOf('month');
-  const lastDayOfGrid = lastDayOfMonth.endOf('week'); // Saturday of last week
-  
-  return {
-    startDate: firstDayOfGrid.toISOString(),
-    endDate: lastDayOfGrid.toISOString()
-  };
-}, [currentYear, monthIndex]);
+  const dateRange = useMemo(() => {
+    const firstDayOfMonth = dayjs().year(currentYear).month(monthIndex).startOf('month');
+    const firstDayOfGrid = firstDayOfMonth.startOf('week');
+    
+    const lastDayOfMonth = dayjs().year(currentYear).month(monthIndex).endOf('month');
+    const lastDayOfGrid = lastDayOfMonth.endOf('week');
+    
+    return {
+      startDate: firstDayOfGrid.toISOString(),
+      endDate: lastDayOfGrid.toISOString()
+    };
+  }, [currentYear, monthIndex]);
 
-  console.log('📅 Fetching events for range:', dateRange);
-
-  // ✅ Fetch events from server
   const { 
     data: eventsData, 
     isLoading: eventsLoading, 
@@ -52,18 +55,15 @@ const dateRange = useMemo(() => {
     includeRecurring: true
   });
 
-  // ✅ Fetch public holidays (cached for 24h)
   useGetPublicHolidaysQuery(
     { year: currentYear },
     { skip: false }
   );
 
-  // ✅ Mutations
   const [createEventMutation, { isLoading: isCreating }] = useCreateEventMutation();
   const [updateEventMutation, { isLoading: isUpdating }] = useUpdateEventMutation();
   const [deleteEventMutation, { isLoading: isDeleting }] = useDeleteEventMutation();
 
-  // ✅ Label filters (in-memory only)
   const [labels, setLabels] = useState<LabelFilter[]>([
     { label: 'indigo', checked: true },
     { label: 'grey', checked: true },
@@ -73,48 +73,33 @@ const dateRange = useMemo(() => {
     { label: 'purple', checked: true }
   ]);
 
-  // ✅ Filter events by label
   const filteredEvents = useMemo(() => {
     if (!eventsData?.data?.userEvents) {
-      console.log('⚠️ No events data available');
       return [];
     }
     
-    const filtered = eventsData.data.userEvents.filter(evt =>
+    return eventsData.data.userEvents.filter(evt =>
       labels.find(lbl => lbl.label === evt.label && lbl.checked)
     );
-    
-    console.log('✅ Filtered Events:', filtered.length, 'from', eventsData.data.userEvents.length);
-    return filtered;
   }, [eventsData?.data?.userEvents, labels]);
 
-  // ✅ Public holidays as calendar events (already transformed in API)
   const publicHolidays = useMemo((): CalendarEvent[] => {
     if (!eventsData?.data?.publicHolidays) return [];
-    
-    // Holidays are already transformed in calendarApi
     return eventsData.data.publicHolidays as any[];
   }, [eventsData?.data?.publicHolidays]);
 
-  // ✅ All events combined
   const allEvents = useMemo((): CalendarEvent[] => {
-    const combined = [...filteredEvents, ...publicHolidays];
-    console.log('🎯 All Events (filtered + holidays):', combined.length);
-    return combined;
+    return [...filteredEvents, ...publicHolidays];
   }, [filteredEvents, publicHolidays]);
 
-  // ✅ Update label filter
   const updateLabel = useCallback((updated: LabelFilter) => {
     setLabels(prev => 
       prev.map(lbl => lbl.label === updated.label ? updated : lbl)
     );
   }, []);
 
-  // ✅ Create event wrapper
   const addEvent = useCallback(async (event: CalendarEvent) => {
     try {
-      console.log('➕ Creating event:', event);
-      
       const backendEvent: CreateEventInput = {
         title: event.event || event.title,
         description: event.description || '',
@@ -145,22 +130,27 @@ const dateRange = useMemo(() => {
         notification: event.notification || event.notificationSettings || { type: 'Snooze', interval: null }
       };
 
-      console.log('📤 Sending to API:', backendEvent);
       await createEventMutation(backendEvent).unwrap();
-      console.log('✅ Event created successfully');
     } catch (error) {
       console.error('❌ Failed to create event:', error);
       throw error;
     }
   }, [createEventMutation]);
 
-  // ✅ Update event wrapper
+  // ✅ FIXED: Update event - extract parent ID
   const editEvent = useCallback(async (event: CalendarEvent) => {
     try {
-      console.log('✏️ Updating event:', event);
+      // ✅ Extract parent ID if this is an instance
+      const parentId = extractParentId(event.id || event.eventId!);
+      
+      console.log('✏️ Updating event:', {
+        originalId: event.id || event.eventId,
+        parentId,
+        isInstance: (event.id || event.eventId)?.includes('_instance_')
+      });
       
       const backendEvent: UpdateEventInput = {
-        id: event.id || event.eventId!,
+        id: parentId, // ✅ Use parent ID
         title: event.event || event.title,
         description: event.description,
         location: event.location,
@@ -197,14 +187,23 @@ const dateRange = useMemo(() => {
     }
   }, [updateEventMutation]);
 
-  // ✅ Delete event wrapper
+  // ✅ FIXED: Delete event - extract parent ID
   const removeEvent = useCallback(async (
     eventId: string, 
-    deleteType: 'single' | 'thisAndFuture' | 'all' = 'single'
+    deleteType: 'single' | 'thisAndFuture' | 'all' = 'all' // ✅ Changed default to 'all'
   ) => {
     try {
-      console.log('🗑️ Deleting event:', eventId, 'type:', deleteType);
-      await deleteEventMutation({ id: eventId, deleteType }).unwrap();
+      // ✅ Extract parent ID if this is an instance
+      const parentId = extractParentId(eventId);
+      
+      console.log('🗑️ Deleting event:', {
+        originalId: eventId,
+        parentId,
+        deleteType,
+        isInstance: eventId.includes('_instance_')
+      });
+      
+      await deleteEventMutation({ id: parentId, deleteType }).unwrap(); // ✅ Use parent ID
       console.log('✅ Event deleted successfully');
     } catch (error) {
       console.error('❌ Failed to delete event:', error);
@@ -213,27 +212,18 @@ const dateRange = useMemo(() => {
   }, [deleteEventMutation]);
 
   return {
-    // Data
     events: filteredEvents,
     publicHolidays,
     allEvents,
-    
-    // Loading states
     loading: eventsLoading,
     isCreating,
     isUpdating,
     isDeleting,
-    
-    // Error
     error: eventsError,
-    
-    // Actions
     addEvent,
     updateEvent: editEvent,
     deleteEvent: removeEvent,
     refetchEvents,
-    
-    // Filters
     labels,
     updateLabel
   };

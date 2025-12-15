@@ -17,7 +17,6 @@ interface BaseModalProps {
 
 export const BaseModal: React.FC<BaseModalProps> = ({
   isOpen,
-  onClose,
   children,
   size = 'md',
   className = ''
