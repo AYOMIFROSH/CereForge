@@ -110,7 +110,6 @@ function getNextOccurrence(current: Dayjs, config: RecurrenceConfig): Dayjs {
       return current.add(1, 'year');
 
     case 'weekdays': {
-      // Skip weekends
       let next = current.add(1, 'day');
       while (next.day() === 0 || next.day() === 6) {
         next = next.add(1, 'day');
@@ -119,10 +118,13 @@ function getNextOccurrence(current: Dayjs, config: RecurrenceConfig): Dayjs {
     }
 
     case 'custom': {
-      // ✅ Custom weekly recurrence (specific days of week)
-      if (config.daysOfWeek && config.daysOfWeek.length > 0) {
+      // ✅ FIXED: Custom recurrence with repeatUnit
+      const repeatUnit = (config as any).repeatUnit || 'day';
+      
+      // If it's weekly custom with specific days
+      if (repeatUnit === 'week' && config.daysOfWeek && config.daysOfWeek.length > 0) {
         let next = current.add(1, 'day');
-        let maxDays = 7; // Safety limit
+        let maxDays = 7;
 
         while (!config.daysOfWeek.includes(next.day()) && maxDays > 0) {
           next = next.add(1, 'day');
@@ -131,7 +133,20 @@ function getNextOccurrence(current: Dayjs, config: RecurrenceConfig): Dayjs {
 
         return next;
       }
-      return current.add(interval, 'day');
+      
+      // ✅ For day/month/year custom intervals
+      switch (repeatUnit) {
+        case 'day':
+          return current.add(interval, 'day');
+        case 'week':
+          return current.add(interval, 'week');
+        case 'month':
+          return current.add(interval, 'month');
+        case 'year':
+          return current.add(interval, 'year');
+        default:
+          return current.add(interval, 'day');
+      }
     }
 
     default:

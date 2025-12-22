@@ -34,11 +34,22 @@ export type ReminderType = 'email' | 'push' | 'sms';
  */
 export interface RecurrenceConfig {
   type: RecurrenceType;
-  interval?: number; // Every N days/weeks/months
-  daysOfWeek?: number[]; // [0,1,2,3,4,5,6] for custom weekly
+  interval?: number;
+  repeatUnit?: 'day' | 'week' | 'month' | 'year'; // ✅ NEW
+  daysOfWeek?: number[];
   endType?: 'never' | 'on' | 'after';
-  endDate?: Date | string;
+  endDate?: string | Date;
   occurrences?: number;
+  config?: any;
+  
+  // ✅ For legacy custom recurrence modal
+  repeatEvery?: number;
+  repeatOn?: number[];
+  end?: {
+    type: 'never' | 'on' | 'after';
+    date: Date | null;
+    occurrences: number | null;
+  };
 }
 
 /**

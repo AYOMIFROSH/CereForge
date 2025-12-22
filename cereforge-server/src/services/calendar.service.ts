@@ -33,6 +33,8 @@ import {
 /**
  * Create a new calendar event
  */
+// src/services/calendar.service.ts - FIXED CUSTOM RECURRENCE SAVING
+
 export async function createCalendarEvent(
   data: CreateEventInput,
   userId: string,
@@ -41,6 +43,32 @@ export async function createCalendarEvent(
   const adminClient = getFreshSupabase();
 
   try {
+    // ✅ FIXED: Properly handle custom recurrence config
+    let recurrenceType = data.recurrence.type;
+    let recurrenceConfig = null;
+
+    if (data.recurrence.type === 'custom' && data.recurrence.config) {
+      // ✅ Extract custom config properly
+      const customConfig = data.recurrence.config;
+      
+      recurrenceConfig = {
+        type: 'custom',
+        interval: customConfig.interval || 1,
+        repeatUnit: customConfig.repeatUnit || 'day', // ✅ NEW: day/week/month/year
+        daysOfWeek: customConfig.daysOfWeek || [],
+        endType: customConfig.endType || 'never',
+        endDate: customConfig.endDate || null,
+        occurrences: customConfig.occurrences || null
+      };
+
+      console.log('📅 Creating custom recurrence event:', recurrenceConfig);
+    } else if (data.recurrence.type !== 'none') {
+      // ✅ Simple recurrence types (daily, weekly, etc.)
+      recurrenceConfig = {
+        type: data.recurrence.type
+      };
+    }
+
     // Create parent event
     const { data: event, error } = await adminClient
       .from('calendar_events')
@@ -49,13 +77,13 @@ export async function createCalendarEvent(
         title: data.title,
         description: data.description || null,
         location: data.location || null,
-        start_time: data.startTime, // Already in UTC from frontend
+        start_time: data.startTime,
         end_time: data.endTime,
         all_day: data.allDay,
         timezone: data.timezone,
-        recurrence_type: data.recurrence.type,
-        recurrence_config: data.recurrence.type !== 'none' ? data.recurrence : null,
-        is_recurring_parent: data.recurrence.type !== 'none',
+        recurrence_type: recurrenceType,
+        recurrence_config: recurrenceConfig, // ✅ Save custom config as JSONB
+        is_recurring_parent: recurrenceType !== 'none',
         label: data.label,
         notification_settings: data.notificationSettings,
         status: 'active'
@@ -86,8 +114,8 @@ export async function createCalendarEvent(
       {
         title: data.title,
         hasGuests: (data.guests?.length || 0) > 0,
-        isRecurring: data.recurrence.type !== 'none',
-        recurrenceType: data.recurrence.type
+        isRecurring: recurrenceType !== 'none',
+        recurrenceType: recurrenceType
       }
     );
 
