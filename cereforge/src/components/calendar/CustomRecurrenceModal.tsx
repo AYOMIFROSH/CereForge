@@ -134,22 +134,24 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
   };
 
   const handleSave = () => {
-    const recurrence: RecurrenceCustom = {
-      type: 'custom',
-      label: generateLabel(),
-      repeatEvery,
-      repeatUnit,
-      repeatOn: repeatUnit === 'week' ? repeatOn : [],
-      end: {
-        type: endType,
-        date: endType === 'on' ? new Date(endDate) : null,
-        occurrences: endType === 'after' ? endOccurrences : null
-      }
-    };
-    
-    onSave(recurrence);
-    onClose();
+  const recurrence: RecurrenceCustom = {
+    type: 'custom',
+    label: generateLabel(),
+    repeatEvery,
+    repeatUnit, // ✅ This should already be here
+    repeatOn: repeatUnit === 'week' ? repeatOn : [],
+    end: {
+      type: endType,
+      date: endType === 'on' ? new Date(endDate) : null,
+      occurrences: endType === 'after' ? endOccurrences : null
+    }
   };
+  
+  console.log('✅ Custom recurrence saved:', recurrence); // ✅ Debug log
+  
+  onSave(recurrence);
+  onClose();
+};
 
   if (!isOpen) return null;
 
