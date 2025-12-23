@@ -35,6 +35,9 @@ import {
  */
 // src/services/calendar.service.ts - FIXED CUSTOM RECURRENCE SAVING
 
+// src/services/calendar.service.ts - FIXED CUSTOM RECURRENCE SAVING
+// Only showing the createCalendarEvent function that needs fixing
+
 export async function createCalendarEvent(
   data: CreateEventInput,
   userId: string,
@@ -47,27 +50,40 @@ export async function createCalendarEvent(
     let recurrenceType = data.recurrence.type;
     let recurrenceConfig = null;
 
-    if (data.recurrence.type === 'custom' && data.recurrence.config) {
-      // ✅ Extract custom config properly
-      const customConfig = data.recurrence.config;
-      
-      recurrenceConfig = {
-        type: 'custom',
-        interval: customConfig.interval || 1,
-        repeatUnit: customConfig.repeatUnit || 'day', // ✅ NEW: day/week/month/year
-        daysOfWeek: customConfig.daysOfWeek || [],
-        endType: customConfig.endType || 'never',
-        endDate: customConfig.endDate || null,
-        occurrences: customConfig.occurrences || null
-      };
+    if (data.recurrence.type === 'custom') {
+      // ✅ CRITICAL FIX: Extract the full config object
+      // The frontend sends: { type: 'custom', config: { type: 'custom', interval: 1, repeatUnit: 'week', ... } }
 
-      console.log('📅 Creating custom recurrence event:', recurrenceConfig);
+      const customConfig = (data.recurrence as any).config;
+
+      if (customConfig) {
+        recurrenceConfig = {
+          type: 'custom',
+          interval: customConfig.interval || 1,
+          repeatUnit: customConfig.repeatUnit || 'day', // ✅ CRITICAL: day/week/month/year
+          daysOfWeek: customConfig.daysOfWeek || [],
+          endType: customConfig.endType || 'never',
+          endDate: customConfig.endDate || null,
+          occurrences: customConfig.occurrences || null
+        };
+
+        console.log('📅 Saving custom recurrence to database:', JSON.stringify(recurrenceConfig, null, 2));
+      } else {
+        // Fallback if config is missing
+        console.warn('⚠️ Custom recurrence type but no config provided');
+        recurrenceConfig = { type: 'custom' };
+      }
     } else if (data.recurrence.type !== 'none') {
-      // ✅ Simple recurrence types (daily, weekly, etc.)
+      // ✅ Simple recurrence types (daily, weekly, monthly, etc.)
       recurrenceConfig = {
         type: data.recurrence.type
       };
     }
+
+    console.log('💾 Final recurrence data to save:', {
+      recurrenceType,
+      recurrenceConfig
+    });
 
     // Create parent event
     const { data: event, error } = await adminClient
@@ -82,7 +98,7 @@ export async function createCalendarEvent(
         all_day: data.allDay,
         timezone: data.timezone,
         recurrence_type: recurrenceType,
-        recurrence_config: recurrenceConfig, // ✅ Save custom config as JSONB
+        recurrence_config: recurrenceConfig, // ✅ This should now have all the custom settings
         is_recurring_parent: recurrenceType !== 'none',
         label: data.label,
         notification_settings: data.notificationSettings,
@@ -95,6 +111,8 @@ export async function createCalendarEvent(
       logger.error('Failed to create calendar event:', error);
       throw Errors.database('Failed to create event');
     }
+
+    console.log('✅ Event created successfully with ID:', event.id);
 
     // Add guests if provided
     if (data.guests && data.guests.length > 0) {
@@ -128,7 +146,6 @@ export async function createCalendarEvent(
     throw Errors.internal('Failed to create calendar event');
   }
 }
-
 /**
  * Get events in date range with recurring instances
  */
