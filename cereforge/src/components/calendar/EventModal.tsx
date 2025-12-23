@@ -122,11 +122,20 @@ const EventModal: React.FC<EventModalProps> = ({
       setRecurrence(value as RecurrenceType);
     }
   };
-
-  const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
-    console.log('📥 EventModal: Received custom recurrence:', customRecurrence);
-    setRecurrence(customRecurrence);
-  };
+const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
+  console.log('📥 EventModal: Received custom recurrence:', customRecurrence);
+  console.log('📥 EventModal: customRecurrence type:', typeof customRecurrence);
+  console.log('📥 EventModal: customRecurrence.type:', customRecurrence.type);
+  console.log('📥 EventModal: customRecurrence.config:', customRecurrence.config);
+  console.log('📥 EventModal: Full JSON:', JSON.stringify(customRecurrence, null, 2));
+  
+  setRecurrence(customRecurrence);
+  
+  // Verify state was set
+  setTimeout(() => {
+    console.log('✅ State after setRecurrence:', recurrence);
+  }, 100);
+};
 
   // ✅ Save with guest confirmation
   const handleSubmit = () => {

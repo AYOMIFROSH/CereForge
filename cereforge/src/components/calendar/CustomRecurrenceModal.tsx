@@ -83,7 +83,7 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
 
     while (count < maxPreviews) {
       if (repeatUnit === 'week' && repeatOn.length > 0) {
-        const daysToCheck = repeatOn.sort();
+        const daysToCheck = [...repeatOn].sort(); // ← Add spread operator here
         for (const dayOfWeek of daysToCheck) {
           const nextDate = currentDate.day(dayOfWeek);
           if (nextDate.isAfter(eventStartDate) || nextDate.isSame(eventStartDate, 'day')) {

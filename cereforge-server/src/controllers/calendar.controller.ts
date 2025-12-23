@@ -1,7 +1,5 @@
-// src/controllers/calendar.controller.ts
 // =====================================================
 // CALENDAR CONTROLLERS
-// Request handlers with proper error handling
 // =====================================================
 
 import { Request, Response } from 'express';
@@ -24,7 +22,8 @@ import { GetEventsParams, DeleteEventType } from '../types/calendar.types';
  * Create new calendar event
  */
 export const createEvent = asyncHandler(async (req: Request, res: Response) => {
-  const user = req.user!;
+  console.log('🎯 CONTROLLER - Raw req.body:', JSON.stringify(req.body, null, 2));
+  console.log('🎯 CONTROLLER - recurrence field:', JSON.stringify(req.body.recurrence, null, 2));  const user = req.user!;
   const ipAddress = req.ip || 'unknown';
   const eventData = req.body;
 

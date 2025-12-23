@@ -1,4 +1,4 @@
-// src/hooks/useCalendarEvents.ts - FIXED TYPES
+// src/hooks/useCalendarEvents.ts - FIXED RECURRENCE DATA FLOW
 import { useState, useMemo, useCallback } from 'react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -26,7 +26,6 @@ interface UseCalendarEventsParams {
   year?: number;
 }
 
-// ✅ HELPER: Extract parent ID from instance ID
 const extractParentId = (eventId: string): string => {
   if (eventId.includes('_instance_')) {
     return eventId.split('_instance_')[0];
@@ -103,30 +102,41 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     );
   }, []);
 
-  // ✅ FIXED: Create event with proper type handling
+  // ✅ FIXED: Preserve full recurrence config
   const addEvent = useCallback(async (event: CalendarEvent) => {
     try {
-      console.log('➕ Creating event:', event);
+      console.log('➕ Creating event with recurrence:', event.recurrence);
       
-      // ✅ FIXED: Properly structure recurrence based on type
-      let recurrenceData: RecurrenceConfig;
+      // ✅ FIXED: Send recurrence exactly as received
+      let recurrenceData: any;
       
-      if (typeof event.recurrence === 'string') {
-        // Simple recurrence type
+      if (!event.recurrence || event.recurrence === 'none') {
+        // No recurrence
+        recurrenceData = { type: 'none' };
+      } else if (typeof event.recurrence === 'string') {
+        // Simple recurrence (daily, weekly, etc.)
+        recurrenceData = { type: event.recurrence };
+      } else if (typeof event.recurrence === 'object' && event.recurrence.type === 'custom') {
+        // ✅ Custom recurrence - send the FULL object with config
         recurrenceData = {
-          type: event.recurrence as any
+          type: 'custom',
+          config: {
+            type: 'custom',
+            interval: event.recurrence.config.interval,
+            repeatUnit: event.recurrence.config.repeatUnit,
+            daysOfWeek: event.recurrence.config.daysOfWeek,
+            endType: event.recurrence.config.endType,
+            endDate: event.recurrence.config.endDate ? 
+              dayjs(event.recurrence.config.endDate).format('YYYY-MM-DD') : null,
+            occurrences: event.recurrence.config.occurrences
+          }
         };
-      } else if (event.recurrence && event.recurrence.type === 'custom') {
-        // Custom recurrence with config
-        recurrenceData = event.recurrence as RecurrenceConfig;
       } else {
-        // Default to 'none'
-        recurrenceData = {
-          type: 'none'
-        };
+        // Fallback
+        recurrenceData = { type: 'none' };
       }
 
-      console.log('📅 Recurrence data being sent:', recurrenceData);
+      console.log('📅 Final recurrence being sent:', JSON.stringify(recurrenceData, null, 2));
 
       const backendEvent: CreateEventInput = {
         title: event.event || event.title,
@@ -146,7 +156,7 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
               .toISOString(),
         allDay: event.allDay,
         timezone: event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-        recurrence: recurrenceData,
+        recurrence: recurrenceData as RecurrenceConfig,
         label: event.label,
         guests: event.selectedGuest || event.guests || [],
         sendInvitations: (event as any).sendInvitations || false,
@@ -156,7 +166,7 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
         }
       };
 
-      console.log('📤 Sending to API:', backendEvent);
+      console.log('📤 Full payload to API:', JSON.stringify(backendEvent, null, 2));
       await createEventMutation(backendEvent).unwrap();
       console.log('✅ Event created successfully');
     } catch (error) {
@@ -165,31 +175,39 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     }
   }, [createEventMutation]);
 
-  // ✅ FIXED: Update event with proper type handling
+  // ✅ FIXED: Preserve full recurrence config in updates
   const editEvent = useCallback(async (event: CalendarEvent) => {
     try {
       const parentId = extractParentId(event.id || event.eventId!);
       
-      console.log('✏️ Updating event:', {
-        originalId: event.id || event.eventId,
-        parentId,
-        isInstance: (event.id || event.eventId)?.includes('_instance_')
-      });
+      console.log('✏️ Updating event with recurrence:', event.recurrence);
 
-      // ✅ FIXED: Properly structure recurrence
-      let recurrenceData: RecurrenceConfig;
+      // ✅ FIXED: Same logic as addEvent
+      let recurrenceData: any;
       
-      if (typeof event.recurrence === 'string') {
+      if (!event.recurrence || event.recurrence === 'none') {
+        recurrenceData = { type: 'none' };
+      } else if (typeof event.recurrence === 'string') {
+        recurrenceData = { type: event.recurrence };
+      } else if (typeof event.recurrence === 'object' && event.recurrence.type === 'custom') {
         recurrenceData = {
-          type: event.recurrence as any
+          type: 'custom',
+          config: {
+            type: 'custom',
+            interval: event.recurrence.config.interval,
+            repeatUnit: event.recurrence.config.repeatUnit,
+            daysOfWeek: event.recurrence.config.daysOfWeek,
+            endType: event.recurrence.config.endType,
+            endDate: event.recurrence.config.endDate ? 
+              dayjs(event.recurrence.config.endDate).format('YYYY-MM-DD') : null,
+            occurrences: event.recurrence.config.occurrences
+          }
         };
-      } else if (event.recurrence && event.recurrence.type === 'custom') {
-        recurrenceData = event.recurrence as RecurrenceConfig;
       } else {
-        recurrenceData = {
-          type: 'none'
-        };
+        recurrenceData = { type: 'none' };
       }
+
+      console.log('📅 Final recurrence being sent:', JSON.stringify(recurrenceData, null, 2));
       
       const backendEvent: UpdateEventInput = {
         id: parentId,
@@ -210,12 +228,13 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
               .toISOString(),
         allDay: event.allDay,
         timezone: event.timezone,
-        recurrence: recurrenceData,
+        recurrence: recurrenceData as RecurrenceConfig,
         label: event.label,
         guests: event.selectedGuest || event.guests,
         notification: event.notification || event.notificationSettings
       };
 
+      console.log('📤 Full update payload:', JSON.stringify(backendEvent, null, 2));
       await updateEventMutation(backendEvent).unwrap();
       console.log('✅ Event updated successfully');
     } catch (error) {
@@ -224,7 +243,6 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     }
   }, [updateEventMutation]);
 
-  // ✅ Delete event - extract parent ID
   const removeEvent = useCallback(async (
     eventId: string, 
     deleteType: 'single' | 'thisAndFuture' | 'all' = 'all'

@@ -1,8 +1,8 @@
 // src/store/api/calendarApi.ts - FIXED PUBLIC HOLIDAY DATE PARSING
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import dayjs from 'dayjs';
-import type { 
-  CalendarEvent, 
+import type {
+  CalendarEvent,
   EventLabel,
   CreateEventInput,
   UpdateEventInput,
@@ -22,21 +22,21 @@ import type {
  */
 function transformBackendEvent(backendEvent: any): CalendarEvent {
   const startTime = dayjs(backendEvent.start_time);
-  
+
   return {
     // IDs
     id: backendEvent.id,
     eventId: backendEvent.id,
     userId: backendEvent.user_id,
-    
+
     // Core Details
     title: backendEvent.title,
     event: backendEvent.title,
     description: backendEvent.description,
     location: backendEvent.location,
-    
+
     // Timing - CRITICAL FIX
-    startTime: backendEvent.all_day 
+    startTime: backendEvent.all_day
       ? startTime.format('HH:mm')
       : startTime.format('HH:mm'),
     endTime: backendEvent.all_day
@@ -45,7 +45,7 @@ function transformBackendEvent(backendEvent: any): CalendarEvent {
     day: startTime.valueOf(), // ✅ UNIX TIMESTAMP for filtering
     allDay: backendEvent.all_day,
     timezone: backendEvent.timezone,
-    
+
     // Recurrence
     recurrenceType: backendEvent.recurrence_type || 'none',
     recurrence: {
@@ -55,21 +55,21 @@ function transformBackendEvent(backendEvent: any): CalendarEvent {
     recurrenceConfig: backendEvent.recurrence_config,
     parentEventId: backendEvent.parent_event_id,
     isRecurringParent: backendEvent.is_recurring_parent,
-    
+
     // Visual
     label: backendEvent.label as EventLabel,
-    
+
     // Notifications
     notificationSettings: backendEvent.notification_settings || { type: 'Snooze', interval: null },
     notification: backendEvent.notification_settings || { type: 'Snooze', interval: null },
-    
+
     // Guests
     guests: backendEvent.event_guests || backendEvent.guests || [],
     selectedGuest: backendEvent.event_guests || backendEvent.guests || [],
-    
+
     // Status
     status: backendEvent.status || 'active',
-    
+
     // Metadata
     createdAt: backendEvent.created_at,
     updatedAt: backendEvent.updated_at,
@@ -84,7 +84,7 @@ function transformBackendEvent(backendEvent: any): CalendarEvent {
 function transformPublicHoliday(holiday: any): CalendarEvent {
   // ✅ CRITICAL FIX: Read holiday_date (snake_case) from backend response
   const holidayDate = dayjs(holiday.holiday_date || holiday.holidayDate);
-  
+
   return {
     id: `holiday_${holiday.id}`,
     eventId: `holiday_${holiday.id}`,
@@ -127,9 +127,9 @@ export const calendarApi = createApi({
   refetchOnMountOrArgChange: 30, // ⚡ Refetch if data is 30s+ old
   refetchOnFocus: true, // ✅ ALWAYS sync when returning to tab (catch partner updates)
   refetchOnReconnect: true, // ✅ Sync on internet reconnect
-  
+
   endpoints: (builder) => ({
-    
+
     // ============================================
     // GET EVENTS - OPTIMIZED
     // ============================================
@@ -143,7 +143,7 @@ export const calendarApi = createApi({
       transformResponse: (response: any): CalendarEventsResponse => {
         const transformedUserEvents = (response.data?.userEvents || []).map(transformBackendEvent);
         const transformedHolidays = (response.data?.publicHolidays || []).map(transformPublicHoliday);
-        
+
         return {
           success: response.success,
           data: {
@@ -159,11 +159,16 @@ export const calendarApi = createApi({
     // CREATE EVENT - OPTIMISTIC UPDATE
     // ============================================
     createEvent: builder.mutation<CalendarEvent, CreateEventInput>({
-      query: (data) => ({
-        url: '/events',
-        method: 'POST',
-        body: data
-      }),
+      query: (data) => {
+        console.log('🚀 calendarApi - About to send data:', JSON.stringify(data, null, 2));
+        console.log('🚀 calendarApi - recurrence field:', JSON.stringify(data.recurrence, null, 2));
+
+        return {
+          url: '/events',
+          method: 'POST',
+          body: data
+        };
+      },
       async onQueryStarted(newEvent, { dispatch, queryFulfilled }) {
         // ⚡ OPTIMISTIC: Show event immediately
         const patchResult = dispatch(
@@ -183,7 +188,7 @@ export const calendarApi = createApi({
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               });
-              
+
               draft.data.userEvents.push(tempEvent);
             }
           })
@@ -215,7 +220,7 @@ export const calendarApi = createApi({
               const eventIndex = draft.data.userEvents.findIndex(
                 evt => evt.id === id || evt.eventId === id
               );
-              
+
               if (eventIndex !== -1) {
                 const currentEvent = draft.data.userEvents[eventIndex];
                 draft.data.userEvents[eventIndex] = {

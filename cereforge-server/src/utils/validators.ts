@@ -126,27 +126,41 @@ export function validate<T>(schema: z.ZodSchema<T>) {
 }
 
 /**
- * Recurrence Configuration Schema
+ * Custom Recurrence Config Schema (nested)
  */
-const recurrenceConfigSchema = z.object({
-  type: z.enum(['none', 'daily', 'weekly', 'monthly', 'annually', 'weekdays', 'custom']),
-  interval: z.number().min(1).max(365).optional(),
-  daysOfWeek: z.array(z.number().min(0).max(6)).optional(),
-  endType: z.enum(['never', 'on', 'after']).optional(),
-  endDate: z.string().datetime().optional(),
-  occurrences: z.number().min(1).max(1000).optional()
-}).refine((data) => {
-  // If endType is 'on', endDate is required
-  if (data.endType === 'on' && !data.endDate) {
-    return false;
-  }
-  // If endType is 'after', occurrences is required
-  if (data.endType === 'after' && !data.occurrences) {
-    return false;
+const customRecurrenceInnerSchema = z.object({
+  type: z.literal('custom'),
+  interval: z.number().min(1).max(365),
+  repeatUnit: z.enum(['day', 'week', 'month', 'year']),
+  daysOfWeek: z.array(z.number().min(0).max(6)),
+  endType: z.enum(['never', 'on', 'after']),
+  endDate: z.string().nullable(),
+  occurrences: z.number().min(1).max(1000).nullable()
+});
+
+/**
+ * Recurrence Configuration Schema (FIXED)
+ */
+const recurrenceConfigSchema = z.union([
+  // Simple recurrence types
+  z.object({
+    type: z.enum(['none', 'daily', 'weekly', 'monthly', 'annually', 'weekdays'])
+  }),
+  // Custom recurrence with nested config
+  z.object({
+    type: z.literal('custom'),
+    config: customRecurrenceInnerSchema
+  })
+]).refine((data) => {
+  // Validation only applies to custom type
+  if (data.type === 'custom' && 'config' in data) {
+    const config = data.config;
+    if (config.endType === 'on' && !config.endDate) return false;
+    if (config.endType === 'after' && !config.occurrences) return false;
   }
   return true;
 }, {
-  message: 'Invalid recurrence configuration'
+  message: 'Invalid custom recurrence configuration'
 });
 
 /**

@@ -14,6 +14,8 @@ import { CalendarEvent, RecurrenceConfig, RecurringEventInstance } from '../type
  * ✅ FIXED: Generate recurring event instances within a date range
  * Now properly respects occurrence limits and end dates
  */
+// REPLACE the generateRecurringInstances function in recurrenece.ts with this:
+
 export function generateRecurringInstances(
   parentEvent: CalendarEvent,
   rangeStart: Date,
@@ -23,12 +25,35 @@ export function generateRecurringInstances(
     return [];
   }
 
-  const instances: RecurringEventInstance[] = [];
-  const config = parentEvent.recurrence_config as RecurrenceConfig;
+  console.log('🔄 Generating recurring instances for event:', parentEvent.id);
+  console.log('🔄 Recurrence config from DB:', JSON.stringify(parentEvent.recurrence_config, null, 2));
 
-  // ✅ Calculate max occurrences
+  const instances: RecurringEventInstance[] = [];
+  const config = parentEvent.recurrence_config;
+
+  // ✅ SAFETY CHECK: If config is null or invalid, return empty array
+  if (!config || typeof config !== 'object') {
+    console.warn('⚠️ Invalid recurrence_config, skipping instance generation');
+    return [];
+  }
+
+  // ✅ Extract values with fallbacks
+  const configType = config.type || parentEvent.recurrence_type || 'daily';
   const maxOccurrences = config.occurrences || 500;
-  const maxIterations = 1000; // Safety limit
+  const maxIterations = 1000;
+  const interval = config.interval || 1;
+  const endType = config.endType || 'never';
+  const repeatUnit = config.repeatUnit || 'day';
+  const daysOfWeek = config.daysOfWeek || [];
+
+  console.log('✅ Parsed config:', {
+    type: configType,
+    interval,
+    repeatUnit,
+    maxOccurrences,
+    endType,
+    daysOfWeek
+  });
 
   let currentDate = dayjs(parentEvent.start_time).utc();
   const endLimit = dayjs(rangeEnd).utc();
@@ -36,7 +61,7 @@ export function generateRecurringInstances(
 
   // ✅ Check end date limit
   let endDateLimit: Dayjs | null = null;
-  if (config.endType === 'on' && config.endDate) {
+  if (endType === 'on' && config.endDate) {
     endDateLimit = dayjs(config.endDate).utc();
   }
 
@@ -49,7 +74,7 @@ export function generateRecurringInstances(
     iterationCount++;
 
     // ✅ Stop if we've hit occurrence limit
-    if (config.endType === 'after' && count >= maxOccurrences) {
+    if (endType === 'after' && count >= maxOccurrences) {
       console.log(`✅ Stopped at occurrence limit: ${maxOccurrences}`);
       break;
     }
@@ -82,8 +107,16 @@ export function generateRecurringInstances(
 
     count++;
 
-    // ✅ Calculate next occurrence
-    currentDate = getNextOccurrence(currentDate, config);
+    // ✅ Calculate next occurrence - pass the full config object
+    currentDate = getNextOccurrence(currentDate, {
+      type: configType,
+      interval,
+      repeatUnit,
+      daysOfWeek,
+      endType,
+      endDate: config.endDate,
+      occurrences: config.occurrences
+    } as any);
   }
 
   console.log(`✅ Generated ${instances.length} instances (total count: ${count}, iterations: ${iterationCount})`);
@@ -93,10 +126,11 @@ export function generateRecurringInstances(
 /**
  * ✅ Calculate next occurrence based on recurrence type
  */
-function getNextOccurrence(current: Dayjs, config: RecurrenceConfig): Dayjs {
+function getNextOccurrence(current: Dayjs, config: any): Dayjs {
   const interval = config.interval || 1;
+  const type = config.type || 'daily';
 
-  switch (config.type) {
+  switch (type) {
     case 'daily':
       return current.add(interval, 'day');
 
@@ -118,15 +152,15 @@ function getNextOccurrence(current: Dayjs, config: RecurrenceConfig): Dayjs {
     }
 
     case 'custom': {
-      // ✅ FIXED: Custom recurrence with repeatUnit
-      const repeatUnit = (config as any).repeatUnit || 'day';
+      const repeatUnit = config.repeatUnit || 'day';
+      const daysOfWeek = config.daysOfWeek || [];
       
       // If it's weekly custom with specific days
-      if (repeatUnit === 'week' && config.daysOfWeek && config.daysOfWeek.length > 0) {
+      if (repeatUnit === 'week' && daysOfWeek.length > 0) {
         let next = current.add(1, 'day');
         let maxDays = 7;
 
-        while (!config.daysOfWeek.includes(next.day()) && maxDays > 0) {
+        while (!daysOfWeek.includes(next.day()) && maxDays > 0) {
           next = next.add(1, 'day');
           maxDays--;
         }
