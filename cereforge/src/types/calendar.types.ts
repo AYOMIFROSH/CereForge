@@ -1,4 +1,4 @@
-// src/types/calendar.types.ts - FIXED & UNIFIED
+// src/types/calendar.types.ts - FIXED RECURRENCE TYPES
 import { Dayjs } from 'dayjs';
 
 // ============================================
@@ -25,15 +25,21 @@ export interface NotificationSettings {
   country?: string;
 }
 
-export interface RecurrenceConfig {
-  type: RecurrenceType;
-  interval?: number;
-  daysOfWeek?: number[];
-  endType?: 'never' | 'on' | 'after';
-  endDate?: string | Date;
-  occurrences?: number;
-  config?: any; // ✅ Added for backend compatibility
+// ✅ FIXED: Custom recurrence config structure
+export interface CustomRecurrenceConfig {
+  type: 'custom';
+  interval: number;
+  repeatUnit: 'day' | 'week' | 'month' | 'year';
+  daysOfWeek: number[];
+  endType: 'never' | 'on' | 'after';
+  endDate: Date | null;
+  occurrences: number | null;
 }
+
+// ✅ FIXED: Recurrence can be either a simple type OR a custom config object
+export type RecurrenceConfig = 
+  | { type: Exclude<RecurrenceType, 'custom'>; config?: never }
+  | { type: 'custom'; config: CustomRecurrenceConfig };
 
 // ============================================
 // MAIN CALENDAR EVENT (Frontend Normalized)
@@ -58,9 +64,9 @@ export interface CalendarEvent {
   allDay: boolean;
   timezone: string;
   
-  // Recurrence
+  // Recurrence - ✅ FIXED: Can be string OR structured object
   recurrenceType?: RecurrenceType;
-  recurrence?: RecurrenceConfig;
+  recurrence?: RecurrenceType | RecurrenceConfig;
   recurrenceConfig?: any;
   parentEventId?: string | null;
   isRecurringParent?: boolean;
@@ -102,10 +108,7 @@ export interface CreateEventInput {
   endTime: string; // ISO 8601
   allDay: boolean;
   timezone: string;
-  recurrence: {
-    type: RecurrenceType;
-    config?: RecurrenceConfig;
-  };
+  recurrence: RecurrenceConfig;
   label: EventLabel;
   guests?: Guest[];
   sendInvitations?: boolean;
@@ -121,10 +124,7 @@ export interface UpdateEventInput {
   endTime?: string;
   allDay?: boolean;
   timezone?: string;
-  recurrence?: {
-    type: RecurrenceType;
-    config?: RecurrenceConfig;
-  };
+  recurrence?: RecurrenceConfig;
   label?: EventLabel;
   guests?: Guest[];
   notification?: NotificationSettings;
@@ -224,5 +224,5 @@ export const LABEL_CLASSES: Record<EventLabel, string> = {
   green: 'bg-green-500',
   blue: 'bg-blue-500',
   red: 'bg-red-500',
-  purple: 'bg-purple-500'
+  purple: 'bg-purple-500',
 };

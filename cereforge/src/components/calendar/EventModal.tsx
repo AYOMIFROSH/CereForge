@@ -1,23 +1,16 @@
-// src/components/calendar/EventModal.tsx - WITH GUEST MANAGEMENT
+// src/components/calendar/EventModal.tsx - FIXED TYPES
 import React, { useState } from 'react';
 import { X, Calendar, Clock, MapPin, FileText, Users, Bell, Trash2, Save, Repeat, Globe, Mail, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
 import CustomRecurrenceModal from './CustomRecurrenceModal';
-import type { CalendarEvent, RecurrenceType, EventLabel, Guest } from '@/types/calendar.types';
-
-interface RecurrenceCustom {
-  type: 'custom';
-  label: string;
-  repeatEvery: number;
-  repeatUnit: 'day' | 'week' | 'month' | 'year';
-  repeatOn: number[];
-  end: {
-    type: 'never' | 'on' | 'after';
-    date: Date | null;
-    occurrences: number | null;
-  };
-}
+import type { 
+  CalendarEvent, 
+  RecurrenceType, 
+  RecurrenceConfig, 
+  EventLabel, 
+  Guest 
+} from '@/types/calendar.types';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -45,11 +38,17 @@ const EventModal: React.FC<EventModalProps> = ({
   const [endTime, setEndTime] = useState(selectedEvent?.endTime || '10:00');
   const [selectedLabel, setSelectedLabel] = useState<EventLabel>(selectedEvent?.label || 'blue');
 
-  // ✅ FIXED: Handle recurrence initialization properly
-  const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceCustom>(() => {
+  // ✅ FIXED: Recurrence state with proper type
+  const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(() => {
     if (!selectedEvent?.recurrence) return 'none';
-    if (typeof selectedEvent.recurrence === 'string') return selectedEvent.recurrence;
-    return selectedEvent.recurrence.type || 'none';
+    
+    // If it's already a string, return it
+    if (typeof selectedEvent.recurrence === 'string') {
+      return selectedEvent.recurrence;
+    }
+    
+    // If it's an object, return the whole object
+    return selectedEvent.recurrence;
   });
 
   const [timezone] = useState(selectedEvent?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -124,15 +123,15 @@ const EventModal: React.FC<EventModalProps> = ({
     }
   };
 
-  const handleCustomRecurrenceSave = (customRecurrence: RecurrenceCustom) => {
+  const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
+    console.log('📥 EventModal: Received custom recurrence:', customRecurrence);
     setRecurrence(customRecurrence);
   };
 
-  // ✅ Save with guest confirmation (as per PDF)
+  // ✅ Save with guest confirmation
   const handleSubmit = () => {
     if (!event.trim()) return;
 
-    // ✅ Show guest confirmation if guests added
     if (guests.length > 0 && !selectedEvent) {
       setShowGuestConfirm(true);
       return;
@@ -141,78 +140,44 @@ const EventModal: React.FC<EventModalProps> = ({
     saveEvent(false);
   };
 
-  // src/components/calendar/EventModal.tsx - FIXED CUSTOM RECURRENCE SAVING
-// Find the handleSaveEvent function and update it:
-
-const saveEvent = (sendInvites: boolean) => {
-  // ✅ FIXED: Properly structure recurrence data for backend
-  let recurrenceData: any;
-  
-  if (typeof recurrence === 'string') {
-    // Simple recurrence types
-    recurrenceData = {
-      type: recurrence,
-      config: undefined
-    };
-  } else if (recurrence.type === 'custom') {
-    // ✅ Custom recurrence - send full config
-    recurrenceData = {
-      type: 'custom',
-      config: {
-        type: 'custom',
-        interval: recurrence.repeatEvery,
-        repeatUnit: recurrence.repeatUnit, // ✅ NEW: Send repeat unit
-        daysOfWeek: recurrence.repeatOn || [], // ✅ Days of week for weekly custom
-        endType: recurrence.end.type,
-        endDate: recurrence.end.date ? dayjs(recurrence.end.date).toISOString() : null,
-        occurrences: recurrence.end.occurrences || null
+  const saveEvent = (sendInvites: boolean) => {
+    const eventData: CalendarEvent = {
+      id: selectedEvent?.id || selectedEvent?.eventId || `event_${Date.now()}`,
+      eventId: selectedEvent?.eventId || `event_${Date.now()}`,
+      title: event,
+      event: event,
+      description,
+      location,
+      day: daySelected.valueOf(),
+      allDay,
+      startTime: allDay ? '00:00' : startTime,
+      endTime: allDay ? '23:59' : endTime,
+      label: selectedLabel,
+      timezone,
+      recurrence: recurrence, // ✅ Pass as-is (string or object)
+      guests: guests,
+      selectedGuest: guests,
+      userId: selectedEvent?.userId,
+      notification: {
+        type: notificationType,
+        interval: notificationType === 'Snooze' ? null : notificationInterval,
+        timeUnit: notificationType === 'Snooze' ? null : 'Minute'
+      },
+      notificationSettings: {
+        type: notificationType,
+        interval: notificationType === 'Snooze' ? null : notificationInterval,
+        timeUnit: notificationType === 'Snooze' ? null : 'Minute'
       }
     };
-  } else {
-    recurrenceData = {
-      type: 'none',
-      config: undefined
-    };
-  }
 
-  const eventData: CalendarEvent = {
-    id: selectedEvent?.id || selectedEvent?.eventId || `event_${Date.now()}`,
-    eventId: selectedEvent?.eventId || `event_${Date.now()}`,
-    title: event,
-    event: event,
-    description,
-    location,
-    day: daySelected.valueOf(),
-    allDay,
-    startTime: allDay ? '00:00' : startTime,
-    endTime: allDay ? '23:59' : endTime,
-    label: selectedLabel,
-    timezone,
-    recurrence: recurrenceData, // ✅ Use structured recurrence
-    guests: guests,
-    selectedGuest: guests,
-    userId: selectedEvent?.userId,
-    notification: {
-      type: notificationType,
-      interval: notificationType === 'Snooze' ? null : notificationInterval,
-      timeUnit: notificationType === 'Snooze' ? null : 'Minute'
-    },
-    notificationSettings: {
-      type: notificationType,
-      interval: notificationType === 'Snooze' ? null : notificationInterval,
-      timeUnit: notificationType === 'Snooze' ? null : 'Minute'
-    }
+    (eventData as any).sendInvitations = sendInvites;
+
+    console.log('💾 EventModal: Final event data being saved:', eventData);
+
+    onSave(eventData);
+    setShowGuestConfirm(false);
+    onClose();
   };
-
-  // ✅ Add sendInvitations flag for backend
-  (eventData as any).sendInvitations = sendInvites;
-
-  console.log('💾 Saving event with recurrence:', recurrenceData); // ✅ Debug log
-
-  onSave(eventData);
-  setShowGuestConfirm(false);
-  onClose();
-};
 
   const handleDelete = () => {
     if (selectedEvent && onDelete) {
@@ -360,12 +325,20 @@ const saveEvent = (sendInvites: boolean) => {
                   Repeat
                 </label>
 
-                {typeof recurrence !== 'string' && recurrence.type === 'custom' ? (
+                {typeof recurrence === 'object' && recurrence.type === 'custom' ? (
+                  // ✅ Custom recurrence display
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-bold text-gray-900 mb-1">Custom Recurrence</p>
-                        <p className="text-sm text-gray-700">{recurrence.label}</p>
+                        <p className="text-sm text-gray-700">
+                          Every {recurrence.config.interval} {recurrence.config.repeatUnit}
+                          {recurrence.config.repeatUnit === 'week' && recurrence.config.daysOfWeek.length > 0 && (
+                            <> on {recurrence.config.daysOfWeek.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')}</>
+                          )}
+                          {recurrence.config.endType === 'after' && <>, {recurrence.config.occurrences} times</>}
+                          {recurrence.config.endType === 'on' && <>, until {dayjs(recurrence.config.endDate).format('MMM D, YYYY')}</>}
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -377,6 +350,7 @@ const saveEvent = (sendInvites: boolean) => {
                     </div>
                   </div>
                 ) : (
+                  // ✅ Simple recurrence dropdown
                   <select
                     value={typeof recurrence === 'string' ? recurrence : 'custom'}
                     onChange={(e) => handleRecurrenceChange(e.target.value)}
@@ -421,7 +395,7 @@ const saveEvent = (sendInvites: boolean) => {
                 />
               </div>
 
-              {/* ✅ GUEST MANAGEMENT (AS PER PDF) */}
+              {/* Guest Management */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   <Users className="w-4 h-4 inline mr-1" />
@@ -558,7 +532,7 @@ const saveEvent = (sendInvites: boolean) => {
             </div>
           </div>
 
-          {/* ✅ GUEST CONFIRMATION MODAL (AS PER PDF SECTION 6.1) */}
+          {/* Guest Confirmation Modal */}
           <AnimatePresence>
             {showGuestConfirm && (
               <motion.div
@@ -658,7 +632,7 @@ const saveEvent = (sendInvites: boolean) => {
         isOpen={showCustomRecurrence}
         onClose={() => setShowCustomRecurrence(false)}
         onSave={handleCustomRecurrenceSave}
-        initialRecurrence={typeof recurrence !== 'string' ? recurrence : null}
+        initialRecurrence={typeof recurrence === 'object' && recurrence.type === 'custom' ? recurrence : null}
         eventStartDate={daySelected}
       />
     </AnimatePresence>

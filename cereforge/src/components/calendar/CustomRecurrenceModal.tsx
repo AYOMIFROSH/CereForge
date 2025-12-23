@@ -1,26 +1,15 @@
+// src/components/calendar/CustomRecurrenceModal.tsx - FIXED TYPES
 import React, { useState } from 'react';
 import { X, Calendar, Repeat, ChevronDown, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
-
-interface RecurrenceCustom {
-  type: 'custom';
-  label: string;
-  repeatEvery: number;
-  repeatUnit: 'day' | 'week' | 'month' | 'year';
-  repeatOn: number[]; // Days of week (0-6) for weekly recurrence
-  end: {
-    type: 'never' | 'on' | 'after';
-    date: Date | null;
-    occurrences: number | null;
-  };
-}
+import type { RecurrenceConfig } from '@/types/calendar.types';
 
 interface CustomRecurrenceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (recurrence: RecurrenceCustom) => void;
-  initialRecurrence?: RecurrenceCustom | null;
+  onSave: (recurrence: RecurrenceConfig) => void;
+  initialRecurrence?: RecurrenceConfig | null;
   eventStartDate: Dayjs;
 }
 
@@ -31,23 +20,32 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
   initialRecurrence,
   eventStartDate
 }) => {
-  const [repeatEvery, setRepeatEvery] = useState<number>(initialRecurrence?.repeatEvery || 1);
+  const [repeatEvery, setRepeatEvery] = useState<number>(
+    initialRecurrence?.type === 'custom' ? initialRecurrence.config.interval : 1
+  );
+
   const [repeatUnit, setRepeatUnit] = useState<'day' | 'week' | 'month' | 'year'>(
-    initialRecurrence?.repeatUnit || 'week'
+    initialRecurrence?.type === 'custom' ? initialRecurrence.config.repeatUnit : 'week'
   );
+
   const [repeatOn, setRepeatOn] = useState<number[]>(
-    initialRecurrence?.repeatOn || [eventStartDate.day()]
+    initialRecurrence?.type === 'custom' ? initialRecurrence.config.daysOfWeek : [eventStartDate.day()]
   );
+
   const [endType, setEndType] = useState<'never' | 'on' | 'after'>(
-    initialRecurrence?.end.type || 'never'
+    initialRecurrence?.type === 'custom' ? initialRecurrence.config.endType : 'never'
   );
+
   const [endDate, setEndDate] = useState<string>(
-    initialRecurrence?.end.date 
-      ? dayjs(initialRecurrence.end.date).format('YYYY-MM-DD')
+    initialRecurrence?.type === 'custom' && initialRecurrence.config.endDate
+      ? dayjs(initialRecurrence.config.endDate).format('YYYY-MM-DD')
       : dayjs().add(1, 'month').format('YYYY-MM-DD')
   );
+
   const [endOccurrences, setEndOccurrences] = useState<number>(
-    initialRecurrence?.end.occurrences || 10
+    initialRecurrence?.type === 'custom' && initialRecurrence.config.occurrences
+      ? initialRecurrence.config.occurrences
+      : 10
   );
 
   const weekDays = [
@@ -70,7 +68,6 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
   const toggleDayOfWeek = (day: number) => {
     setRepeatOn(prev => {
       if (prev.includes(day)) {
-        // Must have at least one day selected
         if (prev.length === 1) return prev;
         return prev.filter(d => d !== day);
       }
@@ -86,7 +83,6 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
 
     while (count < maxPreviews) {
       if (repeatUnit === 'week' && repeatOn.length > 0) {
-        // For weekly recurrence with specific days
         const daysToCheck = repeatOn.sort();
         for (const dayOfWeek of daysToCheck) {
           const nextDate = currentDate.day(dayOfWeek);
@@ -99,7 +95,6 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
         }
         currentDate = currentDate.add(repeatEvery, 'week');
       } else {
-        // For day/month/year recurrence
         if (count === 0) {
           previews.push(currentDate.format('ddd, MMM D, YYYY'));
         } else {
@@ -116,42 +111,43 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
   const generateLabel = (): string => {
     const unitLabel = repeatUnits.find(u => u.value === repeatUnit);
     const unitText = repeatEvery === 1 ? unitLabel?.singular : unitLabel?.plural;
-    
+
     let label = `Every ${repeatEvery > 1 ? repeatEvery + ' ' : ''}${unitText}`;
-    
+
     if (repeatUnit === 'week' && repeatOn.length > 0 && repeatOn.length < 7) {
       const dayNames = repeatOn.map(d => weekDays[d].label).join(', ');
       label += ` on ${dayNames}`;
     }
-    
+
     if (endType === 'on') {
       label += `, until ${dayjs(endDate).format('MMM D, YYYY')}`;
     } else if (endType === 'after') {
       label += `, ${endOccurrences} times`;
     }
-    
+
     return label;
   };
 
   const handleSave = () => {
-  const recurrence: RecurrenceCustom = {
-    type: 'custom',
-    label: generateLabel(),
-    repeatEvery,
-    repeatUnit, // ✅ This should already be here
-    repeatOn: repeatUnit === 'week' ? repeatOn : [],
-    end: {
-      type: endType,
-      date: endType === 'on' ? new Date(endDate) : null,
-      occurrences: endType === 'after' ? endOccurrences : null
-    }
+    // ✅ FIXED: Match exact type structure
+    const recurrence: RecurrenceConfig = {
+      type: 'custom',
+      config: {
+        type: 'custom',
+        interval: repeatEvery,
+        repeatUnit: repeatUnit,
+        daysOfWeek: repeatUnit === 'week' ? repeatOn : [],
+        endType: endType,
+        endDate: endType === 'on' ? new Date(endDate) : null,
+        occurrences: endType === 'after' ? endOccurrences : null
+      }
+    };
+
+    console.log('✅ CustomRecurrenceModal: Saving recurrence:', JSON.stringify(recurrence, null, 2));
+
+    onSave(recurrence);
+    onClose();
   };
-  
-  console.log('✅ Custom recurrence saved:', recurrence); // ✅ Debug log
-  
-  onSave(recurrence);
-  onClose();
-};
 
   if (!isOpen) return null;
 
@@ -236,11 +232,10 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
                       whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => toggleDayOfWeek(day.value)}
-                      className={`flex-1 aspect-square rounded-xl font-bold text-sm transition-all ${
-                        repeatOn.includes(day.value)
-                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+                      className={`flex-1 aspect-square rounded-xl font-bold text-sm transition-all ${repeatOn.includes(day.value)
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
                       title={day.full}
                     >
                       {day.label}
@@ -266,11 +261,10 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
               {/* Never */}
               <motion.label
                 whileHover={{ x: 4 }}
-                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${
-                  endType === 'never'
-                    ? 'bg-blue-50 border-2 border-blue-500'
-                    : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
-                }`}
+                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${endType === 'never'
+                  ? 'bg-blue-50 border-2 border-blue-500'
+                  : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 <input
                   type="radio"
@@ -285,11 +279,10 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
               {/* On Date */}
               <motion.label
                 whileHover={{ x: 4 }}
-                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${
-                  endType === 'on'
-                    ? 'bg-blue-50 border-2 border-blue-500'
-                    : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
-                }`}
+                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${endType === 'on'
+                  ? 'bg-blue-50 border-2 border-blue-500'
+                  : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 <input
                   type="radio"
@@ -315,11 +308,10 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
               {/* After N Occurrences */}
               <motion.label
                 whileHover={{ x: 4 }}
-                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${
-                  endType === 'after'
-                    ? 'bg-blue-50 border-2 border-blue-500'
-                    : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
-                }`}
+                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${endType === 'after'
+                  ? 'bg-blue-50 border-2 border-blue-500'
+                  : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 <input
                   type="radio"
