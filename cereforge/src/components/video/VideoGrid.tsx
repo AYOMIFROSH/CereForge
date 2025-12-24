@@ -1,4 +1,4 @@
-// src/components/video/VideoGrid.tsx - FIXED: Smart sidebar logic for single user
+// src/components/video/VideoGrid.tsx - ENHANCED: Smart spacing for floating controls
 import React, { useMemo, useEffect, useState } from 'react';
 import ParticipantTile from './ParticipantTile';
 import { Participant, GridLayout } from '@/types/video.types';
@@ -41,26 +41,12 @@ const VideoGrid: React.FC<VideoGridProps> = ({
     
     const cameraOnUsers = visible.filter(p => !p.isCameraOff);
 
-    // ✅ FIXED: Sidebar only when there are OTHER participants to show
-    // Single user scenarios:
-    // - 1 person + screen share (no camera) → Full screen (no sidebar)
-    // - 1 person + camera (no screen) → Grid layout (no sidebar)
-    // - 1 person + screen + camera → Focus layout (sidebar: camera, main: screen)
-    
-    // Multiple user scenarios:
-    // - 2+ people + screen share → Focus layout (sidebar: others, main: screen)
-    // - 2+ people + multiple cameras → Focus layout (sidebar: others, main: speaker)
-
     const shouldUseFocusLayout = 
-      (screenShareUser && count > 1) ||  // Screen share + other participants exist
-      (cameraOnUsers.length > 1) ||     // Multiple cameras on
-      (screenShareUser && !screenShareUser.isCameraOff && count === 1); // Single user: screen + camera both on
+      (screenShareUser && count > 1) ||
+      (cameraOnUsers.length > 1) ||
+      (screenShareUser && !screenShareUser.isCameraOff && count === 1);
 
     if (!shouldUseFocusLayout) {
-      // ✅ Grid layout for:
-      // - Single user with camera only
-      // - Single user with screen share only (no camera)
-      // - Multiple users all cameras off
       let layout: GridLayout;
       let gridClass: string;
 
@@ -87,8 +73,6 @@ const VideoGrid: React.FC<VideoGridProps> = ({
         gridClass = 'grid-cols-6';
       }
 
-      // ✅ For single user with screen share only (no camera):
-      // Show screen in grid layout (full screen, no sidebar)
       const tilesToShow = screenShareUser && count === 1 && screenShareUser.isCameraOff
         ? [{ ...screenShareUser, __tileType: 'screen' } as any]
         : visible;
@@ -104,7 +88,6 @@ const VideoGrid: React.FC<VideoGridProps> = ({
       };
     }
 
-    // ✅ Focus layout logic (sidebar + large view)
     let focused: Participant | undefined;
     let focusType: FocusType = 'screen';
 
@@ -134,19 +117,13 @@ const VideoGrid: React.FC<VideoGridProps> = ({
       
       if (isScreenShareUserFocused) {
         if (focusType === 'screen') {
-          // Main view: screen share
-          // Sidebar: camera (if on)
           if (!screenShareUser.isCameraOff) {
             sidebar.push({ ...screenShareUser, __tileType: 'camera' } as any);
           }
         } else {
-          // Main view: camera
-          // Sidebar: screen share
           sidebar.push({ ...screenShareUser, __tileType: 'screen' } as any);
         }
       } else {
-        // Someone else is focused
-        // Sidebar: screen share + camera (if on)
         sidebar.push({ ...screenShareUser, __tileType: 'screen' } as any);
         if (!screenShareUser.isCameraOff) {
           sidebar.push({ ...screenShareUser, __tileType: 'camera' } as any);
@@ -154,7 +131,6 @@ const VideoGrid: React.FC<VideoGridProps> = ({
       }
     }
     
-    // Add other participants to sidebar
     const otherParticipants = visible.filter(p => 
       p.id !== focused?.id && p.id !== screenShareUser?.id
     );
@@ -201,36 +177,42 @@ const VideoGrid: React.FC<VideoGridProps> = ({
     setManualFocusType(type);
   };
 
-  // ✅ Focused layout (sidebar + large view)
+  // ✅ ENHANCED: Focused layout with smart spacing
   if (hasFocusLayout && focusedParticipant) {
+    const hasSidebar = sidebarParticipants.length > 0;
+    
     return (
-      <div className="h-full flex gap-3 p-4">
-        {/* ✅ Only show sidebar if there are items to display */}
-        {sidebarParticipants.length > 0 && (
-          <div className="w-64 flex-shrink-0 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
-            {sidebarParticipants.map((participant) => {
-              const tileType = (participant as any).__tileType as FocusType;
-              const showScreen = tileType === 'screen';
-              const uniqueKey = `${participant.id}-${tileType}`;
-              
-              return (
-                <ParticipantTile
-                  key={uniqueKey}
-                  participant={participant}
-                  layout="grid-many"
-                  isScreenShare={showScreen}
-                  showScreenContent={showScreen}
-                  onExpand={() => onExpand(participant, showScreen)}
-                  onFocus={() => handleFocusChange(participant.id, tileType)}
-                  showFocusButton={true}
-                />
-              );
-            })}
+      <div className={`h-full flex gap-4 transition-all duration-300 ${
+        hasSidebar ? 'p-4 pb-24' : 'p-4 pb-6'
+      }`}>
+        {/* Sidebar with elegant styling */}
+        {hasSidebar && (
+          <div className="w-72 flex-shrink-0 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-600/50 scrollbar-track-transparent hover:scrollbar-thumb-gray-500/70 transition-all">
+            <div className="space-y-3 pr-1">
+              {sidebarParticipants.map((participant) => {
+                const tileType = (participant as any).__tileType as FocusType;
+                const showScreen = tileType === 'screen';
+                const uniqueKey = `${participant.id}-${tileType}`;
+                
+                return (
+                  <ParticipantTile
+                    key={uniqueKey}
+                    participant={participant}
+                    layout="grid-many"
+                    isScreenShare={showScreen}
+                    showScreenContent={showScreen}
+                    onExpand={() => onExpand(participant, showScreen)}
+                    onFocus={() => handleFocusChange(participant.id, tileType)}
+                    showFocusButton={true}
+                  />
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Main focus view */}
-        <div className="flex-1">
+        {/* Main focus view - Enhanced with gradient overlay */}
+        <div className="flex-1 relative overflow-hidden rounded-xl">
           <ParticipantTile
             participant={focusedParticipant}
             layout="grid-1"
@@ -241,22 +223,28 @@ const VideoGrid: React.FC<VideoGridProps> = ({
             onFocus={() => {}}
             showFocusButton={false}
           />
+          
+          {/* ✅ UNIQUE: Elegant gradient spacer for floating controls */}
+          {hasSidebar && (
+            <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent backdrop-blur-[1px] transition-opacity duration-300" />
+          )}
         </div>
       </div>
     );
   }
 
   // ✅ Grid layout (full width, no sidebar)
-  // ✅ Special handling for single user screen share (full viewport)
   const isSingleScreenShare = 
     visibleParticipants.length === 1 && 
     (visibleParticipants[0] as any).__tileType === 'screen';
 
   return (
-    <div className={`h-full p-4 overflow-y-auto ${
-      isSingleScreenShare ? 'flex items-center justify-center' : ''
+    <div className={`h-full transition-all duration-300 ${
+      isSingleScreenShare 
+        ? 'p-4 pb-24 flex items-center justify-center' 
+        : 'p-4 pb-6 overflow-y-auto'
     }`}>
-      <div className={`grid ${gridClass} gap-3 ${
+      <div className={`grid ${gridClass} gap-4 ${
         isSingleScreenShare ? 'h-full w-full' : 'auto-rows-max'
       }`}>
         {visibleParticipants.map(participant => {
