@@ -1,7 +1,8 @@
-// src/components/video/VideoGrid.tsx - ENHANCED: Smart spacing for floating controls
+// src/components/video/VideoGrid.tsx - UPDATED: Added expand button on main screen share
 import React, { useMemo, useEffect, useState } from 'react';
 import ParticipantTile from './ParticipantTile';
 import { Participant, GridLayout } from '@/types/video.types';
+import { Maximize2 } from 'lucide-react';
 
 interface VideoGridProps {
   participants: Participant[];
@@ -22,6 +23,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({
 }) => {
   const [manualFocusId, setManualFocusId] = useState<string | null>(null);
   const [manualFocusType, setManualFocusType] = useState<FocusType>('screen');
+  const [showExpandButton, setShowExpandButton] = useState(false);
 
   const { 
     visibleParticipants, 
@@ -177,15 +179,15 @@ const VideoGrid: React.FC<VideoGridProps> = ({
     setManualFocusType(type);
   };
 
-  // ✅ ENHANCED: Focused layout with smart spacing
+  // ✅ UPDATED: Added expand button on hover for main screen share
   if (hasFocusLayout && focusedParticipant) {
     const hasSidebar = sidebarParticipants.length > 0;
+    const isShowingScreenShare = focusedType === 'screen';
     
     return (
       <div className={`h-full flex gap-4 transition-all duration-300 ${
         hasSidebar ? 'p-4 pb-24' : 'p-4 pb-6'
       }`}>
-        {/* Sidebar with elegant styling */}
         {hasSidebar && (
           <div className="w-72 flex-shrink-0 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-600/50 scrollbar-track-transparent hover:scrollbar-thumb-gray-500/70 transition-all">
             <div className="space-y-3 pr-1">
@@ -211,29 +213,44 @@ const VideoGrid: React.FC<VideoGridProps> = ({
           </div>
         )}
 
-        {/* Main focus view - Enhanced with gradient overlay */}
-        <div className="flex-1 relative overflow-hidden rounded-xl">
+        <div 
+          className="flex-1 relative overflow-hidden rounded-xl group"
+          onMouseEnter={() => setShowExpandButton(true)}
+          onMouseLeave={() => setShowExpandButton(false)}
+        >
           <ParticipantTile
             participant={focusedParticipant}
             layout="grid-1"
             isFocused={true}
-            isScreenShare={focusedType === 'screen'}
-            showScreenContent={focusedType === 'screen'}
-            onExpand={() => onExpand(focusedParticipant, focusedType === 'screen')}
+            isScreenShare={isShowingScreenShare}
+            showScreenContent={isShowingScreenShare}
+            onExpand={() => onExpand(focusedParticipant, isShowingScreenShare)}
             onFocus={() => {}}
             showFocusButton={false}
           />
           
-          {/* ✅ UNIQUE: Elegant gradient spacer for floating controls */}
+          {/* ✅ NEW: Expand button on hover (only for screen share) */}
+          {isShowingScreenShare && showExpandButton && (
+            <button
+              onClick={() => onExpand(focusedParticipant, true)}
+              className="absolute top-4 right-4 z-30 w-12 h-12 bg-blue-600/90 hover:bg-blue-700 rounded-full flex items-center justify-center transition-all shadow-lg hover:scale-110 animate-in fade-in zoom-in-50 duration-200"
+              title="Expand to fullscreen"
+              aria-label="Expand screen share to fullscreen"
+            >
+              <Maximize2 className="w-6 h-6 text-white" />
+            </button>
+          )}
+          
+          {/* Gradient spacer for floating controls */}
           {hasSidebar && (
-            <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent backdrop-blur-[1px] transition-opacity duration-300" />
+            <div className="absolute bottom-0 left-0 right-0 h-28 pointer-events-none bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent backdrop-blur-[1px]" />
           )}
         </div>
       </div>
     );
   }
 
-  // ✅ Grid layout (full width, no sidebar)
+  // Grid layout
   const isSingleScreenShare = 
     visibleParticipants.length === 1 && 
     (visibleParticipants[0] as any).__tileType === 'screen';

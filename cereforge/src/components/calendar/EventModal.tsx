@@ -4,6 +4,8 @@ import { X, Calendar, Clock, MapPin, FileText, Users, Bell, Trash2, Save, Repeat
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
 import CustomRecurrenceModal from './CustomRecurrenceModal';
+import { ConfirmationModal } from './modals/ModalsUtils';
+import { AlertTriangle } from 'lucide-react';
 import type {
   CalendarEvent,
   RecurrenceType,
@@ -38,28 +40,31 @@ const EventModal: React.FC<EventModalProps> = ({
   const [endTime, setEndTime] = useState(selectedEvent?.endTime || '10:00');
   const [selectedLabel, setSelectedLabel] = useState<EventLabel>(selectedEvent?.label || 'blue');
 
+  const [showRecurringUpdateModal, setShowRecurringUpdateModal] = useState(false);
+  const [pendingUpdateData, setPendingUpdateData] = useState<CalendarEvent | null>(null);
+
   // ✅ FIXED: Recurrence state with proper type detection
-const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(() => {
-  if (!selectedEvent?.recurrence) return 'none';
-  
-  // If it's a string, return it directly
-  if (typeof selectedEvent.recurrence === 'string') {
-    return selectedEvent.recurrence;
-  }
-  
-  // If it's an object, check the type
-  if (typeof selectedEvent.recurrence === 'object' && selectedEvent.recurrence.type) {
-    // ✅ If it's a custom type with config, return the full object
-    if (selectedEvent.recurrence.type === 'custom' && selectedEvent.recurrence.config) {
-      return selectedEvent.recurrence as RecurrenceConfig;
+  const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(() => {
+    if (!selectedEvent?.recurrence) return 'none';
+
+    // If it's a string, return it directly
+    if (typeof selectedEvent.recurrence === 'string') {
+      return selectedEvent.recurrence;
     }
-    
-    // ✅ If it's a simple type (daily, weekly, etc.), return just the type string
-    return selectedEvent.recurrence.type as RecurrenceType;
-  }
-  
-  return 'none';
-});
+
+    // If it's an object, check the type
+    if (typeof selectedEvent.recurrence === 'object' && selectedEvent.recurrence.type) {
+      // ✅ If it's a custom type with config, return the full object
+      if (selectedEvent.recurrence.type === 'custom' && selectedEvent.recurrence.config) {
+        return selectedEvent.recurrence as RecurrenceConfig;
+      }
+
+      // ✅ If it's a simple type (daily, weekly, etc.), return just the type string
+      return selectedEvent.recurrence.type as RecurrenceType;
+    }
+
+    return 'none';
+  });
 
   const [timezone] = useState(selectedEvent?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
@@ -151,14 +156,60 @@ const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(
   const handleSubmit = () => {
     if (!event.trim()) return;
 
+    // ✅ Check if editing a recurring event instance
+    const isRecurringInstance = selectedEvent && (
+      selectedEvent.isInstance ||
+      selectedEvent.parentEventId ||
+      (selectedEvent.recurrenceType && selectedEvent.recurrenceType !== 'none') ||
+      (selectedEvent.isRecurringParent)
+    );
+
+    // If editing a recurring event, show warning modal first
+    if (isRecurringInstance) {
+      const eventData: CalendarEvent = {
+        id: selectedEvent?.id || selectedEvent?.eventId || `event_${Date.now()}`,
+        eventId: selectedEvent?.eventId || `event_${Date.now()}`,
+        title: event,
+        event: event,
+        description,
+        location,
+        day: daySelected.valueOf(),
+        allDay,
+        startTime: allDay ? '00:00' : startTime,
+        endTime: allDay ? '23:59' : endTime,
+        label: selectedLabel,
+        timezone,
+        recurrence: recurrence,
+        guests: guests,
+        selectedGuest: guests,
+        userId: selectedEvent?.userId,
+        notification: {
+          type: notificationType,
+          interval: notificationType === 'Snooze' ? null : notificationInterval,
+          timeUnit: notificationType === 'Snooze' ? null : 'Minute'
+        },
+        notificationSettings: {
+          type: notificationType,
+          interval: notificationType === 'Snooze' ? null : notificationInterval,
+          timeUnit: notificationType === 'Snooze' ? null : 'Minute'
+        }
+      };
+
+      // Store the data and show warning modal
+      setPendingUpdateData(eventData);
+      setShowRecurringUpdateModal(true);
+      return; // ← Stop here, wait for user confirmation
+    }
+
+    // For new events with guests, show guest confirmation
     if (guests.length > 0 && !selectedEvent) {
       setShowGuestConfirm(true);
       return;
     }
 
+    // For regular events, save immediately
     saveEvent(false);
   };
-
   const saveEvent = (sendInvites: boolean) => {
     const eventData: CalendarEvent = {
       id: selectedEvent?.id || selectedEvent?.eventId || `event_${Date.now()}`,
@@ -664,6 +715,29 @@ const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(
         onSave={handleCustomRecurrenceSave}
         initialRecurrence={typeof recurrence === 'object' && recurrence.type === 'custom' ? recurrence : null}
         eventStartDate={daySelected}
+      />
+
+      {/* Recurring Event Update Warning Modal */}
+      <ConfirmationModal
+        isOpen={showRecurringUpdateModal}
+        onClose={() => {
+          setShowRecurringUpdateModal(false);
+          setPendingUpdateData(null);
+        }}
+        onConfirm={() => {
+          if (pendingUpdateData) {
+            onSave(pendingUpdateData);
+            setPendingUpdateData(null);
+            onClose();
+          }
+        }}
+        title="Update Recurring Event?"
+        message={`You're updating "${event}", which is part of a recurring series. All recurring events after this one will be removed, and this event will become a new parent with your updated settings.`}
+        icon={<AlertTriangle className="w-8 h-8 text-amber-600" />}
+        iconBgColor="bg-amber-100"
+        confirmText="Update Event"
+        confirmColor="bg-blue-600 hover:bg-blue-700"
+        cancelText="Cancel"
       />
     </AnimatePresence>
   );

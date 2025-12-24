@@ -71,11 +71,11 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   };
 
   const getPositionClass = () => {
-    if (isFocusedLayout) {
-      return 'left-[calc(50%+128px)]';
-    }
-    return 'left-1/2';
-  };
+  if (isFocusedLayout) {
+    return 'left-[calc(50%+144px)]'; // Adjusted for wider sidebar
+  }
+  return 'left-1/2';
+};
 
   const handleScreenShareClick = () => {
     if (screenShareInfo.canShare) {
