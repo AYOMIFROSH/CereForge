@@ -4,12 +4,12 @@ import { X, Calendar, Clock, MapPin, FileText, Users, Bell, Trash2, Save, Repeat
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
 import CustomRecurrenceModal from './CustomRecurrenceModal';
-import type { 
-  CalendarEvent, 
-  RecurrenceType, 
-  RecurrenceConfig, 
-  EventLabel, 
-  Guest 
+import type {
+  CalendarEvent,
+  RecurrenceType,
+  RecurrenceConfig,
+  EventLabel,
+  Guest
 } from '@/types/calendar.types';
 
 interface EventModalProps {
@@ -38,18 +38,28 @@ const EventModal: React.FC<EventModalProps> = ({
   const [endTime, setEndTime] = useState(selectedEvent?.endTime || '10:00');
   const [selectedLabel, setSelectedLabel] = useState<EventLabel>(selectedEvent?.label || 'blue');
 
-  // ✅ FIXED: Recurrence state with proper type
-  const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(() => {
-    if (!selectedEvent?.recurrence) return 'none';
-    
-    // If it's already a string, return it
-    if (typeof selectedEvent.recurrence === 'string') {
-      return selectedEvent.recurrence;
+  // ✅ FIXED: Recurrence state with proper type detection
+const [recurrence, setRecurrence] = useState<RecurrenceType | RecurrenceConfig>(() => {
+  if (!selectedEvent?.recurrence) return 'none';
+  
+  // If it's a string, return it directly
+  if (typeof selectedEvent.recurrence === 'string') {
+    return selectedEvent.recurrence;
+  }
+  
+  // If it's an object, check the type
+  if (typeof selectedEvent.recurrence === 'object' && selectedEvent.recurrence.type) {
+    // ✅ If it's a custom type with config, return the full object
+    if (selectedEvent.recurrence.type === 'custom' && selectedEvent.recurrence.config) {
+      return selectedEvent.recurrence as RecurrenceConfig;
     }
     
-    // If it's an object, return the whole object
-    return selectedEvent.recurrence;
-  });
+    // ✅ If it's a simple type (daily, weekly, etc.), return just the type string
+    return selectedEvent.recurrence.type as RecurrenceType;
+  }
+  
+  return 'none';
+});
 
   const [timezone] = useState(selectedEvent?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
@@ -122,20 +132,20 @@ const EventModal: React.FC<EventModalProps> = ({
       setRecurrence(value as RecurrenceType);
     }
   };
-const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
-  console.log('📥 EventModal: Received custom recurrence:', customRecurrence);
-  console.log('📥 EventModal: customRecurrence type:', typeof customRecurrence);
-  console.log('📥 EventModal: customRecurrence.type:', customRecurrence.type);
-  console.log('📥 EventModal: customRecurrence.config:', customRecurrence.config);
-  console.log('📥 EventModal: Full JSON:', JSON.stringify(customRecurrence, null, 2));
-  
-  setRecurrence(customRecurrence);
-  
-  // Verify state was set
-  setTimeout(() => {
-    console.log('✅ State after setRecurrence:', recurrence);
-  }, 100);
-};
+  const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
+    console.log('📥 EventModal: Received custom recurrence:', customRecurrence);
+    console.log('📥 EventModal: customRecurrence type:', typeof customRecurrence);
+    console.log('📥 EventModal: customRecurrence.type:', customRecurrence.type);
+    console.log('📥 EventModal: customRecurrence.config:', customRecurrence.config);
+    console.log('📥 EventModal: Full JSON:', JSON.stringify(customRecurrence, null, 2));
+
+    setRecurrence(customRecurrence);
+
+    // Verify state was set
+    setTimeout(() => {
+      console.log('✅ State after setRecurrence:', recurrence);
+    }, 100);
+  };
 
   // ✅ Save with guest confirmation
   const handleSubmit = () => {
@@ -335,10 +345,10 @@ const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
                 </label>
 
                 {typeof recurrence === 'object' && recurrence.type === 'custom' ? (
-                  // ✅ Custom recurrence display
+                  // ✅ Custom recurrence display with option to change
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex-1">
                         <p className="text-sm font-bold text-gray-900 mb-1">Custom Recurrence</p>
                         <p className="text-sm text-gray-700">
                           Every {recurrence.config.interval} {recurrence.config.repeatUnit}
@@ -349,17 +359,28 @@ const handleCustomRecurrenceSave = (customRecurrence: RecurrenceConfig) => {
                           {recurrence.config.endType === 'on' && <>, until {dayjs(recurrence.config.endDate).format('MMM D, YYYY')}</>}
                         </p>
                       </div>
+                    </div>
+
+                    {/* ✅ Action buttons */}
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-blue-200">
                       <button
                         type="button"
                         onClick={() => setShowCustomRecurrence(true)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
                       >
-                        Edit
+                        Edit Custom
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRecurrence('none')}
+                        className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-lg border-2 border-blue-200 transition-colors"
+                      >
+                        Change Type
                       </button>
                     </div>
                   </div>
                 ) : (
-                  // ✅ Simple recurrence dropdown
+                  // ✅ Simple recurrence dropdown (unchanged)
                   <select
                     value={typeof recurrence === 'string' ? recurrence : 'custom'}
                     onChange={(e) => handleRecurrenceChange(e.target.value)}
