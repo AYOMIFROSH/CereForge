@@ -40,6 +40,7 @@ const CalendarPage = () => {
   const [showHolidayModal, setShowHolidayModal] = useState(false); // ✅ NEW STATE
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentView, setCurrentView] = useState<CalendarView>('month');
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Server-connected hook
   const {
@@ -87,6 +88,20 @@ const CalendarPage = () => {
       }));
     }
   }, [error, dispatch]);
+
+  useEffect(() => {
+    setIsNavigating(true);
+
+    // The loading will be set to false automatically by the hook
+    // when events are fetched
+  }, [monthIndex]);
+
+  // Reset isNavigating when loading completes
+  useEffect(() => {
+    if (!loading) {
+      setIsNavigating(false);
+    }
+  }, [loading]);
 
   // Calculate week start for week view
   const weekStart = daySelected.startOf('week');
@@ -313,15 +328,15 @@ const CalendarPage = () => {
 
         {/* ✅ Unified Loading Toast - Handles ALL loading states */}
         <CalendarLoadingToast
-          isLoading={loading || isCreating || isUpdating || isDeleting}
-          isFetching={loading}
+          isLoading={isNavigating || loading || isCreating || isUpdating || isDeleting}
+          isFetching={isNavigating || loading}
           message={
             isCreating ? 'Creating event...' :
               isUpdating ? 'Updating event...' :
                 isDeleting ? 'Deleting event...' :
                   'Loading events...'
           }
-          delayMs={200} // Show faster for mutations (200ms vs 500ms)
+          delayMs={200}
         />
       </div>
 
