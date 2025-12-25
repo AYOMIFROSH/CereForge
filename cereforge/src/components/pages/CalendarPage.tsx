@@ -103,7 +103,7 @@ const CalendarPage = () => {
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setDaySelected(dayjs(event.day));
-    
+
     // ✅ Route to correct modal based on event type
     if (event.isPublicHoliday) {
       setShowHolidayModal(true);
@@ -273,8 +273,8 @@ const CalendarPage = () => {
           />
         )}
 
-        <CalendarLoadingToast 
-          isLoading={loading} 
+        <CalendarLoadingToast
+          isLoading={loading}
           isFetching={loading}
           delayMs={300}
         />
@@ -303,6 +303,7 @@ const CalendarPage = () => {
           setMonthIndex={setMonthIndex}
           currentView={currentView}
           onViewChange={setCurrentView}
+          isNavigating={loading} // ✅ PASS LOADING STATE
         />
 
         {/* Calendar View */}
@@ -310,18 +311,18 @@ const CalendarPage = () => {
           {renderView()}
         </div>
 
-            {/* ✅ Unified Loading Toast - Handles ALL loading states */}
-<CalendarLoadingToast 
-  isLoading={loading || isCreating || isUpdating || isDeleting} 
-  isFetching={loading}
-  message={
-    isCreating ? 'Creating event...' :
-    isUpdating ? 'Updating event...' :
-    isDeleting ? 'Deleting event...' :
-    'Loading events...'
-  }
-  delayMs={200} // Show faster for mutations (200ms vs 500ms)
-/>
+        {/* ✅ Unified Loading Toast - Handles ALL loading states */}
+        <CalendarLoadingToast
+          isLoading={loading || isCreating || isUpdating || isDeleting}
+          isFetching={loading}
+          message={
+            isCreating ? 'Creating event...' :
+              isUpdating ? 'Updating event...' :
+                isDeleting ? 'Deleting event...' :
+                  'Loading events...'
+          }
+          delayMs={200} // Show faster for mutations (200ms vs 500ms)
+        />
       </div>
 
       {/* ✅ Event Modal - Regular Events */}
