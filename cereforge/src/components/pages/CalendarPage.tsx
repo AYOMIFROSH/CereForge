@@ -336,7 +336,7 @@ const CalendarPage = () => {
                 isDeleting ? 'Deleting event...' :
                   'Loading events...'
           }
-          delayMs={200}
+          delayMs={isNavigating ? 0 : 200} // ✅ Instant for navigation, 200ms for mutations
         />
       </div>
 
