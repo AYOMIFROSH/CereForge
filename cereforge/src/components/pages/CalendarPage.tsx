@@ -40,7 +40,6 @@ const CalendarPage = () => {
   const [showHolidayModal, setShowHolidayModal] = useState(false); // ✅ NEW STATE
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [currentView, setCurrentView] = useState<CalendarView>('month');
-  const [isNavigating, setIsNavigating] = useState(false);
 
   // Server-connected hook
   const {
@@ -88,20 +87,6 @@ const CalendarPage = () => {
       }));
     }
   }, [error, dispatch]);
-
-  useEffect(() => {
-    setIsNavigating(true);
-
-    // The loading will be set to false automatically by the hook
-    // when events are fetched
-  }, [monthIndex]);
-
-  // Reset isNavigating when loading completes
-  useEffect(() => {
-    if (!loading) {
-      setIsNavigating(false);
-    }
-  }, [loading]);
 
   // Calculate week start for week view
   const weekStart = daySelected.startOf('week');
@@ -318,7 +303,7 @@ const CalendarPage = () => {
           setMonthIndex={setMonthIndex}
           currentView={currentView}
           onViewChange={setCurrentView}
-          isNavigating={isNavigating} // ✅ PASS LOADING STATE
+          isNavigating={loading} // ✅ PASS LOADING STATE
         />
 
         {/* Calendar View */}
@@ -328,15 +313,15 @@ const CalendarPage = () => {
 
         {/* ✅ Unified Loading Toast - Handles ALL loading states */}
         <CalendarLoadingToast
-          isLoading={isNavigating || loading || isCreating || isUpdating || isDeleting}
-          isFetching={isNavigating || loading}
+          isLoading={loading || isCreating || isUpdating || isDeleting}
+          isFetching={loading} 
           message={
             isCreating ? 'Creating event...' :
-              isUpdating ? 'Updating event...' :
-                isDeleting ? 'Deleting event...' :
-                  'Loading events...'
+            isUpdating ? 'Updating event...' :
+            isDeleting ? 'Deleting event...' :
+            'Loading events...'
           }
-          delayMs={isNavigating ? 0 : 200} // ✅ Instant for navigation, 200ms for mutations
+          delayMs={300} // ✅ Set back to 300ms so it doesn't flash on fast connections
         />
       </div>
 

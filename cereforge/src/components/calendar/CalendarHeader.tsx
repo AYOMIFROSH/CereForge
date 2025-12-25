@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, Video, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, ChevronDown, PhoneCall } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -142,8 +142,7 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
               onClick={() => setShowConsultation(true)}
               className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg font-semibold shadow-lg transition-all"
             >
-              <Video className="w-5 h-5" />
-              <span>Book Consultation</span>
+              <PhoneCall className="w-5 h-5" />
             </motion.button>
 
             {/* Calendar Icon (optional - for navigation) */}

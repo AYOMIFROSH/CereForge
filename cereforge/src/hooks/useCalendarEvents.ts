@@ -52,6 +52,7 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
   const { 
     data: eventsData, 
     isLoading: eventsLoading, 
+    isFetching,
     error: eventsError,
     refetch: refetchEvents
   } = useGetEventsQuery({
@@ -269,7 +270,7 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     events: filteredEvents,
     publicHolidays,
     allEvents,
-    loading: eventsLoading,
+    loading: eventsLoading || isFetching, 
     isCreating,
     isUpdating,
     isDeleting,
