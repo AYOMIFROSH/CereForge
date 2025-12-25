@@ -184,18 +184,6 @@ const CalendarPage = () => {
 
   // Render current view (Desktop only)
   const renderView = () => {
-    // Show loading state (initial load only)
-    if (loading && !allEvents.length) {
-      return (
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center">
-            <div className="inline-block w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
-            <p className="text-gray-600">Loading calendar...</p>
-          </div>
-        </div>
-      );
-    }
-
     switch (currentView) {
       case 'day':
         return (
@@ -322,25 +310,18 @@ const CalendarPage = () => {
           {renderView()}
         </div>
 
-        <CalendarLoadingToast 
-          isLoading={loading} 
-          isFetching={loading}
-          delayMs={300}
-        />
-
-        {/* Loading Overlay (for mutations - create/update/delete) */}
-        {(isCreating || isUpdating || isDeleting) && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 shadow-2xl flex items-center space-x-3">
-              <div className="w-6 h-6 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              <span className="text-gray-700 font-medium">
-                {isCreating && 'Creating event...'}
-                {isUpdating && 'Updating event...'}
-                {isDeleting && 'Deleting event...'}
-              </span>
-            </div>
-          </div>
-        )}
+            {/* ✅ Unified Loading Toast - Handles ALL loading states */}
+<CalendarLoadingToast 
+  isLoading={loading || isCreating || isUpdating || isDeleting} 
+  isFetching={loading}
+  message={
+    isCreating ? 'Creating event...' :
+    isUpdating ? 'Updating event...' :
+    isDeleting ? 'Deleting event...' :
+    'Loading events...'
+  }
+  delayMs={200} // Show faster for mutations (200ms vs 500ms)
+/>
       </div>
 
       {/* ✅ Event Modal - Regular Events */}

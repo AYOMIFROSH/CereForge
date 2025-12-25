@@ -6,7 +6,8 @@ import { Loader2 } from 'lucide-react';
 interface CalendarLoadingToastProps {
   isLoading: boolean;
   isFetching: boolean;
-  delayMs?: number; // Only show if loading takes longer than this
+  delayMs?: number;
+  message?: string;
 }
 
 /**
@@ -19,7 +20,8 @@ interface CalendarLoadingToastProps {
 export const CalendarLoadingToast: React.FC<CalendarLoadingToastProps> = ({
   isLoading,
   isFetching,
-  delayMs = 500 // Default 500ms delay
+  delayMs = 300,
+  message = 'Loading events...'
 }) => {
   const [showToast, setShowToast] = useState(false);
 
@@ -54,25 +56,17 @@ export const CalendarLoadingToast: React.FC<CalendarLoadingToastProps> = ({
           className="fixed bottom-6 right-6 z-50 pointer-events-none"
         >
           <div className="bg-white/95 backdrop-blur-lg border-2 border-blue-200 rounded-xl shadow-2xl px-4 py-3 flex items-center space-x-3">
-            {/* Spinning loader icon */}
             <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
             
-            {/* Loading text */}
+            {/* ✅ Use dynamic message */}
             <span className="text-sm font-semibold text-gray-700">
-              Loading events...
+              {message}
             </span>
 
-            {/* Subtle pulse animation on border */}
             <motion.div
               className="absolute inset-0 rounded-xl border-2 border-blue-400"
-              animate={{
-                opacity: [0.5, 0.8, 0.5],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: 'easeInOut'
-              }}
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
             />
           </div>
         </motion.div>
