@@ -151,43 +151,45 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({
       />
 
       <VideoControls
-        controlsState={{
-          isMuted: !isMicOn,
-          isCameraOff: !isCameraOn,
-          isScreenSharing,
-          isRecording: session.isRecording,
-          isHandRaised
-        }}
-        isFullScreen={isFullScreen}
-        isFocusedLayout={isFocusedLayout}
-        screenShareInfo={getScreenShareInfo()}
-        onToggleMute={handleToggleMute}
-        onToggleCamera={handleToggleCamera}
-        onToggleScreenShare={handleToggleScreenShare}
-        onToggleRecording={toggleRecording}
-        onToggleHandRaise={toggleHandRaise}
-        onToggleFullScreen={toggleFullScreen}
-        onOpenChat={() => setPanelsState({
-          ...panelsState,
-          isChatOpen: !panelsState.isChatOpen,
-          isParticipantsOpen: false
-        })}
-        onOpenParticipants={() => setPanelsState({
-          ...panelsState,
-          isParticipantsOpen: !panelsState.isParticipantsOpen,
-          isChatOpen: false
-        })}
-        onOpenSettings={() => setPanelsState({
-          ...panelsState,
-          isSettingsOpen: true
-        })}
-        onOpenReactions={() => setPanelsState({
-          ...panelsState,
-          isReactionsOpen: !panelsState.isReactionsOpen
-        })}
-        onLeave={handleLeaveCall}
-        roomId={roomId}
-      />
+  controlsState={{
+    isMuted: !isMicOn,
+    isCameraOff: !isCameraOn,
+    isScreenSharing,
+    isRecording: session.isRecording,
+    isHandRaised
+  }}
+  isFullScreen={isFullScreen}
+  isFocusedLayout={isFocusedLayout}
+  screenShareInfo={getScreenShareInfo()}
+  isHost={session.hostId === userId}  // ✅ NEW: Check if current user is host
+  isGuest={isGuest}                    // ✅ NEW: Pass guest status
+  onToggleMute={handleToggleMute}
+  onToggleCamera={handleToggleCamera}
+  onToggleScreenShare={handleToggleScreenShare}
+  onToggleRecording={toggleRecording}
+  onToggleHandRaise={toggleHandRaise}
+  onToggleFullScreen={toggleFullScreen}
+  onOpenChat={() => setPanelsState({
+    ...panelsState,
+    isChatOpen: !panelsState.isChatOpen,
+    isParticipantsOpen: false
+  })}
+  onOpenParticipants={() => setPanelsState({
+    ...panelsState,
+    isParticipantsOpen: !panelsState.isParticipantsOpen,
+    isChatOpen: false
+  })}
+  onOpenSettings={() => setPanelsState({
+    ...panelsState,
+    isSettingsOpen: true
+  })}
+  onOpenReactions={() => setPanelsState({
+    ...panelsState,
+    isReactionsOpen: !panelsState.isReactionsOpen
+  })}
+  onLeave={handleLeaveCall}
+  roomId={roomId}
+/>
 
       <ChatPanel
         isOpen={panelsState.isChatOpen}
@@ -205,11 +207,12 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({
       />
 
       <SettingsPanel
-        isOpen={panelsState.isSettingsOpen}
-        onClose={() => setPanelsState({ ...panelsState, isSettingsOpen: false })}
-        settings={settings}
-        onSaveSettings={updateSettings}
-      />
+  isOpen={panelsState.isSettingsOpen}
+  onClose={() => setPanelsState({ ...panelsState, isSettingsOpen: false })}
+  settings={settings}
+  onSaveSettings={updateSettings}
+  isGuest={isGuest}  // ✅ NEW: Pass guest status
+/>
 
       {expandedParticipant && (
         <FullscreenModal

@@ -5,6 +5,7 @@ import { MediaDevice, VideoSettings } from '@/types/video.types';
 
 interface SettingsPanelProps {
   isOpen: boolean;
+  isGuest: boolean;
   onClose: () => void;
   settings: VideoSettings;
   onSaveSettings: (settings: VideoSettings) => void;

@@ -60,6 +60,24 @@
     }
   }
 
+  .scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+/* Smooth scroll behavior for mobile controls */
+@media (max-width: 768px) {
+  .overflow-x-auto {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
   @media (min-width: 1536px) {
     .container-responsive {
       max-width: 1536px;
