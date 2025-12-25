@@ -191,6 +191,7 @@ export async function login(
     const jwtPayload: JWTPayload = {
       userId: userProfile.id,
       email: userProfile.email,
+      name: userProfile.full_name,
       role: userProfile.role as UserRole,
       systemType: userProfile.system_type as SystemType,
       sessionId,
@@ -201,6 +202,7 @@ export async function login(
     const refreshToken = generateRefreshToken({
       userId: userProfile.id,
       email: userProfile.email,
+      name: userProfile.full_name,
       role: userProfile.role as UserRole,
       systemType: userProfile.system_type as SystemType,
       sessionId
@@ -399,7 +401,7 @@ export async function refreshAccessToken(
     // Get user email
     const { data: user } = await supabase
       .from('user_profiles')
-      .select('email')
+      .select('email, full_name')
       .eq('id', userId)
       .single();
 
@@ -411,6 +413,7 @@ export async function refreshAccessToken(
     const token = generateAccessToken({
       userId,
       email: user.email,
+      name: user.full_name,
       role,
       systemType,
       sessionId,

@@ -19,6 +19,7 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
 export interface JWTPayload {
   userId: string;
   email: string;
+  name: string;
   role: UserRole;
   systemType: SystemType; // ✅ NEW
   sessionId: string;
@@ -34,6 +35,7 @@ export function generateAccessToken(payload: JWTPayload): string {
       {
         userId: payload.userId,
         email: payload.email,
+        name: payload.name,
         role: payload.role,
         systemType: payload.systemType, // ✅ NEW
         sessionId: payload.sessionId,
@@ -62,6 +64,7 @@ export function generateRefreshToken(payload: Omit<JWTPayload, 'permissions'>): 
       {
         userId: payload.userId,
         email: payload.email,
+        name: payload.name,
         role: payload.role,
         systemType: payload.systemType, // ✅ NEW
         sessionId: payload.sessionId

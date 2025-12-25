@@ -119,6 +119,7 @@ export const getMeHandler = asyncHandler(async (req: Request, res: Response) => 
       user: {
         id: user.userId,
         email: user.email,
+        name: user.name,
         role: user.role,
         systemType: user.systemType,
         permissions: user.permissions

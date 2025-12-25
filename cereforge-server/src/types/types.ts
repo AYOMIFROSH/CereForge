@@ -56,6 +56,7 @@ export interface UserProfile {
 export interface JWTPayload {
   userId: string;
   email: string;
+  name: string;
   role: UserRole;
   systemType: SystemType; // ✅ NEW
   sessionId: string;
