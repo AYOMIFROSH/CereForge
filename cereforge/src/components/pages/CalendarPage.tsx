@@ -318,7 +318,7 @@ const CalendarPage = () => {
           setMonthIndex={setMonthIndex}
           currentView={currentView}
           onViewChange={setCurrentView}
-          isNavigating={loading} // ✅ PASS LOADING STATE
+          isNavigating={isNavigating} // ✅ PASS LOADING STATE
         />
 
         {/* Calendar View */}
