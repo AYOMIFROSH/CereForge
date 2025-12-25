@@ -1,4 +1,5 @@
-// src/hooks/useVideoSession.ts - UPDATED: No mock participants by default
+// src/hooks/useVideoSession.ts - CLEANED: Removed unused mock parameter
+
 import { useState, useCallback, useEffect } from 'react';
 import { 
   Participant, 
@@ -9,14 +10,16 @@ import {
   VideoSettings 
 } from '@/types/video.types';
 
-// ✅ UPDATED: Create ONLY local participant (no mock participants)
+// Create participant (works for both authenticated users and guests)
 const createLocalParticipant = (
-  userId: string, 
+  userId: string,
+  userName: string,
+  isGuest: boolean,
   localStream?: MediaStream | null,
   screenStream?: MediaStream | null
 ): Participant => ({
   id: userId,
-  name: 'You',
+  name: userName || 'Guest',
   isLocal: true,
   isMuted: false,
   isCameraOff: false,
@@ -26,55 +29,24 @@ const createLocalParticipant = (
   connectionQuality: 'excellent',
   joinedAt: new Date(),
   mediaStream: localStream || undefined,
-  screenStream: screenStream || undefined
+  screenStream: screenStream || undefined,
+  isGuest
 });
 
-// ✅ OPTIONAL: Mock participants for testing (disabled by default)
-const createMockParticipants = (
-  userId: string, 
-  localStream?: MediaStream | null,
-  screenStream?: MediaStream | null
-): Participant[] => [
-  createLocalParticipant(userId, localStream, screenStream),
-  {
-    id: '2',
-    name: 'John Doe',
-    isLocal: false,
-    isMuted: false,
-    isCameraOff: true,
-    isSpeaking: true,
-    isHandRaised: false,
-    isSpectator: false,
-    connectionQuality: 'good',
-    joinedAt: new Date()
-  },
-  {
-    id: '3',
-    name: 'Jane Smith',
-    isLocal: false,
-    isMuted: true,
-    isCameraOff: true,
-    isSpeaking: false,
-    isHandRaised: false,
-    isSpectator: false,
-    connectionQuality: 'excellent',
-    joinedAt: new Date()
-  }
-];
-
+// ✅ CLEANED: Removed useMockParticipants parameter
 export const useVideoSession = (
   roomId: string, 
-  userId: string, 
+  userId: string,
+  userName: string,
   localStream?: MediaStream | null,
   screenStream?: MediaStream | null,
-  useMockParticipants: boolean = false // ✅ NEW: Default to false (no mock participants)
+  userRole?: 'core' | 'admin' | 'partner',
+  isGuest: boolean = false
 ) => {
   const [session, setSession] = useState<VideoSession>({
     roomId,
     hostId: userId,
-    participants: useMockParticipants 
-      ? createMockParticipants(userId, localStream, screenStream)
-      : [createLocalParticipant(userId, localStream, screenStream)], // ✅ Only local user by default
+    participants: [createLocalParticipant(userId, userName, isGuest, localStream, screenStream)],
     isRecording: false,
     screenShareActive: false
   });
@@ -96,7 +68,7 @@ export const useVideoSession = (
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [isHandRaised, setIsHandRaised] = useState(false);
 
-  // ✅ Update local participant's streams when they change
+  // Update local participant's streams when they change
   useEffect(() => {
     setSession(prev => ({
       ...prev,
@@ -112,7 +84,7 @@ export const useVideoSession = (
     }));
   }, [localStream, screenStream, userId]);
 
-  // ✅ Update screen share active state
+  // Update screen share active state
   useEffect(() => {
     setSession(prev => ({
       ...prev,
@@ -121,7 +93,7 @@ export const useVideoSession = (
     }));
   }, [screenStream, userId]);
 
-  // ✅ Sync local participant's device state from useMediaDevices
+  // Sync local participant's device state
   const syncLocalParticipant = useCallback((deviceState: {
     isMuted?: boolean;
     isCameraOff?: boolean;
@@ -140,7 +112,7 @@ export const useVideoSession = (
     }));
   }, [userId]);
 
-  // ✅ Get screen share info for UI controls
+  // Get screen share info
   const getScreenShareInfo = useCallback(() => {
     const sharingParticipant = session.participants.find(p => p.screenStream);
     return {
@@ -151,7 +123,7 @@ export const useVideoSession = (
     };
   }, [session, userId]);
 
-  // ✅ Recording controls
+  // Recording controls
   const toggleRecording = useCallback(() => {
     setSession(prev => ({
       ...prev,
@@ -160,7 +132,7 @@ export const useVideoSession = (
     }));
   }, []);
 
-  // ✅ Hand raise controls
+  // Hand raise controls
   const toggleHandRaise = useCallback(() => {
     setIsHandRaised(prev => !prev);
     setSession(prev => ({
@@ -171,26 +143,26 @@ export const useVideoSession = (
     }));
   }, [userId]);
 
-  // ✅ Chat controls
+  // Chat controls
   const sendMessage = useCallback((message: string) => {
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       userId,
-      userName: 'You',
+      userName: isGuest ? `${userName} (Guest)` : userName,
       message,
       timestamp: new Date(),
       type: 'text'
     };
     setMessages(prev => [...prev, newMessage]);
-  }, [userId]);
+  }, [userId, userName, isGuest]);
 
-  // ✅ Reaction controls
+  // Reaction controls
   const sendReaction = useCallback((emoji: string) => {
     const newReaction: Reaction = {
       id: Date.now().toString(),
       emoji,
       userId,
-      userName: 'You',
+      userName,
       x: Math.random() * 80 + 10,
       y: Math.random() * 50 + 25,
       timestamp: new Date()
@@ -204,17 +176,37 @@ export const useVideoSession = (
       }, 3000);
       cancelAnimationFrame(frame);
     });
-  }, [userId]);
+  }, [userId, userName]);
 
-  // ✅ Settings controls
+  // Settings controls
   const updateSettings = useCallback((newSettings: VideoSettings) => {
     setSettings(newSettings);
   }, []);
 
-  // ✅ Leave call
+  // Smart leave navigation
   const leaveCall = useCallback(() => {
-    window.location.href = '/';
-  }, []);
+    // Clean up streams
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+    }
+    
+    // Navigate based on user type
+    if (isGuest) {
+      window.location.href = '/';
+    } else if (userRole) {
+      const dashboardPaths = {
+        admin: '/admin/dashboard?tab=video',
+        core: '/core/dashboard?tab=video',
+        partner: '/partner/dashboard?tab=video'
+      };
+      window.location.href = dashboardPaths[userRole] || '/';
+    } else {
+      window.location.href = '/';
+    }
+  }, [localStream, screenStream, isGuest, userRole]);
 
   return {
     session,

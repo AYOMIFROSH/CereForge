@@ -9,10 +9,11 @@ export interface Participant {
   isSpeaking: boolean;
   isHandRaised: boolean;
   isSpectator: boolean;
+  isGuest?: boolean; // ✅ NEW: Track guest users
   connectionQuality: 'excellent' | 'good' | 'poor';
   joinedAt: Date;
-  mediaStream?: MediaStream; // Camera/mic stream
-  screenStream?: MediaStream; // Screen share stream
+  mediaStream?: MediaStream;
+  screenStream?: MediaStream;
 }
 
 export interface ChatMessage {

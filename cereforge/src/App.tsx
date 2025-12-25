@@ -76,11 +76,7 @@ const App = () => {
           {/* âœ… MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
           <Route
             path="/meet/:roomId"
-            element={
-              <ProtectedRoute allowedRoles={['partner', 'admin', 'core']}>
-                <MeetPage />
-              </ProtectedRoute>
-            }
+            element={<MeetPage />}
           />
 
           {/* Consultation Routes */}

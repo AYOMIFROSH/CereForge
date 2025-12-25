@@ -13,15 +13,26 @@ import { useScreenMode } from '@/hooks/useScreenMode';
 import { useMediaDevices } from '@/hooks/useMediaDevice';
 import { Participant } from '@/types/video.types';
 
+// src/components/video/VideoCallRoom.tsx - UPDATED: Guest support + smart leave
+
 interface VideoCallRoomProps {
   roomId: string;
   userId: string;
+  userName: string;
+  userRole?: 'core' | 'admin' | 'partner';
+  isGuest: boolean;
 }
 
-const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
+const VideoCallRoom: React.FC<VideoCallRoomProps> = ({
+  roomId,
+  userId,
+  userName = 'Guest',
+  userRole,
+  isGuest
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ✅ SINGLE SOURCE OF TRUTH: useMediaDevices manages ALL device state
+  // ✅ Device management
   const {
     localStream,
     screenStream,
@@ -34,7 +45,7 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
     toggleScreenShare
   } = useMediaDevices();
 
-  // ✅ useVideoSession manages: participants, chat, recording, reactions (NO MOCK DATA)
+  // ✅ Session management with guest support
   const {
     session,
     panelsState,
@@ -50,7 +61,15 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
     setPanelsState,
     leaveCall,
     getScreenShareInfo
-  } = useVideoSession(roomId, userId, localStream, screenStream, false); // ✅ false = no mock participants
+  } = useVideoSession(
+    roomId,
+    userId,
+    userName,
+    localStream,
+    screenStream,
+    userRole,     // ✅ Passes role for system users, undefined for guests
+    isGuest       // ✅ true for guests, false for authenticated
+  );
 
   const { isFullScreen, toggleFullScreen } = useScreenMode(containerRef);
 
@@ -58,12 +77,12 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
   const [expandedContentIsScreen, setExpandedContentIsScreen] = useState<boolean>(false);
   const [isFocusedLayout, setIsFocusedLayout] = useState(false);
 
-  // ✅ Start camera on mount
+  // Start camera on mount
   useEffect(() => {
     startCamera();
   }, [startCamera]);
 
-  // ✅ CRITICAL: Sync device state to participant state (single direction)
+  // Sync device state to participant state
   useEffect(() => {
     syncLocalParticipant({
       isMuted: !isMicOn,
@@ -71,20 +90,17 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
     });
   }, [isMicOn, isCameraOn, syncLocalParticipant]);
 
-  // ✅ SIMPLIFIED: Just toggle device (no duplicate state management)
   const handleToggleCamera = useCallback(async () => {
     await toggleCamera();
   }, [toggleCamera]);
 
-  // ✅ SIMPLIFIED: Just toggle device (no duplicate state management)
   const handleToggleMute = useCallback(async () => {
     await toggleMicrophone();
   }, [toggleMicrophone]);
 
-  // ✅ SIMPLIFIED: Just toggle screen share
   const handleToggleScreenShare = useCallback(() => {
     const shareInfo = getScreenShareInfo();
-    
+
     if (shareInfo.canShare) {
       toggleScreenShare();
     }
@@ -113,9 +129,8 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
   return (
     <div
       ref={containerRef}
-      className={`relative bg-gray-900 overflow-hidden ${
-        isFullScreen ? 'h-screen' : 'h-[calc(100vh-1px)]'
-      }`}
+      className={`relative bg-gray-900 overflow-hidden ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-1px)]'
+        }`}
     >
       <RecordingIndicator
         isRecording={session.isRecording}
@@ -135,7 +150,6 @@ const VideoCallRoom: React.FC<VideoCallRoomProps> = ({ roomId, userId }) => {
         onReactionComplete={handleReactionComplete}
       />
 
-      {/* ✅ CLEANED UP: Pass device state directly from useMediaDevices */}
       <VideoControls
         controlsState={{
           isMuted: !isMicOn,

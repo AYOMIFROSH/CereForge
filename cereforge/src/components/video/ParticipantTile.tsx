@@ -151,11 +151,19 @@ const getTileSize = () => {
 
       {/* Screen Share Badge */}
       {showScreenContent && (
-        <div className="absolute top-2 left-2 bg-blue-600 px-3 py-1 rounded-full shadow-lg flex items-center space-x-1 z-10">
-          <Maximize2 className="w-3 h-3 text-white" />
-          <span className="text-white text-xs font-medium">Screen</span>
-        </div>
-      )}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      onExpand();
+    }}
+    className="absolute top-2 left-2 bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-full shadow-lg flex items-center space-x-1 z-10 transition-all hover:scale-105 cursor-pointer group"
+    title="Expand screen share to fullscreen"
+    aria-label="Expand screen share to fullscreen"
+  >
+    <Maximize2 className="w-3 h-3 text-white group-hover:scale-110 transition-transform" />
+    <span className="text-white text-xs font-medium">Screen</span>
+  </button>
+)}
 
       {/* Name Badge */}
       <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full z-10">

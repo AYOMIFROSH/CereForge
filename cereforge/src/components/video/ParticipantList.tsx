@@ -97,6 +97,12 @@ const ParticipantsList: React.FC<ParticipantsListProps> = ({
                           <Crown className="w-4 h-4 text-yellow-500 flex-shrink-0" />
                         </div>
                       )}
+                      {/* ✅ NEW: Guest badge */}
+                      {participant.isGuest && (
+                        <div className="bg-purple-500/20 border border-purple-500/50 px-2 py-0.5 rounded-full">
+                          <span className="text-purple-300 text-xs font-medium">Guest</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center space-x-1 mt-0.5">
