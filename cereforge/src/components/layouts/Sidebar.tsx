@@ -4,7 +4,8 @@ import {
   LayoutDashboard, 
   Video, 
   FileEdit, 
-  Calendar as CalendarIcon, 
+  Calendar as CalendarIcon,
+  CalendarCheck,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ const Sidebar = ({ activeTab, setActiveTab, handleLogout, isLoading }: SidebarPr
     { id: 'editor', label: 'Editor', icon: FileEdit },
     { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
     { id: 'video', label: 'Video', icon: Video },
+    { id: 'consultation', label: 'Consultation', icon: CalendarCheck },
   ];
 
   return (

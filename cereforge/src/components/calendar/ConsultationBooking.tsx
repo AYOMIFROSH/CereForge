@@ -3,13 +3,29 @@ import { X, Video, CheckCircle, ChevronRight, ChevronLeft, Globe, Clock, Zap } f
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
 
+interface DynamicConfig {
+  consultationType: string;
+  companyName: string;
+  duration: string;
+  description: string;
+  availableDays: string[]; // e.g., ['monday', 'tuesday', 'wednesday']
+  availableTimes: { [key: string]: { openTime: string; closeTime: string } };
+  bufferHours: number;
+}
+
 interface ConsultationBookingProps {
   isOpen: boolean;
   onClose: () => void;
   mode?: 'popup' | 'standalone';
+  config?: DynamicConfig; // Optional: if provided, use custom config
 }
 
-const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClose, mode = 'popup' }) => {
+const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ 
+  isOpen, 
+  onClose, 
+  mode = 'popup',
+  config 
+}) => {
   const [step, setStep] = useState(1);
   const [consultationType, setConsultationType] = useState<'discovery' | 'technical' | 'follow-up' | null>(null);
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
@@ -32,7 +48,14 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
     setSelectedTimezone(userTimezone);
   }, []);
 
-  // Common timezones for quick access
+  // If custom config provided, skip step 1 and set consultation type
+  useEffect(() => {
+    if (config) {
+      setConsultationType('discovery'); // Set a default type when using custom config
+      setStep(2); // Skip to date/time selection
+    }
+  }, [config]);
+
   const commonTimezones = [
     { value: 'Africa/Lagos', label: 'West Africa Time (WAT)', offset: '+01:00' },
     { value: 'America/New_York', label: 'Eastern Time (ET)', offset: '-05:00' },
@@ -51,22 +74,68 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
     const availableDates = new Set<string>();
     let currentDate = dayjs().add(1, 'day');
     let count = 0;
+    
+    // Get buffer hours from config or use default
+    const bufferHours = config?.bufferHours || 48;
+    
     while (count < 30) {
-      if (currentDate.day() !== 0 && currentDate.day() !== 6) {
-        if (count % 2 === 0) availableDates.add(currentDate.format('YYYY-MM-DD'));
-        count++;
+      // If custom config, only allow specified days
+      if (config?.availableDays) {
+        const dayName = currentDate.format('dddd').toLowerCase();
+        if (config.availableDays.includes(dayName)) {
+          if (count % Math.ceil(bufferHours / 24) === 0) {
+            availableDates.add(currentDate.format('YYYY-MM-DD'));
+          }
+          count++;
+        }
+      } else {
+        // Default behavior: weekdays only
+        if (currentDate.day() !== 0 && currentDate.day() !== 6) {
+          if (count % 2 === 0) availableDates.add(currentDate.format('YYYY-MM-DD'));
+          count++;
+        }
       }
       currentDate = currentDate.add(1, 'day');
     }
     return availableDates;
   };
+  
   const availableDates = getAvailableDates();
   const isDateAvailable = (date: Dayjs) => availableDates.has(date.format('YYYY-MM-DD'));
 
-  const timeSlots = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'
-  ];
+  // Generate time slots based on config or use defaults
+  const generateTimeSlots = (): string[] => {
+    if (config && selectedDate) {
+      const dayName = selectedDate.format('dddd').toLowerCase();
+      const dayTimes = config.availableTimes[dayName];
+      
+      if (dayTimes) {
+        const slots: string[] = [];
+        const [openHour, openMin] = dayTimes.openTime.split(':').map(Number);
+        const [closeHour, closeMin] = dayTimes.closeTime.split(':').map(Number);
+        
+        let current = openHour * 60 + openMin;
+        const end = closeHour * 60 + closeMin;
+        
+        while (current < end) {
+          const hour = Math.floor(current / 60);
+          const min = current % 60;
+          slots.push(`${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
+          current += 30; // 30-minute intervals
+        }
+        
+        return slots;
+      }
+    }
+    
+    // Default time slots
+    return [
+      '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+      '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00'
+    ];
+  };
+
+  const timeSlots = generateTimeSlots();
 
   const consultationTypes = [
     {
@@ -96,13 +165,20 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
   ];
 
   const handleSubmit = () => {
-    console.log('Booking submitted:', { type: consultationType, date: selectedDate?.format('YYYY-MM-DD'), time: selectedTime, timezone: selectedTimezone, ...formData });
+    console.log('Booking submitted:', { 
+      type: consultationType, 
+      date: selectedDate?.format('YYYY-MM-DD'), 
+      time: selectedTime, 
+      timezone: selectedTimezone, 
+      ...formData,
+      config 
+    });
     setIsSubmitted(true);
   };
 
   const resetForm = () => {
-    setStep(1);
-    setConsultationType(null);
+    setStep(config ? 2 : 1); // If config exists, reset to step 2
+    if (!config) setConsultationType(null);
     setSelectedDate(null);
     setSelectedTime('');
     setFormData({ name: '', email: '', company: '', projectDescription: '' });
@@ -119,8 +195,10 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
     if (step === 3) {
       setStep(2); 
     } else if (step === 2) {
-      setStep(1); 
-      setConsultationType(null);
+      setStep(config ? 2 : 1); // If config exists, can't go back to step 1
+      if (!config) {
+        setConsultationType(null);
+      }
       setSelectedDate(null);
       setSelectedTime('');
     }
@@ -145,18 +223,23 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
     return selectedTimezone;
   };
 
-  const selectedConsultation = consultationType ? consultationTypes.find(t => t.id === consultationType) : null;
+  // Use custom config or default consultation data
+  const displayConfig = config ? {
+    title: config.consultationType,
+    duration: config.duration + ' minutes',
+    description: config.description,
+    icon: '📅',
+    color: 'from-blue-500 to-blue-600'
+  } : consultationType ? consultationTypes.find(t => t.id === consultationType) : null;
 
-  // ✅ Fixed Layout Classes
   const wrapperClasses = mode === 'popup' 
-    ? 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm' // Removed overflow-hidden from wrapper
+    ? 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm'
     : 'w-full max-w-4xl mx-auto';
 
-  // ✅ Container Logic: Ensure height is managed for popup to force footer to bottom
   const containerClasses = mode === 'popup'
     ? `bg-white rounded-2xl shadow-2xl transition-all duration-300 ease-in-out
-       ${consultationType ? 'max-w-4xl h-[85vh]' : 'max-w-2xl h-auto'} 
-       w-full relative flex flex-col md:flex-row overflow-hidden` // Added h-[85vh] for consistency
+       ${consultationType || config ? 'max-w-4xl h-[85vh]' : 'max-w-2xl h-auto'} 
+       w-full relative flex flex-col md:flex-row overflow-hidden`
     : `bg-white rounded-xl border border-gray-200 shadow-sm w-full relative flex flex-col md:flex-row overflow-hidden`;
 
   if (!isOpen && mode === 'popup') return null;
@@ -211,7 +294,6 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
         animate={mode === 'popup' ? { opacity: 1, scale: 1 } : { opacity: 1, y: 0 }}
         className={containerClasses}
       >
-        {/* Close Button - Only in Popup */}
         {mode === 'popup' && (
           <button
             onClick={() => { resetForm(); onClose(); }}
@@ -221,8 +303,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
           </button>
         )}
 
-        {/* Left Sidebar - Hidden on Step 1 */}
-        {consultationType && (
+        {(consultationType || config) && (
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -231,19 +312,22 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
               ${mode === 'standalone' ? 'rounded-l-xl' : ''}
             `}
           >
-            <div className="mb-8 mt-4"> {/* Added mt-4 to avoid clash with close button if layout shifts */}
-              <div className={`w-10 h-10 bg-gradient-to-br ${selectedConsultation?.color} rounded-lg flex items-center justify-center text-lg shadow-lg mb-3`}>
-                {selectedConsultation?.icon}
+            <div className="mb-8 mt-4">
+              <div className={`w-10 h-10 bg-gradient-to-br ${displayConfig?.color} rounded-lg flex items-center justify-center text-lg shadow-lg mb-3`}>
+                {displayConfig?.icon}
               </div>
-              <h3 className="font-bold text-sm leading-tight mb-1">{selectedConsultation?.title}</h3>
-              <p className="text-slate-400 text-[11px] leading-relaxed">{selectedConsultation?.description}</p>
+              <h3 className="font-bold text-sm leading-tight mb-1">{displayConfig?.title}</h3>
+              <p className="text-slate-400 text-[11px] leading-relaxed">{displayConfig?.description}</p>
+              {config && (
+                <p className="text-slate-300 text-xs mt-2 font-medium">{config.companyName}</p>
+              )}
             </div>
 
             <div className="space-y-3 mt-auto">
               <div className="border-t border-slate-800 pt-3">
                 <div className="flex items-center space-x-3 mb-2">
                    <Clock className="w-4 h-4 text-slate-500" />
-                   <span className="text-xs text-slate-300">{selectedConsultation?.duration}</span>
+                   <span className="text-xs text-slate-300">{displayConfig?.duration}</span>
                 </div>
                 <div className="flex items-center space-x-3">
                    <Video className="w-4 h-4 text-slate-500" />
@@ -261,30 +345,37 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
           </motion.div>
         )}
 
-        {/* Right Content Panel - Flex Column to manage Scroll + Footer */}
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative h-full">
-          {/* Header - Fixed */}
-          <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 pr-12"> {/* pr-12 for close button space */}
+          <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 pr-12">
             <h2 className="text-lg font-bold text-gray-900">
-              {step === 1 && 'Select Consultation Type'}
+              {!config && step === 1 && 'Select Consultation Type'}
               {step === 2 && 'Select Date & Time'}
               {step === 3 && 'Enter Your Details'}
             </h2>
             <div className="flex space-x-1 mt-2 w-full max-w-[200px]">
-              {[1, 2, 3].map(s => (
-                <div 
-                  key={s} 
-                  className={`h-1 flex-1 rounded-full transition-colors duration-300 ${s <= step ? 'bg-blue-600' : 'bg-gray-100'}`}
-                />
-              ))}
+              {config ? (
+                // 2 steps when config is provided
+                [2, 3].map(s => (
+                  <div 
+                    key={s} 
+                    className={`h-1 flex-1 rounded-full transition-colors duration-300 ${s <= step ? 'bg-blue-600' : 'bg-gray-100'}`}
+                  />
+                ))
+              ) : (
+                // 3 steps by default
+                [1, 2, 3].map(s => (
+                  <div 
+                    key={s} 
+                    className={`h-1 flex-1 rounded-full transition-colors duration-300 ${s <= step ? 'bg-blue-600' : 'bg-gray-100'}`}
+                  />
+                ))
+              )}
             </div>
           </div>
 
-          {/* Scrollable Content Area - Grows to fill space */}
           <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
             <AnimatePresence mode="wait">
-              {/* Step 1: Selection Cards */}
-              {step === 1 && (
+              {!config && step === 1 && (
                 <motion.div
                   key="step1"
                   initial={{ opacity: 0, y: 10 }}
@@ -316,7 +407,6 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
                 </motion.div>
               )}
 
-              {/* Step 2: Calendar & Time */}
               {step === 2 && (
                 <motion.div
                   key="step2"
@@ -325,7 +415,6 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
                   exit={{ opacity: 0 }}
                   className="flex flex-col lg:flex-row gap-6 h-full justify-center"
                 >
-                  {/* Calendar Column */}
                   <div className="flex-1 max-w-[340px] flex flex-col mx-auto lg:mx-0">
                     <button
                       onClick={() => setShowTimezoneDropdown(!showTimezoneDropdown)}
@@ -416,7 +505,6 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
                     </div>
                   </div>
 
-                  {/* Time Slots */}
                   {selectedDate && (
                     <motion.div
                       initial={{ opacity: 0, x: 10 }}
@@ -447,7 +535,6 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
                 </motion.div>
               )}
 
-              {/* Step 3: Form */}
               {step === 3 && (
                  <motion.div
                     key="step3"
@@ -494,28 +581,26 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({ isOpen, onClo
             </AnimatePresence>
           </div>
 
-          {/* ✅ Footer - Fixed at bottom, always visible after Step 1 */}
-          {step > 1 && (
+          {step > (config ? 1 : 0) && (
             <div className="px-6 py-3 border-t border-gray-100 bg-white flex items-center justify-between flex-shrink-0 z-20">
-              {/* Left: Back Button */}
               <div className="w-24">
-                <button
-                  onClick={handleBack}
-                  className="flex items-center text-gray-500 hover:text-gray-800 transition-colors text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-gray-100"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 mr-1" />
-                  Back
-                </button>
+                {(step > 2 || (step === 2 && !config)) && (
+                  <button
+                    onClick={handleBack}
+                    className="flex items-center text-gray-500 hover:text-gray-800 transition-colors text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-gray-100"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 mr-1" />
+                    Back
+                  </button>
+                )}
               </div>
 
-              {/* Center: Branding Badge */}
               <div className="flex items-center space-x-1.5 opacity-50 select-none">
                 <Zap className="w-3 h-3 text-gray-400" fill="currentColor" />
                 <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Powered by</span>
                 <span className="text-[10px] font-bold text-blue-900 tracking-widest">CEREFORGE</span>
               </div>
 
-              {/* Right: Action Button */}
               <div className="w-24 flex justify-end">
                 {step === 3 && (
                   <motion.button

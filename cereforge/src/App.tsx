@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Analytics } from "@vercel/analytics/react";
 
-// âœ… Import components that are NOT lazy loaded (critical path)
+// ✅ Import components that are NOT lazy loaded (critical path)
 import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
@@ -14,19 +14,19 @@ import { useAppSelector } from './store/hook';
 import { selectUser } from './store/slices/authSlice';
 import { useGetMeQuery } from './store/api/authApi';
 
-// âœ… Lazy load all route components (code splitting)
+// ✅ Lazy load all route components (code splitting)
 const LoginPage = lazy(() => import('./components/pages/LoginPage'));
 const GetStarted = lazy(() => import('./components/pages/GetStarted'));
 const CalendarPage = lazy(() => import('./components/pages/CalendarPage'));
 const ConsultationBooking = lazy(() => import('./components/calendar/ConsultationBooking'));
 const CereforgeEditor = lazy(() => import('./components/textEditor/RichtextEditor'));
 
-// âœ… Lazy load dashboard components (heavy components)
+// ✅ Lazy load dashboard components (heavy components)
 const PartnerDashboard = lazy(() => import('./components/pages/dashboards/PartnerDashboard'));
 const AdminDashboard = lazy(() => import('./components/pages/dashboards/AdminDashboard'));
 const CoreDashboard = lazy(() => import('./components/pages/dashboards/CoreDashboard'));
 
-// âœ… Unauthorized page (simple, no lazy load needed)
+// ✅ Unauthorized page (simple, no lazy load needed)
 const UnauthorizedPage = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
     <div className="text-center">
@@ -73,7 +73,7 @@ const App = () => {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/editor" element={<CereforgeEditor />} />
 
-          {/* âœ… MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
+          {/* ✅ MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
           <Route
             path="/meet/:roomId"
             element={<MeetPage />}
@@ -98,6 +98,20 @@ const App = () => {
                 isOpen={true}
                 onClose={() => navigate('/calendar')}
                 mode="standalone"
+              />
+            }
+          />
+
+          {/* ✅ NEW: Public Booking Route with Dynamic Config */}
+          <Route
+            path="/book/:companySlug/:typeSlug/:uniqueId"
+            element={
+              <ConsultationBooking
+                isOpen={true}
+                onClose={() => navigate('/')}
+                mode="standalone"
+                // TODO: Fetch config from backend using uniqueId and pass here
+                // config={fetchedConfig}
               />
             }
           />
