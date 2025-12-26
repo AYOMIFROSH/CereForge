@@ -1,6 +1,6 @@
-// src/components/calendar/CustomRecurrenceModal.tsx - FIXED TYPES
+// src/components/calendar/CustomRecurrenceModal.tsx
 import React, { useState } from 'react';
-import { X, Calendar, Repeat, ChevronDown, Info } from 'lucide-react';
+import { X,  ChevronDown, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
 import type { RecurrenceConfig } from '@/types/calendar.types';
@@ -75,15 +75,16 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
     });
   };
 
+  // Logic remains EXACTLY the same
   const generatePreview = (): string[] => {
     const previews: string[] = [];
     let currentDate = eventStartDate;
     let count = 0;
-    const maxPreviews = 5;
+    const maxPreviews = 3; // Reduced preview count for compactness
 
     while (count < maxPreviews) {
       if (repeatUnit === 'week' && repeatOn.length > 0) {
-        const daysToCheck = [...repeatOn].sort(); // ← Add spread operator here
+        const daysToCheck = [...repeatOn].sort();
         for (const dayOfWeek of daysToCheck) {
           const nextDate = currentDate.day(dayOfWeek);
           if (nextDate.isAfter(eventStartDate) || nextDate.isSame(eventStartDate, 'day')) {
@@ -129,7 +130,6 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
   };
 
   const handleSave = () => {
-    // ✅ FIXED: Match exact type structure
     const recurrence: RecurrenceConfig = {
       type: 'custom',
       config: {
@@ -142,9 +142,6 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
         occurrences: endType === 'after' ? endOccurrences : null
       }
     };
-
-    console.log('✅ CustomRecurrenceModal: Saving recurrence:', JSON.stringify(recurrence, null, 2));
-
     onSave(recurrence);
     onClose();
   };
@@ -152,98 +149,88 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        // CHANGED: Reduced max-width (max-w-md) and rounded corners (rounded-xl)
+        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <Repeat className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">Custom Recurrence</h2>
-              <p className="text-blue-100 text-sm">Define your repeat pattern</p>
-            </div>
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
+        {/* Header - CLEANER */}
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-white">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            Custom Recurrence
+          </h2>
+          <button
             onClick={onClose}
-            className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors rounded-full p-1 hover:bg-gray-100"
           >
             <X className="w-5 h-5" />
-          </motion.button>
+          </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-          {/* Repeat Every */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Repeat Every
-            </label>
-            <div className="flex items-center space-x-3">
-              <input
-                type="number"
-                min="1"
-                max="999"
-                value={repeatEvery}
-                onChange={(e) => setRepeatEvery(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-24 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-center font-semibold text-lg"
-              />
-              <div className="relative flex-1">
-                <select
-                  value={repeatUnit}
-                  onChange={(e) => setRepeatUnit(e.target.value as any)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none appearance-none bg-white font-medium cursor-pointer"
-                >
-                  {repeatUnits.map(unit => (
-                    <option key={unit.value} value={unit.value}>
-                      {repeatEvery === 1 ? unit.singular : unit.plural}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-              </div>
+        {/* Content - COMPACT */}
+        <div className="p-5 space-y-5 overflow-y-auto">
+          
+          {/* Repeat Every Row */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Repeat every</span>
+            <input
+              type="number"
+              min="1"
+              max="999"
+              value={repeatEvery}
+              onChange={(e) => setRepeatEvery(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-16 px-2 py-1.5 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm font-medium text-center outline-none"
+            />
+            <div className="relative flex-1">
+              <select
+                value={repeatUnit}
+                onChange={(e) => setRepeatUnit(e.target.value as any)}
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm bg-white outline-none cursor-pointer appearance-none"
+              >
+                {repeatUnits.map(unit => (
+                  <option key={unit.value} value={unit.value}>
+                    {repeatEvery === 1 ? unit.singular : unit.plural}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* Repeat On (for weekly) */}
+          {/* Repeat On (Weekly) - COMPACT CIRCLES */}
           <AnimatePresence>
             {repeatUnit === 'week' && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Repeat On
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Repeat on
                 </label>
-                <div className="flex justify-between gap-2">
+                <div className="flex justify-between gap-1">
                   {weekDays.map((day) => (
-                    <motion.button
+                    <button
                       key={day.value}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => toggleDayOfWeek(day.value)}
-                      className={`flex-1 aspect-square rounded-xl font-bold text-sm transition-all ${repeatOn.includes(day.value)
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        repeatOn.includes(day.value)
+                        ? 'bg-blue-600 text-white shadow-sm scale-105'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
                       title={day.full}
                     >
                       {day.label}
-                    </motion.button>
+                    </button>
                   ))}
                 </div>
                 {repeatOn.length === 0 && (
-                  <p className="text-red-500 text-xs mt-2 flex items-center">
+                  <p className="text-red-500 text-xs mt-1.5 flex items-center">
                     <Info className="w-3 h-3 mr-1" />
                     Select at least one day
                   </p>
@@ -252,76 +239,61 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
             )}
           </AnimatePresence>
 
-          {/* Ends */}
+          {/* Ends Section - CLEAN LIST */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Ends
             </label>
-            <div className="space-y-3">
+            <div className="space-y-3 pl-1">
               {/* Never */}
-              <motion.label
-                whileHover={{ x: 4 }}
-                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${endType === 'never'
-                  ? 'bg-blue-50 border-2 border-blue-500'
-                  : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
-                  }`}
-              >
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="endType"
                   checked={endType === 'never'}
                   onChange={() => setEndType('never')}
-                  className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 focus:ring-offset-0 focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="ml-3 font-medium text-gray-700">Never</span>
-              </motion.label>
+                <span className={`ml-3 text-sm ${endType === 'never' ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
+                  Never
+                </span>
+              </label>
 
               {/* On Date */}
-              <motion.label
-                whileHover={{ x: 4 }}
-                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${endType === 'on'
-                  ? 'bg-blue-50 border-2 border-blue-500'
-                  : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
-                  }`}
-              >
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="endType"
                   checked={endType === 'on'}
                   onChange={() => setEndType('on')}
-                  className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 focus:ring-offset-0 focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="ml-3 font-medium text-gray-700 flex-1">On</span>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    disabled={endType !== 'on'}
-                    min={eventStartDate.format('YYYY-MM-DD')}
-                    className="pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                </div>
-              </motion.label>
+                <span className={`ml-3 text-sm mr-2 ${endType === 'on' ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
+                  On
+                </span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  disabled={endType !== 'on'}
+                  min={eventStartDate.format('YYYY-MM-DD')}
+                  className={`px-2 py-1 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-opacity ${endType !== 'on' ? 'opacity-50 pointer-events-none bg-gray-50' : ''}`}
+                />
+              </label>
 
-              {/* After N Occurrences */}
-              <motion.label
-                whileHover={{ x: 4 }}
-                className={`flex items-center p-4 rounded-xl cursor-pointer transition-all ${endType === 'after'
-                  ? 'bg-blue-50 border-2 border-blue-500'
-                  : 'bg-gray-50 border-2 border-gray-200 hover:border-gray-300'
-                  }`}
-              >
+              {/* After Occurrences */}
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="endType"
                   checked={endType === 'after'}
                   onChange={() => setEndType('after')}
-                  className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 focus:ring-offset-0 focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="ml-3 font-medium text-gray-700 flex-1">After</span>
-                <div className="flex items-center space-x-2">
+                <span className={`ml-3 text-sm mr-2 ${endType === 'after' ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
+                  After
+                </span>
+                <div className="flex items-center gap-2">
                   <input
                     type="number"
                     min="1"
@@ -329,49 +301,38 @@ const CustomRecurrenceModal: React.FC<CustomRecurrenceModalProps> = ({
                     value={endOccurrences}
                     onChange={(e) => setEndOccurrences(Math.max(1, parseInt(e.target.value) || 1))}
                     disabled={endType !== 'after'}
-                    className="w-20 px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none text-center font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className={`w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-center ${endType !== 'after' ? 'opacity-50 pointer-events-none bg-gray-50' : ''}`}
                   />
-                  <span className="text-gray-600 font-medium">occurrences</span>
+                  <span className="text-sm text-gray-500">occurrences</span>
                 </div>
-              </motion.label>
+              </label>
             </div>
           </div>
 
-          {/* Preview */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border-2 border-blue-200">
-            <div className="flex items-center space-x-2 mb-3">
-              <Info className="w-5 h-5 text-blue-600" />
-              <h3 className="font-bold text-gray-900">Preview</h3>
-            </div>
-            <p className="text-sm text-gray-700 mb-3 font-medium">{generateLabel()}</p>
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-gray-600 uppercase">Next 5 occurrences:</p>
-              {generatePreview().map((date, idx) => (
-                <p key={idx} className="text-sm text-gray-700 pl-3">
-                  • {date}
-                </p>
-              ))}
-            </div>
+          {/* Preview Footer - SUBTLE */}
+          <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+            <p className="text-sm text-gray-800 font-medium mb-1">{generateLabel()}</p>
+            <p className="text-xs text-gray-500">
+              Next: {generatePreview().join(', ')}...
+            </p>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+        {/* Footer Actions */}
+        <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 bg-white">
           <button
             onClick={onClose}
-            className="px-6 py-3 text-gray-700 font-semibold hover:bg-gray-200 rounded-xl transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             Cancel
           </button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={handleSave}
             disabled={repeatUnit === 'week' && repeatOn.length === 0}
-            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Recurrence
-          </motion.button>
+            Done
+          </button>
         </div>
       </motion.div>
     </div>

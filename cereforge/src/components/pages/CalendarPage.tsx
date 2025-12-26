@@ -9,7 +9,7 @@ import CalendarDayView from '../../components/calendar/CalendarDayView';
 import CalendarWeekView from '../../components/calendar/CalendarWeekView';
 import CalendarYearView from '../../components/calendar/CalendarYearView';
 import MobileCalendarView from '../../components/calendar/MobileCalendarView';
-import EventModal from '../../components/calendar/EventModal';
+import EventModal from '../calendar/EventModal';
 import PublicHolidayViewModal from '../../components/calendar/modals/PublicHolidayModal'; // ✅ IMPORT
 import CalendarLoadingToast from '../../components/calendar/modals/CalendarLoadingToats';
 import type { CalendarEvent } from '../../types/calendar.types';

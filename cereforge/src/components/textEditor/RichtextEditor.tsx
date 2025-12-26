@@ -9,7 +9,7 @@ import {
   List, ListOrdered, Quote,
   Image, Link2, Upload, X, Check,
   Type, Paintbrush, Edit2, Trash2,
-  ChevronDown, ChevronUp, Download, FileText, File, Code
+  ChevronDown, ChevronUp, Download, FileText, File, Code, ChevronRight
 } from 'lucide-react';
 import {
   $getSelection,
@@ -2007,14 +2007,39 @@ const ExportProgressModal = () => {
 
       {/* Cereforge Logo Button */}
       {!sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 z-40 p-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-all shadow-lg hover:scale-105 transform"
-          title="Open Sidebar"
-        >
-          <img src={cereforgeLogo} alt='cereforge logo' className="w-5 h-5" />
-        </button>
-      )}
+  <button
+    onClick={() => setSidebarOpen(true)}
+    // POSITIONING: 
+    // left-[68px] = 64px (Sidebar) + 4px (Tiny Gap)
+    // top-3 = Aligns vertically with the "CF" logo in the main sidebar
+    className="fixed top-3 left-[68px] z-40 group flex items-center gap-2 pr-3 pl-2 py-2 
+               bg-white/95 backdrop-blur-md 
+               border border-gray-200 border-l-2 border-l-blue-600
+               rounded-r-xl rounded-l-md shadow-sm hover:shadow-md 
+               transition-all duration-300 ease-out 
+               hover:translate-x-1"
+    title="Open Tools"
+  >
+    {/* The Logo (Visual Anchor) */}
+    <img 
+      src={cereforgeLogo} 
+      alt='cereforge logo' 
+      className="w-5 h-5 object-contain opacity-90 group-hover:opacity-100 transition-opacity" 
+    />
+    
+    {/* The "Handle" (Visual Cue) */}
+    <div className="flex flex-col gap-0.5">
+       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none group-hover:text-blue-600">
+         Tools
+       </span>
+    </div>
+
+    {/* The Chevron (Action Indicator) */}
+    <div className="w-4 h-4 flex items-center justify-center text-gray-400 group-hover:text-blue-600 transition-colors">
+       <ChevronRight size={14} strokeWidth={3} /> 
+    </div>
+  </button>
+)}
 
       {/* Main Editor Area */}
       <div className="flex-1 flex flex-col overflow-hidden ">
