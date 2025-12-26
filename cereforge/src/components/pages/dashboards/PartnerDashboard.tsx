@@ -8,9 +8,10 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import VideoOverview from '@/components/video/VideoOverview';
 import CalendarPage from '../CalendarPage';
 import CereforgeEditor from '@/components/textEditor/RichtextEditor';
+import ConsultationOverview from '@/components/consultation/ConsultationOverview';
 import Sidebar from '@/components/layouts/Sidebar'; // Using the shared sidebar
 
-type TabType = 'overview' | 'editor' | 'calendar' | 'video';
+type TabType = 'overview' | 'editor' | 'calendar' | 'video' | 'consultation';
 
 const PartnerOverview = () => (
   <div className="p-6 space-y-6">
@@ -70,6 +71,7 @@ const PartnerDashboard = () => {
       case 'editor': return <CereforgeEditor />;
       case 'calendar': return <CalendarPage />;
       case 'video': return <VideoOverview />;
+      case 'consultation': return <ConsultationOverview />;
       default: return <PartnerOverview />;
     }
   };

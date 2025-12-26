@@ -8,9 +8,10 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import VideoOverview from '@/components/video/VideoOverview';
 import CereforgeEditor from '@/components/textEditor/RichtextEditor';
 import CalendarPage from '../CalendarPage';
+import ConsultationOverview from '@/components/consultation/ConsultationOverview';
 import Sidebar from '@/components/layouts/Sidebar';
 
-type TabType = 'overview' | 'editor' | 'calendar' | 'video';
+type TabType = 'overview' | 'editor' | 'calendar' | 'video' | 'consultation';
 
 const CoreOverview = () => (
   <div className="p-6 space-y-6">
@@ -66,6 +67,7 @@ const CoreDashboard = () => {
       case 'editor': return <CereforgeEditor />;
       case 'calendar': return <CalendarPage />;
       case 'video': return <VideoOverview />;
+      case 'consultation': return <ConsultationOverview />;
       default: return <CoreOverview />;
     }
   };
