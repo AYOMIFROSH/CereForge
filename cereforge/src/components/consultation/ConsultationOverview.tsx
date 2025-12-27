@@ -9,14 +9,28 @@ const ConsultationOverview = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   
   const tabFromURL = (searchParams.get('consultation-tab') as ConsultationTab) || 'my-consultations';
+  const editingIdFromURL = searchParams.get('editing');
+  
   const [activeTab, setActiveTab] = useState<ConsultationTab>(tabFromURL);
-  const [editingConsultation, setEditingConsultation] = useState<string | null>(null);
+  const [editingConsultation, setEditingConsultation] = useState<string | null>(editingIdFromURL);
 
   useEffect(() => {
-    if (activeTab !== tabFromURL) {
-      setSearchParams({ tab: 'consultation', 'consultation-tab': activeTab }, { replace: true });
+    const currentTab = searchParams.get('consultation-tab');
+    const currentEditing = searchParams.get('editing');
+    
+    if (activeTab !== currentTab || editingConsultation !== currentEditing) {
+      const params: Record<string, string> = { 
+        tab: 'consultation', 
+        'consultation-tab': activeTab 
+      };
+      
+      if (editingConsultation) {
+        params.editing = editingConsultation;
+      }
+      
+      setSearchParams(params, { replace: true });
     }
-  }, [activeTab, tabFromURL, setSearchParams]);
+  }, [activeTab, editingConsultation, searchParams, setSearchParams]);
 
   const handleEdit = (consultationId: string) => {
     setEditingConsultation(consultationId);
@@ -44,11 +58,18 @@ const ConsultationOverview = () => {
     }
   };
 
+  // ✅ Dynamic tab label based on editing state
+  const getCreateTabLabel = () => {
+    if (editingConsultation) {
+      return 'Edit Consultation';
+    }
+    return 'Create New';
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Consultation Management</h2>
           <p className="text-sm text-gray-500 mt-1">Create and manage your booking consultations</p>
         </div>
       </div>
@@ -74,7 +95,7 @@ const ConsultationOverview = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Create New
+            {getCreateTabLabel()}
           </button>
         </nav>
       </div>

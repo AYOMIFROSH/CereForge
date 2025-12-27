@@ -1,28 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Save, Eye } from 'lucide-react';
-
-interface DaySchedule {
-  enabled: boolean;
-  openTime: string;
-  closeTime: string;
-}
-
-interface ConsultationFormData {
-  consultationType: string;
-  companyName: string;
-  duration: string;
-  description: string;
-  bufferHours: number;
-  schedule: {
-    monday: DaySchedule;
-    tuesday: DaySchedule;
-    wednesday: DaySchedule;
-    thursday: DaySchedule;
-    friday: DaySchedule;
-    saturday: DaySchedule;
-    sunday: DaySchedule;
-  };
-}
+import { ChevronLeft, Save, Plus, Eye } from 'lucide-react';
+import { motion } from 'framer-motion';
+import ConsultationFormCard from './ConsultationFormCard';
+import { ConsultationFormData, EMPTY_CONSULTATION_FORM, SYSTEM_BOOKING_CONSULTATIONS } from '@/utils/ConsultationConstants';
+import { useAppSelector } from '@/store/hook';
+import { selectUser } from '@/store/slices/authSlice';
 
 interface CreateConsultationProps {
   editingId: string | null;
@@ -30,110 +12,184 @@ interface CreateConsultationProps {
 }
 
 const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
-  const [formData, setFormData] = useState<ConsultationFormData>({
-    consultationType: '',
-    companyName: '',
-    duration: '30',
-    description: '',
-    bufferHours: 48,
-    schedule: {
-      monday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-      tuesday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-      wednesday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-      thursday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-      friday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-      saturday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-      sunday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
-    }
-  });
+  const user = useAppSelector(selectUser);
+  const isAdminOrCore = user?.role === 'admin' || user?.role === 'core';
+  
+  const [isSystemBooking, setIsSystemBooking] = useState(false);
+  const [consultations, setConsultations] = useState<ConsultationFormData[]>([
+    { ...EMPTY_CONSULTATION_FORM }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [_showPreview, setShowPreview] = useState(false);
-
+  // ✅ Load consultation data when editing
   useEffect(() => {
     if (editingId) {
-      // TODO: Load consultation data for editing
-      console.log('Loading consultation:', editingId);
+      loadConsultationForEditing(editingId);
     }
   }, [editingId]);
 
-  const daysOfWeek = [
-    { key: 'monday', label: 'Monday' },
-    { key: 'tuesday', label: 'Tuesday' },
-    { key: 'wednesday', label: 'Wednesday' },
-    { key: 'thursday', label: 'Thursday' },
-    { key: 'friday', label: 'Friday' },
-    { key: 'saturday', label: 'Saturday' },
-    { key: 'sunday', label: 'Sunday' },
-  ];
-
-  const bufferOptions = [
-    { value: 24, label: '24 hours' },
-    { value: 48, label: '48 hours' },
-    { value: 72, label: '72 hours' },
-    { value: 96, label: '96 hours' },
-  ];
-
-  const handleDayToggle = (day: string) => {
-    setFormData({
-      ...formData,
-      schedule: {
-        ...formData.schedule,
-        [day]: {
-          ...formData.schedule[day as keyof typeof formData.schedule],
-          enabled: !formData.schedule[day as keyof typeof formData.schedule].enabled
-        }
+  const loadConsultationForEditing = async (id: string) => {
+    setIsLoading(true);
+    
+    try {
+      // TODO: Replace with actual API call
+      // const response = await fetch(`/api/consultations/${id}`);
+      // const data = await response.json();
+      
+      // ✅ MOCK: Simulate fetching consultation data
+      // For now, check if it's system booking
+      if (id === 'system_booking_consult') {
+        // ✅ Load system booking consultations from constants
+        const systemConsults: ConsultationFormData[] = SYSTEM_BOOKING_CONSULTATIONS.map((type) => ({
+          consultationType: type.title,
+          companyName: 'Cereforge',
+          duration: type.duration.replace(' minutes', ''),
+          description: type.description,
+          bufferHours: 48,
+          timezone: 'Africa/Lagos', // ✅ Default Cereforge timezone
+          isActive: true, // ✅ Default to active
+          schedule: {
+            monday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
+            tuesday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
+            wednesday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
+            thursday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+            friday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+            saturday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+            sunday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+          },
+          isSystemBooking: true
+        }));
+        
+        setConsultations(systemConsults);
+        setIsSystemBooking(true);
+      } else {
+        // ✅ Load individual booking consultations
+        // TODO: This will come from backend
+        // For now, simulate with mock data
+        const mockIndividualConsults: ConsultationFormData[] = [
+          {
+            consultationType: 'Client Discovery',
+            companyName: 'My Company',
+            duration: '30',
+            description: 'Initial client meeting',
+            bufferHours: 48,
+            timezone: 'America/New_York', // ✅ Example timezone
+            isActive: true, // ✅ Active by default
+            schedule: {
+              monday: { enabled: true, openTime: '10:00', closeTime: '16:00' },
+              tuesday: { enabled: true, openTime: '10:00', closeTime: '16:00' },
+              wednesday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+              thursday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+              friday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+              saturday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+              sunday: { enabled: false, openTime: '09:00', closeTime: '17:00' },
+            },
+            isSystemBooking: false
+          }
+        ];
+        
+        setConsultations(mockIndividualConsults);
+        setIsSystemBooking(false);
       }
-    });
+    } catch (error) {
+      console.error('Error loading consultation:', error);
+      alert('Failed to load consultation data');
+      onBack();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleTimeChange = (day: string, type: 'openTime' | 'closeTime', value: string) => {
-    setFormData({
-      ...formData,
-      schedule: {
-        ...formData.schedule,
-        [day]: {
-          ...formData.schedule[day as keyof typeof formData.schedule],
-          [type]: value
-        }
-      }
-    });
+  const handleAddConsultation = () => {
+    const maxAllowed = isSystemBooking ? Infinity : 2;
+    
+    if (consultations.length < maxAllowed) {
+      setConsultations([...consultations, { ...EMPTY_CONSULTATION_FORM, isSystemBooking }]);
+    }
+  };
+
+  const handleRemoveConsultation = (index: number) => {
+    setConsultations(consultations.filter((_, i) => i !== index));
+  };
+
+  const handleConsultationChange = (index: number, data: ConsultationFormData) => {
+    const updated = [...consultations];
+    updated[index] = { ...data, isSystemBooking };
+    setConsultations(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
-    if (!formData.consultationType || !formData.companyName) {
-      alert('Please fill in all required fields');
-      return;
+    // Validate all consultations
+    for (const consultation of consultations) {
+      if (!consultation.consultationType || !consultation.companyName) {
+        alert('Please fill in all required fields for each consultation');
+        return;
+      }
+
+      const enabledDays = Object.values(consultation.schedule).filter(day => day.enabled);
+      if (enabledDays.length === 0) {
+        alert(`Please select at least one available day for ${consultation.consultationType}`);
+        return;
+      }
     }
 
-    const enabledDays = Object.values(formData.schedule).filter(day => day.enabled);
-    if (enabledDays.length === 0) {
-      alert('Please select at least one available day');
-      return;
-    }
+    // ✅ Prepare data for saving
+    const bookingGroupId = editingId || (isSystemBooking 
+      ? 'system_booking_consult' 
+      : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+    
+    const bookingData = {
+      id: bookingGroupId,
+      isSystemBooking,
+      consultations: consultations.map((consultation, index) => {
+        const companySlug = consultation.companyName.toLowerCase().replace(/\s+/g, '-');
+        const typeSlug = consultation.consultationType.toLowerCase().replace(/\s+/g, '-');
+        const consultationId = `${bookingGroupId}_${index}`;
+        
+        return {
+          id: consultationId,
+          ...consultation,
+          bookingLink: `/book/${companySlug}/${typeSlug}/${consultationId}`,
+        };
+      }),
+      createdAt: editingId ? undefined : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-    // TODO: Save consultation to storage/API
-    console.log('Saving consultation:', formData);
+    // TODO: Save to backend
+    console.log('Saving booking group:', bookingData);
     
-    // Generate unique ID and link
-    const uniqueId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const companySlug = formData.companyName.toLowerCase().replace(/\s+/g, '-');
-    const typeSlug = formData.consultationType.toLowerCase().replace(/\s+/g, '-');
-    const bookingLink = `/book/${companySlug}/${typeSlug}/${uniqueId}`;
-    
-    console.log('Generated booking link:', bookingLink);
-    
-    alert('Consultation saved successfully!');
+    alert(`${consultations.length} consultation(s) ${editingId ? 'updated' : 'saved'} successfully!`);
     onBack();
   };
 
-  const isFormValid = formData.consultationType && formData.companyName && 
-    Object.values(formData.schedule).some(day => day.enabled);
+  const isFormValid = consultations.every(consultation => 
+    consultation.consultationType && 
+    consultation.companyName && 
+    Object.values(consultation.schedule).some(day => day.enabled)
+  );
+
+  const maxConsultations = isSystemBooking ? Infinity : 2;
+  const canAddMore = consultations.length < maxConsultations;
+
+  // ✅ Show loading state while fetching
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-sm text-gray-600">Loading consultation data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -143,171 +199,146 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
           <ChevronLeft className="w-4 h-4" />
           <span className="text-sm font-medium">Back to list</span>
         </button>
-        <h3 className="text-2xl font-bold text-gray-900">
-          {editingId ? 'Edit Consultation' : 'Create New Consultation'}
-        </h3>
-        <p className="text-sm text-gray-500 mt-1">Configure your booking consultation settings</p>
+        
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {editingId ? 'Edit Consultation' : 'Create New Consultation'}
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {isSystemBooking 
+                ? 'System Booking - Unlimited consultations' 
+                : 'Individual Booking - Max 2 consultations'}
+            </p>
+            {editingId && (
+              <p className="text-xs text-blue-600 mt-1">
+                Editing: {consultations.length} consultation{consultations.length > 1 ? 's' : ''} in this group
+              </p>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+           
+            {/* Add More Button */}
+            {canAddMore && (
+              <button
+                type="button"
+                onClick={handleAddConsultation}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add {isSystemBooking ? 'More' : '1 More'}</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-          <h4 className="text-lg font-bold text-gray-900 mb-4">Basic Information</h4>
+      {/* ✅ System Booking Toggle - Only show when creating new (not editing) */}
+      {isAdminOrCore && !editingId && (
+        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-bold text-gray-900 mb-1">Booking Type</h4>
+              <p className="text-xs text-gray-600">
+                {isSystemBooking 
+                  ? 'System bookings allow unlimited consultations and are used for Cereforge team availability' 
+                  : 'Individual bookings are limited to 2 consultations per creation'}
+              </p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => {
+                if (consultations.length > 2 && !isSystemBooking) {
+                  alert('Please remove extra consultations before switching to Individual Booking (max 2)');
+                  return;
+                }
+                setIsSystemBooking(!isSystemBooking);
+                // Update all consultations with new flag
+                setConsultations(consultations.map(c => ({ ...c, isSystemBooking: !isSystemBooking })));
+              }}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                isSystemBooking ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${
+                  isSystemBooking ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Consultation Type <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.consultationType}
-                onChange={(e) => setFormData({ ...formData, consultationType: e.target.value })}
-                placeholder="e.g., Discovery Call"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Company Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.companyName}
-                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                placeholder="e.g., Tech Solutions Ltd"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Duration
-              </label>
-              <select
-                value={formData.duration}
-                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-                <option value="45">45 minutes</option>
-                <option value="60">60 minutes</option>
-                <option value="90">90 minutes</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Buffer Between Bookings
-              </label>
-              <select
-                value={formData.bufferHours}
-                onChange={(e) => setFormData({ ...formData, bufferHours: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              >
-                {bufferOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Brief description of this consultation"
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
-            />
+          <div className="mt-3 flex items-center space-x-4 text-xs">
+            <span className={`font-medium ${!isSystemBooking ? 'text-blue-600' : 'text-gray-500'}`}>
+              Individual Booking
+            </span>
+            <span className={`font-medium ${isSystemBooking ? 'text-blue-600' : 'text-gray-500'}`}>
+              System Booking
+            </span>
           </div>
         </div>
+      )}
 
-        {/* Availability Schedule */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-          <h4 className="text-lg font-bold text-gray-900 mb-4">Availability Schedule</h4>
-          <p className="text-sm text-gray-500 mb-4">Select the days you're available and set your working hours</p>
-
-          <div className="space-y-3">
-            {daysOfWeek.map(({ key, label }) => {
-              const daySchedule = formData.schedule[key as keyof typeof formData.schedule];
-              
-              return (
-                <div
-                  key={key}
-                  className={`border rounded-lg p-4 transition-all ${
-                    daySchedule.enabled ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={daySchedule.enabled}
-                        onChange={() => handleDayToggle(key)}
-                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label className="font-semibold text-gray-900">{label}</label>
-                    </div>
-
-                    {daySchedule.enabled && (
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center space-x-2">
-                          <label className="text-xs text-gray-600">From:</label>
-                          <input
-                            type="time"
-                            value={daySchedule.openTime}
-                            onChange={(e) => handleTimeChange(key, 'openTime', e.target.value)}
-                            className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <label className="text-xs text-gray-600">To:</label>
-                          <input
-                            type="time"
-                            value={daySchedule.closeTime}
-                            onChange={(e) => handleTimeChange(key, 'closeTime', e.target.value)}
-                            className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+      {/* ✅ Editing Info Banner */}
+      {editingId && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+              <Eye className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-blue-900">Editing Mode</h4>
+              <p className="text-xs text-blue-700 mt-1">
+                You are editing an existing {isSystemBooking ? 'system' : 'individual'} booking with {consultations.length} consultation{consultations.length > 1 ? 's' : ''}. 
+                Changes will update all consultations in this group.
+              </p>
+            </div>
           </div>
         </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Consultation Forms */}
+        {consultations.map((consultation, index) => (
+          <ConsultationFormCard
+            key={index}
+            index={index}
+            initialData={consultation}
+            onRemove={() => handleRemoveConsultation(index)}
+            showRemove={consultations.length > 1}
+            onChange={(data) => handleConsultationChange(index, data)}
+          />
+        ))}
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={() => setShowPreview(true)}
-            disabled={!isFormValid}
-            className="flex items-center space-x-2 px-6 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Eye className="w-4 h-4" />
-            <span>Preview</span>
-          </button>
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200 bg-white sticky bottom-0 py-4">
+          <div className="w-24">
+            {/* Placeholder for symmetry */}
+          </div>
 
-          <button
-            type="submit"
-            disabled={!isFormValid}
-            className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Save className="w-4 h-4" />
-            <span>{editingId ? 'Update' : 'Create'} Consultation</span>
-          </button>
+          <div className="flex items-center space-x-1.5 opacity-50 select-none">
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Powered by</span>
+            <span className="text-[10px] font-bold text-blue-900 tracking-widest">CEREFORGE</span>
+          </div>
+
+          <div className="w-24 flex justify-end">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              disabled={!isFormValid}
+              className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-4 h-4" />
+              <span>
+                {editingId ? 'Update' : 'Create'}{' '}
+                {consultations.length > 1 ? `${consultations.length} Consultations` : 'Consultation'}
+                {isSystemBooking && ' (System)'}
+              </span>
+            </motion.button>
+          </div>
         </div>
       </form>
     </div>
