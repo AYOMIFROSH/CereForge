@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Video, CheckCircle, ChevronRight, ChevronLeft, Globe, Clock, Zap } from 'lucide-react';
+import { X, Video, CheckCircle, ChevronRight, ChevronLeft, Globe, Clock, Zap, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
 import { SYSTEM_BOOKING_CONSULTATIONS } from '@/utils/ConsultationConstants';
+import { filterTimezones, getTimezoneDisplay, getUserTimezone } from '@/utils/TimezoneUtils';
+
+interface VariantConfig {
+  id: string;
+  title: string;
+  duration: string;
+  description: string;
+  isActive: boolean;
+  icon?: string;
+  color?: string;
+}
 
 interface DynamicConfig {
   consultationType: string;
@@ -12,7 +23,9 @@ interface DynamicConfig {
   availableDays: string[];
   availableTimes: { [key: string]: { openTime: string; closeTime: string } };
   bufferHours: number;
+  isActive: boolean;
   isSystemBooking?: boolean;
+  variants?: VariantConfig[];
 }
 
 interface ConsultationBookingProps {
@@ -45,7 +58,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
   const [currentCalendarMonth, setCurrentCalendarMonth] = useState(dayjs().month());
 
   useEffect(() => {
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const userTimezone = getUserTimezone();
     setSelectedTimezone(userTimezone);
   }, []);
 
@@ -60,19 +73,19 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
     }
   }, [config]);
 
-  const commonTimezones = [
-    { value: 'Africa/Lagos', label: 'West Africa Time (WAT)', offset: '+01:00' },
-    { value: 'America/New_York', label: 'Eastern Time (ET)', offset: '-05:00' },
-    { value: 'America/Chicago', label: 'Central Time (CT)', offset: '-06:00' },
-    { value: 'Europe/London', label: 'British Time (GMT)', offset: '+00:00' },
-    { value: 'Europe/Paris', label: 'Central European Time (CET)', offset: '+01:00' },
-    { value: 'Asia/Dubai', label: 'Gulf Standard Time (GST)', offset: '+04:00' },
-  ];
+  const isBookingPaused = config && !config.isActive;
 
-  const filteredTimezones = commonTimezones.filter(tz =>
-    tz.label.toLowerCase().includes(timezoneSearch.toLowerCase()) ||
-    tz.value.toLowerCase().includes(timezoneSearch.toLowerCase())
-  );
+  const getActiveVariants = () => {
+    if (!config?.isSystemBooking || !config.variants) {
+      return SYSTEM_BOOKING_CONSULTATIONS;
+    }
+    return config.variants.filter(v => v.isActive);
+  };
+
+  const activeVariants = getActiveVariants();
+  const allVariantsPaused = config?.isSystemBooking && activeVariants.length === 0;
+
+  const filteredTimezones = filterTimezones(timezoneSearch);
 
   const getAvailableDates = (): Set<string> => {
     const availableDates = new Set<string>();
@@ -189,9 +202,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
   const handleNextCalendarMonth = () => setCurrentCalendarMonth(currentCalendarMonth + 1);
 
   const getCurrentTimezoneDisplay = () => {
-    const tz = commonTimezones.find(t => t.value === selectedTimezone);
-    if (tz) return `${tz.label} ${tz.offset}`;
-    return selectedTimezone;
+    return getTimezoneDisplay(selectedTimezone);
   };
 
   const displayConfig = config?.isSystemBooking && consultationType
@@ -217,6 +228,66 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
     : `bg-white rounded-xl border border-gray-200 shadow-sm w-full relative flex flex-col md:flex-row overflow-hidden`;
 
   if (!isOpen && mode === 'popup') return null;
+
+  // PAUSED STATE UI
+  if (isBookingPaused || allVariantsPaused) {
+    return (
+      <div className={wrapperClasses}>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }} 
+          animate={{ opacity: 1, scale: 1 }} 
+          className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center relative mx-auto"
+        >
+          {mode === 'popup' && (
+            <button 
+              onClick={() => { resetForm(); onClose(); }} 
+              className="absolute top-3 right-3 p-2 bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
+          <motion.div 
+            initial={{ scale: 0 }} 
+            animate={{ scale: 1 }} 
+            transition={{ delay: 0.2, type: 'spring' }} 
+            className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6"
+          >
+            <AlertCircle className="w-8 h-8 text-amber-600" />
+          </motion.div>
+
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Booking Currently Unavailable</h2>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            {allVariantsPaused 
+              ? 'All consultation types are currently paused.'
+              : 'This booking has been temporarily paused.'
+            }
+          </p>
+
+          <div className="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-100">
+            <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide mb-2">Need Assistance?</p>
+            <p className="text-sm text-blue-800 font-medium">
+              Please contact <span className="font-bold">{config?.companyName || 'the company'}</span> for support.
+            </p>
+          </div>
+
+          {mode === 'popup' && (
+            <button 
+              onClick={() => { resetForm(); onClose(); }} 
+              className="w-full px-6 py-3 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-xl transition-all"
+            >
+              Close
+            </button>
+          )}
+
+          <div className="mt-6 flex items-center justify-center space-x-1.5 opacity-40">
+            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">Powered by</span>
+            <span className="text-[11px] font-bold text-blue-900 tracking-widest">CEREFORGE</span>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (isSubmitted) {
     return (
@@ -294,7 +365,7 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
             <AnimatePresence mode="wait">
               {step === 1 && (!config || config.isSystemBooking) && (
                 <motion.div key="step1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
-                  {SYSTEM_BOOKING_CONSULTATIONS.map((type) => (
+                  {activeVariants.map((type) => (
                     <motion.div key={type.id} whileHover={{ scale: 1.01, borderColor: '#3b82f6' }} whileTap={{ scale: 0.99 }} onClick={() => handleConsultationTypeSelect(type.id)} className="p-4 rounded-xl border border-gray-100 bg-white hover:shadow-md cursor-pointer transition-all group flex items-center gap-4">
                       <div className={`w-10 h-10 bg-gradient-to-br ${type.color} rounded-lg flex items-center justify-center text-lg text-white shadow-sm flex-shrink-0`}>{type.icon}</div>
                       <div className="flex-1 min-w-0">
@@ -376,15 +447,33 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="col-span-2">
                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Name or Company Name</label>
-                        <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none" placeholder="Your full name" />
+                        <input 
+                          type="text" 
+                          value={formData.name} 
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                          className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none" 
+                          placeholder="Your full name" 
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Email</label>
-                        <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none" placeholder="you@company.com" />
+                        <input 
+                          type="email" 
+                          value={formData.email} 
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+                          className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none" 
+                          placeholder="you@company.com" 
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Topic</label>
-                        <textarea value={formData.projectDescription} onChange={(e) => setFormData({ ...formData, projectDescription: e.target.value })} rows={3} className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none resize-none" placeholder="What would you like to discuss?" />
+                        <textarea 
+                          value={formData.projectDescription} 
+                          onChange={(e) => setFormData({ ...formData, projectDescription: e.target.value })} 
+                          rows={3} 
+                          className="w-full px-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none resize-none" 
+                          placeholder="What would you like to discuss?" 
+                        />
                       </div>
                     </div>
                   </div>
@@ -409,7 +498,13 @@ const ConsultationBooking: React.FC<ConsultationBookingProps> = ({
               </div>
               <div className="w-24 flex justify-end">
                 {step === 3 && (
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleSubmit} disabled={!formData.name || !formData.email} className="flex items-center space-x-2 px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }} 
+                    whileTap={{ scale: 0.98 }} 
+                    onClick={handleSubmit} 
+                    disabled={!formData.name || !formData.email} 
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <span>Confirm</span>
                     <CheckCircle className="w-3.5 h-3.5" />
                   </motion.button>

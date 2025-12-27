@@ -26,7 +26,6 @@ interface Consultation {
 
 interface ConsultationListProps {
   onEdit: (id: string) => void;
-  // onCreateNew removed from here as it is handled by parent
 }
 
 const ConsultationList = ({ onEdit }: ConsultationListProps) => {
@@ -37,6 +36,10 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
   const [systemConsultations, setSystemConsultations] = useState<Consultation[]>([]);
 
   useEffect(() => {
+    // TODO: Replace with actual API calls when backend is ready
+    // fetchConsultations();
+    
+    // Temporary: Load system booking for admin/core users only
     if (isAdminOrCore) {
       const systemBooking: Consultation = {
         id: 'system_booking_consult',
@@ -54,7 +57,10 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
       };
       setSystemConsultations([systemBooking]);
     }
-    // TODO: Fetch individual consultations from backend API
+    
+    // TODO: Fetch individual consultations from API
+    // const response = await dispatch(fetchUserConsultations()).unwrap();
+    // setIndividualConsultations(response);
   }, [isAdminOrCore]);
 
   const allConsultations = [...systemConsultations, ...individualConsultations];
@@ -72,12 +78,19 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
       alert('System booking cannot be deleted. This is managed by Cereforge.');
       return;
     }
+    
     if (window.confirm('Are you sure you want to delete this consultation?')) {
+      // TODO: Replace with actual API call
+      // await dispatch(deleteConsultation(id)).unwrap();
       setIndividualConsultations(individualConsultations.filter(c => c.id !== id));
+      console.log('Delete consultation:', id);
     }
   };
 
-  const handleToggleActive = (id: string) => {
+  const handleToggleActive = async (id: string) => {
+    // TODO: Replace with actual API call
+    // await dispatch(toggleConsultationActive(id)).unwrap();
+    
     if (id === 'system_booking_consult') {
       setSystemConsultations(systemConsultations.map(c => 
         c.id === id ? { ...c, isActive: !c.isActive } : c
@@ -87,11 +100,12 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
         c.id === id ? { ...c, isActive: !c.isActive } : c
       ));
     }
+    
+    console.log('Toggle active status for:', id);
   };
 
   const canCreateNew = individualConsultations.length < 2;
 
-  // --- Helper Component for Status Badge ---
   const StatusBadge = ({ isActive }: { isActive: boolean }) => (
     <div className={`flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
       isActive ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-gray-100 text-gray-500 border border-gray-200'
@@ -103,7 +117,6 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header Action - Removed Button, kept Limit Badge */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900">Your Bookings</h2>
         {!canCreateNew && (
@@ -113,7 +126,6 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
         )}
       </div>
 
-      {/* Empty State */}
       {allConsultations.length === 0 && (
         <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
           <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -124,7 +136,6 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
         </div>
       )}
 
-      {/* Consultations List */}
       <div className="space-y-4">
         {allConsultations.map((consultation) => {
           const isSystem = consultation.isSystemBooking;
@@ -139,12 +150,10 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
                 }
               `}
             >
-              {/* Colored Accent Strip */}
               <div className={`absolute left-0 top-0 bottom-0 w-1 ${isSystem ? 'bg-purple-600' : 'bg-blue-600'}`} />
 
               <div className="flex flex-col md:flex-row md:items-center p-5 pl-7 gap-6">
                 
-                {/* 1. Icon & Core Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
                     {isSystem ? (
@@ -171,7 +180,6 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
                     {consultation.description}
                   </p>
 
-                  {/* Tags for System Booking */}
                   {isSystem && (
                     <div className="flex flex-wrap gap-2">
                       {SYSTEM_BOOKING_CONSULTATIONS.map(t => (
@@ -183,7 +191,6 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
                   )}
                 </div>
 
-                {/* 2. Metadata Column */}
                 <div className="flex flex-row md:flex-col gap-3 md:gap-1 text-xs text-gray-500 min-w-[140px] md:border-l md:border-gray-100 md:pl-6">
                   <div className="flex items-center gap-2" title="Duration">
                     <Clock className="w-3.5 h-3.5 text-gray-400" />
@@ -201,7 +208,6 @@ const ConsultationList = ({ onEdit }: ConsultationListProps) => {
                   </div>
                 </div>
 
-                {/* 3. Action Buttons */}
                 <div className="flex items-center justify-end gap-2 md:pl-4">
                   <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-100">
                     <button

@@ -23,7 +23,6 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // --- LOGIC PRESERVED ---
   useEffect(() => {
     if (editingId) {
       loadConsultationForEditing(editingId);
@@ -34,6 +33,7 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
     setIsLoading(true);
     try {
       if (id === 'system_booking_consult') {
+        // Load System Booking consultations with isActive status
         const systemConsults: ConsultationFormData[] = SYSTEM_BOOKING_CONSULTATIONS.map((type) => ({
           consultationType: type.title,
           companyName: 'Cereforge',
@@ -41,7 +41,7 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
           description: type.description,
           bufferHours: 48,
           timezone: 'Africa/Lagos',
-          isActive: true,
+          isActive: true, // ✅ System bookings default to active when editing
           schedule: {
             monday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
             tuesday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
@@ -56,6 +56,8 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
         setConsultations(systemConsults);
         setIsSystemBooking(true);
       } else {
+        // TODO: Replace with actual API call when backend is ready
+        // For now, mock individual consultation data
         const mockIndividualConsults: ConsultationFormData[] = [
           {
             consultationType: 'Client Discovery',
@@ -64,7 +66,7 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
             description: 'Initial client meeting',
             bufferHours: 48,
             timezone: 'America/New_York',
-            isActive: true,
+            isActive: true, // ✅ Load actual isActive status from API
             schedule: {
               monday: { enabled: true, openTime: '10:00', closeTime: '16:00' },
               tuesday: { enabled: true, openTime: '10:00', closeTime: '16:00' },
@@ -92,7 +94,14 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
   const handleAddConsultation = () => {
     const maxAllowed = isSystemBooking ? Infinity : 2;
     if (consultations.length < maxAllowed) {
-      setConsultations([...consultations, { ...EMPTY_CONSULTATION_FORM, isSystemBooking }]);
+      setConsultations([
+        ...consultations, 
+        { 
+          ...EMPTY_CONSULTATION_FORM, 
+          isSystemBooking,
+          isActive: true // ✅ New consultations default to active
+        }
+      ]);
     }
   };
 
@@ -102,12 +111,19 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
   const handleConsultationChange = (index: number, data: ConsultationFormData) => {
     const updated = [...consultations];
-    updated[index] = { ...data, isSystemBooking };
+    updated[index] = { 
+      ...data, 
+      isSystemBooking,
+      // ✅ Preserve isActive status when updating
+      isActive: data.isActive 
+    };
     setConsultations(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
     for (const consultation of consultations) {
       if (!consultation.consultationType || !consultation.companyName) {
         alert('Please fill in all required fields for each consultation');
@@ -134,7 +150,15 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
         
         return {
           id: consultationId,
-          ...consultation,
+          consultationType: consultation.consultationType,
+          companyName: consultation.companyName,
+          duration: consultation.duration,
+          description: consultation.description,
+          bufferHours: consultation.bufferHours,
+          timezone: consultation.timezone, // ✅ Include timezone
+          isActive: consultation.isActive, // ✅ Include isActive status
+          schedule: consultation.schedule,
+          isSystemBooking: consultation.isSystemBooking,
           bookingLink: `/book/${companySlug}/${typeSlug}/${consultationId}`,
         };
       }),
@@ -143,6 +167,10 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
     };
 
     console.log('Saving booking group:', bookingData);
+    
+    // TODO: Replace with actual API call when backend is ready
+    // Example: await dispatch(createConsultation(bookingData)).unwrap();
+    
     alert(`${consultations.length} consultation(s) ${editingId ? 'updated' : 'saved'} successfully!`);
     onBack();
   };
@@ -155,7 +183,6 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
   const maxConsultations = isSystemBooking ? Infinity : 2;
   const canAddMore = consultations.length < maxConsultations;
-  // -------------------------
 
   if (isLoading) {
     return (
@@ -224,7 +251,11 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
                    return;
                 }
                 setIsSystemBooking(false);
-                setConsultations(consultations.map(c => ({ ...c, isSystemBooking: false })));
+                setConsultations(consultations.map(c => ({ 
+                  ...c, 
+                  isSystemBooking: false,
+                  isActive: c.isActive // ✅ Preserve isActive when switching
+                })));
               }}
               className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
                 !isSystemBooking 
@@ -237,7 +268,11 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
             <button
               onClick={() => {
                 setIsSystemBooking(true);
-                setConsultations(consultations.map(c => ({ ...c, isSystemBooking: true })));
+                setConsultations(consultations.map(c => ({ 
+                  ...c, 
+                  isSystemBooking: true,
+                  isActive: c.isActive // ✅ Preserve isActive when switching
+                })));
               }}
               className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
                 isSystemBooking 
@@ -252,7 +287,11 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
         {/* Info Banner for Editing */}
         {editingId && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl text-blue-800">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl text-blue-800"
+          >
             <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <div className="text-sm">
               <span className="font-semibold">Editing Mode:</span> Changes made here will update the live booking links immediately. 
@@ -266,7 +305,7 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
           <AnimatePresence mode="popLayout">
             {consultations.map((consultation, index) => (
               <ConsultationFormCard
-                key={index} // Note: index is risky if reordering, but fine for add/remove end
+                key={index}
                 index={index}
                 initialData={consultation}
                 onRemove={() => handleRemoveConsultation(index)}
