@@ -1,6 +1,8 @@
+// src/components/consultation/CreateConsultation.tsx
+
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Save, Plus, Eye } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ChevronLeft, Save, Plus, Info } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ConsultationFormCard from './ConsultationFormCard';
 import { ConsultationFormData, EMPTY_CONSULTATION_FORM, SYSTEM_BOOKING_CONSULTATIONS } from '@/utils/ConsultationConstants';
 import { useAppSelector } from '@/store/hook';
@@ -21,7 +23,7 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Load consultation data when editing
+  // --- LOGIC PRESERVED ---
   useEffect(() => {
     if (editingId) {
       loadConsultationForEditing(editingId);
@@ -30,24 +32,16 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
   const loadConsultationForEditing = async (id: string) => {
     setIsLoading(true);
-    
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/consultations/${id}`);
-      // const data = await response.json();
-      
-      // ✅ MOCK: Simulate fetching consultation data
-      // For now, check if it's system booking
       if (id === 'system_booking_consult') {
-        // ✅ Load system booking consultations from constants
         const systemConsults: ConsultationFormData[] = SYSTEM_BOOKING_CONSULTATIONS.map((type) => ({
           consultationType: type.title,
           companyName: 'Cereforge',
           duration: type.duration.replace(' minutes', ''),
           description: type.description,
           bufferHours: 48,
-          timezone: 'Africa/Lagos', // ✅ Default Cereforge timezone
-          isActive: true, // ✅ Default to active
+          timezone: 'Africa/Lagos',
+          isActive: true,
           schedule: {
             monday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
             tuesday: { enabled: true, openTime: '09:00', closeTime: '17:00' },
@@ -59,13 +53,9 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
           },
           isSystemBooking: true
         }));
-        
         setConsultations(systemConsults);
         setIsSystemBooking(true);
       } else {
-        // ✅ Load individual booking consultations
-        // TODO: This will come from backend
-        // For now, simulate with mock data
         const mockIndividualConsults: ConsultationFormData[] = [
           {
             consultationType: 'Client Discovery',
@@ -73,8 +63,8 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
             duration: '30',
             description: 'Initial client meeting',
             bufferHours: 48,
-            timezone: 'America/New_York', // ✅ Example timezone
-            isActive: true, // ✅ Active by default
+            timezone: 'America/New_York',
+            isActive: true,
             schedule: {
               monday: { enabled: true, openTime: '10:00', closeTime: '16:00' },
               tuesday: { enabled: true, openTime: '10:00', closeTime: '16:00' },
@@ -87,7 +77,6 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
             isSystemBooking: false
           }
         ];
-        
         setConsultations(mockIndividualConsults);
         setIsSystemBooking(false);
       }
@@ -102,7 +91,6 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
   const handleAddConsultation = () => {
     const maxAllowed = isSystemBooking ? Infinity : 2;
-    
     if (consultations.length < maxAllowed) {
       setConsultations([...consultations, { ...EMPTY_CONSULTATION_FORM, isSystemBooking }]);
     }
@@ -120,14 +108,11 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate all consultations
     for (const consultation of consultations) {
       if (!consultation.consultationType || !consultation.companyName) {
         alert('Please fill in all required fields for each consultation');
         return;
       }
-
       const enabledDays = Object.values(consultation.schedule).filter(day => day.enabled);
       if (enabledDays.length === 0) {
         alert(`Please select at least one available day for ${consultation.consultationType}`);
@@ -135,7 +120,6 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
       }
     }
 
-    // ✅ Prepare data for saving
     const bookingGroupId = editingId || (isSystemBooking 
       ? 'system_booking_consult' 
       : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
@@ -158,9 +142,7 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
       updatedAt: new Date().toISOString()
     };
 
-    // TODO: Save to backend
     console.log('Saving booking group:', bookingData);
-    
     alert(`${consultations.length} consultation(s) ${editingId ? 'updated' : 'saved'} successfully!`);
     onBack();
   };
@@ -173,174 +155,142 @@ const CreateConsultation = ({ editingId, onBack }: CreateConsultationProps) => {
 
   const maxConsultations = isSystemBooking ? Infinity : 2;
   const canAddMore = consultations.length < maxConsultations;
+  // -------------------------
 
-  // ✅ Show loading state while fetching
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-sm text-gray-600">Loading consultation data...</p>
-          </div>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-sm text-gray-500 font-medium">Loading details...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={onBack}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Back to list</span>
-        </button>
-        
-        <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto pb-24">
+      {/* Top Navigation Bar */}
+      <div className="sticky top-0 z-30 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 -mx-6 px-6 py-4 mb-8 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 text-gray-500 hover:text-gray-900 hover:bg-white rounded-full transition-all"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
           <div>
-            <h3 className="text-2xl font-bold text-gray-900">
-              {editingId ? 'Edit Consultation' : 'Create New Consultation'}
+            <h3 className="text-lg font-bold text-gray-900 leading-tight">
+              {editingId ? 'Edit Configuration' : 'Create New Booking'}
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {isSystemBooking 
-                ? 'System Booking - Unlimited consultations' 
-                : 'Individual Booking - Max 2 consultations'}
+            <p className="text-xs text-gray-500">
+              {isSystemBooking ? 'System-wide Availability' : 'Individual Consultation Link'}
             </p>
-            {editingId && (
-              <p className="text-xs text-blue-600 mt-1">
-                Editing: {consultations.length} consultation{consultations.length > 1 ? 's' : ''} in this group
-              </p>
-            )}
           </div>
-          
-          <div className="flex items-center space-x-2">
-           
-            {/* Add More Button */}
-            {canAddMore && (
-              <button
-                type="button"
-                onClick={handleAddConsultation}
-                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add {isSystemBooking ? 'More' : '1 More'}</span>
-              </button>
-            )}
-          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          {canAddMore && (
+            <button
+              type="button"
+              onClick={handleAddConsultation}
+              className="hidden sm:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 hover:border-blue-300 hover:text-blue-600 text-gray-600 font-medium text-xs rounded-lg transition-all shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Variant</span>
+            </button>
+          )}
+          <button
+            onClick={(e) => handleSubmit(e as any)}
+            disabled={!isFormValid}
+            className="flex items-center space-x-2 px-5 py-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{editingId ? 'Update Changes' : 'Save Booking'}</span>
+          </button>
         </div>
       </div>
 
-      {/* ✅ System Booking Toggle - Only show when creating new (not editing) */}
-      {isAdminOrCore && !editingId && (
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-bold text-gray-900 mb-1">Booking Type</h4>
-              <p className="text-xs text-gray-600">
-                {isSystemBooking 
-                  ? 'System bookings allow unlimited consultations and are used for Cereforge team availability' 
-                  : 'Individual bookings are limited to 2 consultations per creation'}
-              </p>
-            </div>
-            
+      <div className="space-y-6">
+        {/* Configuration Type Selector (Only on Create) */}
+        {isAdminOrCore && !editingId && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-xl p-1 shadow-sm border border-gray-200 inline-flex"
+          >
             <button
-              type="button"
               onClick={() => {
                 if (consultations.length > 2 && !isSystemBooking) {
-                  alert('Please remove extra consultations before switching to Individual Booking (max 2)');
-                  return;
+                   alert('Please remove extra consultations first');
+                   return;
                 }
-                setIsSystemBooking(!isSystemBooking);
-                // Update all consultations with new flag
-                setConsultations(consultations.map(c => ({ ...c, isSystemBooking: !isSystemBooking })));
+                setIsSystemBooking(false);
+                setConsultations(consultations.map(c => ({ ...c, isSystemBooking: false })));
               }}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                isSystemBooking ? 'bg-blue-600' : 'bg-gray-300'
+              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
+                !isSystemBooking 
+                  ? 'bg-blue-50 text-blue-700 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${
-                  isSystemBooking ? 'translate-x-7' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-          
-          <div className="mt-3 flex items-center space-x-4 text-xs">
-            <span className={`font-medium ${!isSystemBooking ? 'text-blue-600' : 'text-gray-500'}`}>
               Individual Booking
-            </span>
-            <span className={`font-medium ${isSystemBooking ? 'text-blue-600' : 'text-gray-500'}`}>
-              System Booking
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ Editing Info Banner */}
-      {editingId && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <Eye className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-blue-900">Editing Mode</h4>
-              <p className="text-xs text-blue-700 mt-1">
-                You are editing an existing {isSystemBooking ? 'system' : 'individual'} booking with {consultations.length} consultation{consultations.length > 1 ? 's' : ''}. 
-                Changes will update all consultations in this group.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Consultation Forms */}
-        {consultations.map((consultation, index) => (
-          <ConsultationFormCard
-            key={index}
-            index={index}
-            initialData={consultation}
-            onRemove={() => handleRemoveConsultation(index)}
-            showRemove={consultations.length > 1}
-            onChange={(data) => handleConsultationChange(index, data)}
-          />
-        ))}
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 bg-white sticky bottom-0 py-4">
-          <div className="w-24">
-            {/* Placeholder for symmetry */}
-          </div>
-
-          <div className="flex items-center space-x-1.5 opacity-50 select-none">
-            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">Powered by</span>
-            <span className="text-[10px] font-bold text-blue-900 tracking-widest">CEREFORGE</span>
-          </div>
-
-          <div className="w-24 flex justify-end">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={!isFormValid}
-              className="flex items-center space-x-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            </button>
+            <button
+              onClick={() => {
+                setIsSystemBooking(true);
+                setConsultations(consultations.map(c => ({ ...c, isSystemBooking: true })));
+              }}
+              className={`px-4 py-2 text-xs font-medium rounded-lg transition-all ${
+                isSystemBooking 
+                  ? 'bg-purple-50 text-purple-700 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
             >
-              <Save className="w-4 h-4" />
-              <span>
-                {editingId ? 'Update' : 'Create'}{' '}
-                {consultations.length > 1 ? `${consultations.length} Consultations` : 'Consultation'}
-                {isSystemBooking && ' (System)'}
-              </span>
-            </motion.button>
-          </div>
-        </div>
-      </form>
+              System Booking
+            </button>
+          </motion.div>
+        )}
+
+        {/* Info Banner for Editing */}
+        {editingId && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-3 p-4 bg-blue-50/50 border border-blue-100 rounded-xl text-blue-800">
+            <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <span className="font-semibold">Editing Mode:</span> Changes made here will update the live booking links immediately. 
+              {isSystemBooking && " You are modifying global system availability."}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Forms List */}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <AnimatePresence mode="popLayout">
+            {consultations.map((consultation, index) => (
+              <ConsultationFormCard
+                key={index} // Note: index is risky if reordering, but fine for add/remove end
+                index={index}
+                initialData={consultation}
+                onRemove={() => handleRemoveConsultation(index)}
+                showRemove={consultations.length > 1}
+                onChange={(data) => handleConsultationChange(index, data)}
+              />
+            ))}
+          </AnimatePresence>
+
+          {/* Bottom Action Area (for Mobile/Convenience) */}
+          {canAddMore && (
+             <motion.button
+               type="button"
+               onClick={handleAddConsultation}
+               whileHover={{ scale: 1.01 }}
+               whileTap={{ scale: 0.99 }}
+               className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50/50 transition-all flex items-center justify-center space-x-2 text-sm font-medium"
+             >
+               <Plus className="w-4 h-4" />
+               <span>Add Another Consultation Variant</span>
+             </motion.button>
+          )}
+        </form>
+      </div>
     </div>
   );
 };
