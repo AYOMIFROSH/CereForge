@@ -41,17 +41,17 @@ const CalendarDayView: React.FC<CalendarDayViewProps> = ({
   // Calculate event position and height
   const getEventStyle = (event: CalendarEvent) => {
     if (event.allDay) return null;
-    
+
     const [startHour, startMinute] = event.startTime.split(':').map(Number);
     const [endHour, endMinute] = event.endTime.split(':').map(Number);
-    
+
     const startInMinutes = startHour * 60 + startMinute;
     const endInMinutes = endHour * 60 + endMinute;
     const duration = endInMinutes - startInMinutes;
-    
+
     const top = (startInMinutes / 60) * 80; // 80px per hour
     const height = (duration / 60) * 80;
-    
+
     return { top: `${top}px`, height: `${height}px` };
   };
 
@@ -81,7 +81,7 @@ const CalendarDayView: React.FC<CalendarDayViewProps> = ({
               </p>
             </div>
           </div>
-          
+
           {/* All Day Events */}
           {dayEvents.filter(evt => evt.allDay).length > 0 && (
             <div className="mt-4 space-y-2">

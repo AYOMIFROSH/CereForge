@@ -53,23 +53,23 @@ const imageUrlToBase64 = async (url: string): Promise<{ data: string; type: stri
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            
+
             img.onload = () => {
                 try {
                     const canvas = document.createElement('canvas');
                     canvas.width = img.naturalWidth || img.width;
                     canvas.height = img.naturalHeight || img.height;
-                    
+
                     const ctx = canvas.getContext('2d');
                     if (!ctx) {
                         reject(new Error('Failed to get canvas context'));
                         return;
                     }
-                    
+
                     ctx.drawImage(img, 0, 0);
                     const dataUrl = canvas.toDataURL('image/png');
                     const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-                    
+
                     if (matches) {
                         resolve({ data: matches[2], type: matches[1] });
                     } else {
@@ -79,10 +79,10 @@ const imageUrlToBase64 = async (url: string): Promise<{ data: string; type: stri
                     reject(error);
                 }
             };
-            
+
             img.onerror = () => reject(new Error('Failed to load image'));
             img.src = url;
-            
+
             // Timeout after 10 seconds
             setTimeout(() => reject(new Error('Timeout')), 10000);
         });
@@ -111,13 +111,13 @@ const captureElementAsImage = async (element: HTMLElement): Promise<string> => {
             allowTaint: true,
             removeContainer: false,
         });
-        
+
         const base64 = canvas.toDataURL('image/png').split(',')[1];
-        
+
         if (!base64 || base64.length < 100) {
             throw new Error('Captured image too small');
         }
-        
+
         return base64;
     } catch (error) {
         console.error('Failed to capture element:', error);
@@ -138,10 +138,8 @@ export const exportToPDF = async (
 
         const clonedElement = element.cloneNode(true) as HTMLElement;
 
-        const pageCounter = clonedElement.querySelector('.no-print');
-        if (pageCounter) {
-            pageCounter.remove();
-        }
+        const noPrintElements = clonedElement.querySelectorAll('.no-print');
+        noPrintElements.forEach(el => el.remove());
 
         clonedElement.style.position = 'absolute';
         clonedElement.style.left = '-9999px';
@@ -426,63 +424,63 @@ export const exportToDOCX = async (
                         })];
 
                     case 'img': {
-    const imgElement = element as HTMLImageElement;
-    const src = imgElement.src;
+                        const imgElement = element as HTMLImageElement;
+                        const src = imgElement.src;
 
-    if (!src || src === '' || src === 'about:blank') {
-        return [];
-    }
+                        if (!src || src === '' || src === 'about:blank') {
+                            return [];
+                        }
 
-    try {
-        onProgress?.(progress, 'Processing image...');
+                        try {
+                            onProgress?.(progress, 'Processing image...');
 
-        const { data: base64Image, type } = await imageUrlToBase64(src);
+                            const { data: base64Image, type } = await imageUrlToBase64(src);
 
-        if (!base64Image || base64Image.length < 100) {
-            console.warn('Image failed:', src);
-            return [new Paragraph({
-                text: `[Image: ${imgElement.alt || 'Unable to load'}]`,
-                spacing: { before: 120, after: 120 },
-            })];
-        }
+                            if (!base64Image || base64Image.length < 100) {
+                                console.warn('Image failed:', src);
+                                return [new Paragraph({
+                                    text: `[Image: ${imgElement.alt || 'Unable to load'}]`,
+                                    spacing: { before: 120, after: 120 },
+                                })];
+                            }
 
-        let width = imgElement.width || 400;
-        let height = imgElement.height || 300;
-        
-        if (width > 500) {
-            height = (height / width) * 500;
-            width = 500;
-        }
+                            let width = imgElement.width || 400;
+                            let height = imgElement.height || 300;
 
-        let imageType: 'png' | 'jpg' | 'gif' | 'bmp' = 'png';
-        if (type.includes('jpeg') || type.includes('jpg')) {
-            imageType = 'jpg';
-        } else if (type.includes('gif')) {
-            imageType = 'gif';
-        }
+                            if (width > 500) {
+                                height = (height / width) * 500;
+                                width = 500;
+                            }
 
-        console.log(`✅ Embedded image: ${width}x${height}`);
+                            let imageType: 'png' | 'jpg' | 'gif' | 'bmp' = 'png';
+                            if (type.includes('jpeg') || type.includes('jpg')) {
+                                imageType = 'jpg';
+                            } else if (type.includes('gif')) {
+                                imageType = 'gif';
+                            }
 
-        return [
-            new Paragraph({
-                children: [
-                    new ImageRun({
-                        data: Buffer.from(base64Image, 'base64'),
-                        transformation: { width, height },
-                        type: imageType,
-                    }),
-                ],
-                spacing: { before: 200, after: 200 },
-            }),
-        ];
-    } catch (error) {
-        console.error('Image embed failed:', error);
-        return [new Paragraph({
-            text: `[Image: Error]`,
-            spacing: { before: 120, after: 120 },
-        })];
-    }
-}
+                            console.log(`✅ Embedded image: ${width}x${height}`);
+
+                            return [
+                                new Paragraph({
+                                    children: [
+                                        new ImageRun({
+                                            data: Buffer.from(base64Image, 'base64'),
+                                            transformation: { width, height },
+                                            type: imageType,
+                                        }),
+                                    ],
+                                    spacing: { before: 200, after: 200 },
+                                }),
+                            ];
+                        } catch (error) {
+                            console.error('Image embed failed:', error);
+                            return [new Paragraph({
+                                text: `[Image: Error]`,
+                                spacing: { before: 120, after: 120 },
+                            })];
+                        }
+                    }
 
                     case 'table': {
                         try {
@@ -506,43 +504,43 @@ export const exportToDOCX = async (
                     case 'span': {
                         // Check for charts first (SVG, canvas, or chart classes)
                         // Inside case 'div': around line 500
-const hasSVG = element.querySelector('svg');
-const hasCanvas = element.querySelector('canvas');
+                        const hasSVG = element.querySelector('svg');
+                        const hasCanvas = element.querySelector('canvas');
 
-if (hasSVG || hasCanvas) {
-    try {
-        onProgress?.(progress, 'Processing chart...');
+                        if (hasSVG || hasCanvas) {
+                            try {
+                                onProgress?.(progress, 'Processing chart...');
 
-        let captureElement = element;
-        const chartContainer = element.querySelector('.p-4') || 
-                             element.querySelector('svg')?.parentElement;
-        
-        if (chartContainer instanceof HTMLElement) {
-            captureElement = chartContainer;
-        }
+                                let captureElement = element;
+                                const chartContainer = element.querySelector('.p-4') ||
+                                    element.querySelector('svg')?.parentElement;
 
-        const chartImage = await captureElementAsImage(captureElement);
+                                if (chartContainer instanceof HTMLElement) {
+                                    captureElement = chartContainer;
+                                }
 
-        if (chartImage && chartImage.length > 100) {
-            console.log('✅ Embedded chart');
-            
-            return [
-                new Paragraph({
-                    children: [
-                        new ImageRun({
-                            data: Buffer.from(chartImage, 'base64'),
-                            transformation: { width: 500, height: 300 },
-                            type: 'png',
-                        }),
-                    ],
-                    spacing: { before: 200, after: 200 },
-                }),
-            ];
-        }
-    } catch (error) {
-        console.error('Chart embed failed:', error);
-    }
-}
+                                const chartImage = await captureElementAsImage(captureElement);
+
+                                if (chartImage && chartImage.length > 100) {
+                                    console.log('✅ Embedded chart');
+
+                                    return [
+                                        new Paragraph({
+                                            children: [
+                                                new ImageRun({
+                                                    data: Buffer.from(chartImage, 'base64'),
+                                                    transformation: { width: 500, height: 300 },
+                                                    type: 'png',
+                                                }),
+                                            ],
+                                            spacing: { before: 200, after: 200 },
+                                        }),
+                                    ];
+                                }
+                            } catch (error) {
+                                console.error('Chart embed failed:', error);
+                            }
+                        }
 
                         // Check for nested tables
                         const nestedTable = element.querySelector('table');

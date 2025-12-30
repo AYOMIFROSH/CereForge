@@ -1,21 +1,20 @@
-// src/hooks/useCalendarEvents.ts - FIXED RECURRENCE DATA FLOW
 import { useState, useMemo, useCallback } from 'react';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import { 
-  useGetEventsQuery, 
-  useCreateEventMutation, 
-  useUpdateEventMutation, 
+import {
+  useGetEventsQuery,
+  useCreateEventMutation,
+  useUpdateEventMutation,
   useDeleteEventMutation,
-  useGetPublicHolidaysQuery 
+  useGetPublicHolidaysQuery
 } from '../store/api/calendarApi';
-import type { 
-  CalendarEvent, 
-  LabelFilter, 
-  CreateEventInput, 
+import type {
+  CalendarEvent,
+  LabelFilter,
+  CreateEventInput,
   UpdateEventInput,
-  RecurrenceConfig 
+  RecurrenceConfig
 } from '../types/calendar.types';
 
 dayjs.extend(utc);
@@ -35,23 +34,26 @@ const extractParentId = (eventId: string): string => {
 
 export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams) => {
   const currentYear = year || dayjs().year();
-  
+
+  // ✅ 1. ADD STATE FOR HOLIDAY FILTERING
+  const [showHolidays, setShowHolidays] = useState(true);
+  const [selectedCountry, setSelectedCountry] = useState('NG'); // Default Nigeria
+
   const dateRange = useMemo(() => {
     const firstDayOfMonth = dayjs().year(currentYear).month(monthIndex).startOf('month');
     const firstDayOfGrid = firstDayOfMonth.startOf('week');
-    
     const lastDayOfMonth = dayjs().year(currentYear).month(monthIndex).endOf('month');
     const lastDayOfGrid = lastDayOfMonth.endOf('week');
-    
+
     return {
       startDate: firstDayOfGrid.toISOString(),
       endDate: lastDayOfGrid.toISOString()
     };
   }, [currentYear, monthIndex]);
 
-  const { 
-    data: eventsData, 
-    isLoading: eventsLoading, 
+  const {
+    data: eventsData,
+    isLoading: eventsLoading,
     isFetching,
     error: eventsError,
     refetch: refetchEvents
@@ -60,9 +62,10 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     includeRecurring: true
   });
 
-  useGetPublicHolidaysQuery(
-    { year: currentYear },
-    { skip: false }
+  // ✅ 2. FETCH HOLIDAYS BASED ON SELECTED COUNTRY
+  const { data: holidaysData } = useGetPublicHolidaysQuery(
+    { year: currentYear, country: selectedCountry },
+    { skip: !showHolidays }
   );
 
   const [createEventMutation, { isLoading: isCreating }] = useCreateEventMutation();
@@ -79,31 +82,71 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
   ]);
 
   const filteredEvents = useMemo(() => {
-    if (!eventsData?.data?.userEvents) {
-      return [];
-    }
-    
+    if (!eventsData?.data?.userEvents) return [];
     return eventsData.data.userEvents.filter(evt =>
       labels.find(lbl => lbl.label === evt.label && lbl.checked)
     );
   }, [eventsData?.data?.userEvents, labels]);
 
+  // ✅ 3. ROBUST HOLIDAY PROCESSING (The Fix)
   const publicHolidays = useMemo((): CalendarEvent[] => {
-    if (!eventsData?.data?.publicHolidays) return [];
-    return eventsData.data.publicHolidays as any[];
-  }, [eventsData?.data?.publicHolidays]);
+    if (!showHolidays) return [];
+
+    // Option A: Use holidays from the specific country query (Preferred)
+    if (holidaysData && holidaysData.length > 0) {
+      return holidaysData.map((h: any) => {
+        // 🛑 FIX: Handle snake_case (API) or camelCase (Transform)
+        const rawDate = h.holiday_date || h.holidayDate || h.date;
+        
+        // If no date found, log error and skip to avoid "today" bug
+        if (!rawDate) {
+           console.warn('Skipping holiday with missing date:', h);
+           return null;
+        }
+
+        return {
+          id: `holiday_${h.id}`,
+          eventId: `holiday_${h.id}`,
+          title: h.title,
+          event: h.title, // Legacy support
+          description: h.description || '',
+          startTime: '00:00',
+          endTime: '23:59',
+          day: dayjs(rawDate).valueOf(), // Correctly parse the date
+          allDay: true,
+          label: 'green',
+          timezone: 'UTC',
+          recurrence: { type: 'none' },
+          guests: [],
+          selectedGuest: [],
+          notification: { type: 'Snooze', interval: null },
+          notificationSettings: { type: 'Snooze', interval: null },
+          isPublicHoliday: true,
+          isEditable: false,
+          status: 'active'
+        } as CalendarEvent;
+      }).filter(Boolean) as CalendarEvent[]; // Filter out nulls
+    }
+
+    // Option B: Fallback to holidays inside getEvents (Legacy)
+    if (eventsData?.data?.publicHolidays) {
+      return eventsData.data.publicHolidays as any[];
+    }
+
+    return [];
+  }, [showHolidays, holidaysData, eventsData?.data?.publicHolidays]);
 
   const allEvents = useMemo((): CalendarEvent[] => {
     return [...filteredEvents, ...publicHolidays];
   }, [filteredEvents, publicHolidays]);
 
   const updateLabel = useCallback((updated: LabelFilter) => {
-    setLabels(prev => 
+    setLabels(prev =>
       prev.map(lbl => lbl.label === updated.label ? updated : lbl)
     );
   }, []);
 
-  // ✅ FIXED: Preserve full recurrence config
+ // ✅ FIXED: Preserve full recurrence config
   const addEvent = useCallback(async (event: CalendarEvent) => {
     try {
       console.log('➕ Creating event with recurrence:', event.recurrence);
@@ -266,11 +309,12 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     }
   }, [deleteEventMutation]);
 
+
   return {
     events: filteredEvents,
     publicHolidays,
     allEvents,
-    loading: eventsLoading || isFetching, 
+    loading: eventsLoading || isFetching,
     isCreating,
     isUpdating,
     isDeleting,
@@ -280,7 +324,12 @@ export const useCalendarEvents = ({ monthIndex, year }: UseCalendarEventsParams)
     deleteEvent: removeEvent,
     refetchEvents,
     labels,
-    updateLabel
+    updateLabel,
+    // ✅ 4. EXPORT NEW STATE
+    showHolidays,
+    setShowHolidays,
+    selectedCountry,
+    setSelectedCountry
   };
 };
 

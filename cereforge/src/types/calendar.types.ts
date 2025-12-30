@@ -178,6 +178,10 @@ export interface CalendarSidebarProps {
   onCreateEvent: () => void;
   labels: LabelFilter[];
   updateLabel: (label: LabelFilter) => void;
+  showHolidays: boolean;
+  setShowHolidays: (show: boolean) => void;
+  selectedCountry: string;
+  setSelectedCountry: (country: string) => void;
 }
 
 export interface CalendarGridProps {

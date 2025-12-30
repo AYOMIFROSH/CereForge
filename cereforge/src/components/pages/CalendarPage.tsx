@@ -53,7 +53,11 @@ const CalendarPage = () => {
     isUpdating,
     isDeleting,
     labels,
-    updateLabel
+    updateLabel,
+    showHolidays,
+    setShowHolidays,
+    selectedCountry,
+    setSelectedCountry
   } = useCalendarEvents({
     monthIndex,
     year: yearIndex
@@ -291,9 +295,14 @@ const CalendarPage = () => {
         daySelected={daySelected}
         setDaySelected={setDaySelected}
         setSmallCalendarMonth={setSmallCalendarMonth}
-        onCreateEvent={handleCreateEvent}
+        onCreateEvent={() => setShowEventModal(true)}
         labels={labels}
         updateLabel={updateLabel}
+        // ✅ PASS THE NEW PROPS HERE:
+        showHolidays={showHolidays}
+        setShowHolidays={setShowHolidays}
+        selectedCountry={selectedCountry}
+        setSelectedCountry={setSelectedCountry}
       />
 
       {/* Main Content */}

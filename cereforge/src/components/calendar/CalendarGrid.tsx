@@ -1,18 +1,17 @@
-// src/components/calendar/CalendarGrid.tsx - FIXED EVENT DISPLAY
 import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import dayjs, { Dayjs } from 'dayjs';
-import { CalendarEvent, CalendarDayProps } from '@/types/calendar.types';
-import DayEventsModal from './modals/DayEventsModals';
+import { CalendarEvent } from '@/types/calendar.types';
+import DayEventsModal from './modals/DayEventsModals'; //
 
-// ✅ FIXED: Generate month calendar grid
+// ✅ Generate exactly 5 rows to ensure stable height distribution
 const getMonth = (month: number = dayjs().month()): Dayjs[][] => {
   const year = dayjs().year();
   const firstDayOfMonth = dayjs(new Date(year, month, 1)).day();
   let currentMonthCount = 0 - firstDayOfMonth;
 
-  const daysMatrix = new Array(6).fill([]).map(() => {
+  const daysMatrix = new Array(5).fill([]).map(() => {
     return new Array(7).fill(null).map(() => {
       currentMonthCount++;
       return dayjs(new Date(year, month, currentMonthCount));
@@ -26,6 +25,15 @@ const getMonth = (month: number = dayjs().month()): Dayjs[][] => {
 // CALENDAR DAY COMPONENT
 // ============================================
 
+interface CalendarDayProps {
+  day: Dayjs;
+  rowIdx: number;
+  events: CalendarEvent[];
+  onDayClick: (day: Dayjs) => void;
+  onEventClick: (event: CalendarEvent) => void;
+  monthIndex: number;
+}
+
 const CalendarDay: React.FC<CalendarDayProps> = ({
   day,
   rowIdx,
@@ -34,55 +42,71 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
   onEventClick,
   monthIndex
 }) => {
-  // ✅ State for showing all events modal
+  // ✅ State to control the Day Modal
   const [showAllEvents, setShowAllEvents] = useState(false);
-  
-  // ✅ FIXED: Filter events for this specific day
+
   const dayEvents = events.filter(evt => {
-    const eventDay = dayjs(evt.day);
-    return eventDay.format('YYYY-MM-DD') === day.format('YYYY-MM-DD');
+    return dayjs(evt.day).format('YYYY-MM-DD') === day.format('YYYY-MM-DD');
   });
 
   const isToday = day.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD');
   const isCurrentMonth = day.month() === monthIndex;
-  const MAX_VISIBLE_EVENTS = 2;
+  
+  // ✅ STRICT LIMIT: Show 3 events max. If more, the 4th slot is the "More" button.
+  // This keeps the cell height predictable (Header + 3 slots + padding).
+  const MAX_VISIBLE_EVENTS = 3; 
+  const hasOverflow = dayEvents.length > MAX_VISIBLE_EVENTS;
+  // If overflowing, show one less event to make room for the button
+  const visibleEvents = hasOverflow ? dayEvents.slice(0, MAX_VISIBLE_EVENTS - 1) : dayEvents;
 
-  const labelColors: Record<string, string> = {
-    indigo: 'bg-indigo-500',
-    grey: 'bg-gray-500',
-    green: 'bg-green-500',
-    blue: 'bg-blue-500',
-    red: 'bg-red-500',
-    purple: 'bg-purple-500'
+  const bgColors: Record<string, string> = {
+    indigo: 'bg-indigo-600',
+    grey: 'bg-gray-600',
+    green: 'bg-green-600',
+    blue: 'bg-blue-600',
+    red: 'bg-red-600',
+    purple: 'bg-purple-600'
   };
 
-  // ✅ Debug log for first day of month
-  if (rowIdx === 0 && day.date() === 1) {
-    console.log(`📅 Day ${day.format('YYYY-MM-DD')} has ${dayEvents.length} events:`, dayEvents);
-  }
+  const textColors: Record<string, string> = {
+    indigo: 'text-indigo-600',
+    grey: 'text-gray-600',
+    green: 'text-green-600',
+    blue: 'text-blue-600',
+    red: 'text-red-600',
+    purple: 'text-purple-600'
+  };
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className={`
-        relative min-h-[120px] border border-gray-200 p-2 bg-white
-        ${!isCurrentMonth ? 'bg-gray-50' : ''}
-        hover:bg-blue-50/50 transition-colors cursor-pointer group
+        relative border-b border-r border-gray-200 bg-white
+        ${!isCurrentMonth ? 'bg-gray-50/30' : ''}
+        hover:bg-gray-50 transition-colors cursor-pointer group
+        flex flex-col
+        min-h-0 overflow-hidden /* ✅ Crucial: Prevents expansion */
       `}
       onClick={() => onDayClick(day)}
     >
       {/* Day Header */}
-      <div className="flex items-center justify-between mb-2">
-        {rowIdx === 0 && (
-          <span className="text-xs font-semibold text-gray-500 uppercase">
-            {day.format('ddd')}
-          </span>
-        )}
+      <div className="flex items-center justify-between px-2 pt-1.5 mb-0.5 shrink-0">
+        <div className="flex flex-col items-center">
+            {rowIdx === 0 && (
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
+                {day.format('ddd')}
+            </span>
+            )}
+        </div>
+        
         <div
           className={`
-            ml-auto w-7 h-7 flex items-center justify-center rounded-full text-sm font-semibold
-            ${isToday ? 'bg-orange-500 text-white' : 'text-gray-700'}
+            w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold
+            ${isToday 
+              ? 'bg-blue-600 text-white shadow-sm' 
+              : 'text-gray-700 group-hover:bg-gray-200'
+            }
             ${!isCurrentMonth ? 'opacity-40' : ''}
           `}
         >
@@ -90,56 +114,75 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
         </div>
       </div>
 
-      {/* Events */}
-      <div className="space-y-1">
-        {dayEvents.slice(0, MAX_VISIBLE_EVENTS).map((evt, idx) => (
-          <motion.div
-            key={evt.id || idx}
-            whileHover={{ scale: 1.02, x: 2 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEventClick(evt);
-            }}
-            className={`
-              ${labelColors[evt.label]} text-white text-xs px-2 py-1 rounded
-              truncate cursor-pointer shadow-sm hover:shadow-md transition-all
-            `}
-            title={evt.title || evt.event}
-          >
-            {evt.allDay ? (evt.title || evt.event) : `${evt.startTime} - ${evt.title || evt.event}`}
-          </motion.div>
-        ))}
+      {/* Events List */}
+      <div className="flex-1 px-1 space-y-0.5 overflow-hidden pb-1">
+        {visibleEvents.map((evt, idx) => {
+           const isBlockEvent = evt.allDay; 
+           
+           return (
+            <motion.div
+              key={evt.id || idx}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEventClick(evt);
+              }}
+              className={`
+                px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold truncate cursor-pointer transition-all
+                ${isBlockEvent 
+                  ? `${bgColors[evt.label] || 'bg-blue-600'} text-white shadow-sm hover:brightness-110`
+                  : 'bg-transparent hover:bg-gray-100 text-gray-900'
+                }
+              `}
+              title={evt.title || evt.event}
+            >
+              {isBlockEvent ? (
+                  // Block Style (Holidays)
+                  <span>{evt.title || evt.event}</span>
+              ) : (
+                  // Dot Style (Timed Events)
+                  <div className="flex items-center gap-1.5 leading-tight">
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${textColors[evt.label] || 'text-blue-600'} bg-current`} />
+                      <span className="opacity-90 font-bold shrink-0 hidden xl:inline text-[9px]">
+                        {evt.startTime}
+                      </span>
+                      <span className="truncate">
+                        {evt.title || evt.event}
+                      </span>
+                  </div>
+              )}
+            </motion.div>
+          );
+        })}
 
-        {/* ✅ FIXED: Clickable "+X more" button */}
-        {dayEvents.length > MAX_VISIBLE_EVENTS && (
+        {/* ✅ The Modal Trigger Button */}
+        {hasOverflow && (
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="text-xs text-blue-600 font-semibold cursor-pointer hover:text-blue-800 hover:underline w-full text-left transition-all"
+            whileHover={{ scale: 1.02 }}
+            className="w-full text-left px-2 text-[10px] font-extrabold text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-[2px] transition-colors py-0.5"
             onClick={(e) => {
               e.stopPropagation();
+              // This triggers the modal to open
               setShowAllEvents(true);
             }}
           >
-            +{dayEvents.length - MAX_VISIBLE_EVENTS} more
+            {dayEvents.length - visibleEvents.length} more...
           </motion.button>
         )}
       </div>
 
       {/* Hover Add Button */}
       <motion.button
-        initial={{ opacity: 0 }}
         whileHover={{ scale: 1.1 }}
-        className="absolute bottom-2 right-2 w-6 h-6 bg-blue-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        className="absolute bottom-1 right-1 p-1 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-full shadow-sm z-10"
         onClick={(e) => {
           e.stopPropagation();
           onDayClick(day);
         }}
       >
-        <Plus className="w-4 h-4" />
+        <Plus className="w-3.5 h-3.5" />
       </motion.button>
 
-      {/* ✅ Day Events Modal */}
+      {/* ✅ The Modal Component */}
       <DayEventsModal
         isOpen={showAllEvents}
         onClose={() => setShowAllEvents(false)}
@@ -168,40 +211,17 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
   onDayClick,
   onEventClick
 }) => {
-  const [month, setMonth] = useState(getMonth());
+  const [month, setMonth] = useState(getMonth(monthIndex));
 
   useEffect(() => {
     setMonth(getMonth(monthIndex));
   }, [monthIndex]);
 
-  // ✅ Debug log
-  useEffect(() => {
-    console.log(`📊 CalendarGrid rendering for month ${monthIndex + 1}:`, {
-      totalEvents: filteredEvents.length,
-      eventDates: filteredEvents.map(e => dayjs(e.day).format('YYYY-MM-DD'))
-    });
-  }, [monthIndex, filteredEvents]);
-
-  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
   return (
-    <div className="p-2 h-full">
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden h-full flex flex-col">
-        {/* Week Day Headers */}
-        <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-          {weekDays.map((day) => (
-            <div
-              key={day}
-              className="py-3 text-center text-sm font-bold text-gray-700 border-r border-gray-200 last:border-r-0"
-            >
-              <span className="hidden md:inline">{day}</span>
-              <span className="md:hidden">{day.slice(0, 3)}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+    <div className="p-3 h-full flex flex-col">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
+        {/* Calendar Grid Body - Forced 5 Rows */}
+        <div className="flex-1 grid grid-cols-7 grid-rows-5">
           {month.map((row, i) => (
             <React.Fragment key={i}>
               {row.map((day, idx) => (

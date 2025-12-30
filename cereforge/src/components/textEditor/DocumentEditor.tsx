@@ -41,13 +41,19 @@ import { AlignLeft, AlignCenter, AlignRight, Trash2, Edit2, Plus, Minus } from '
 
 /* @refresh reset */
 
-// Letter Page Constants (8.5" x 11")
-const LETTER_WIDTH_MM = 216;
-const LETTER_HEIGHT_MM = 279;
-const MARGIN_MM = '25.4mm 25.4mm'; // 1 inch margins
+// --- CONSTANTS ---
+// A4 Dimensions (Standard for print)
+// We use these to calculate where to draw the "Page Guide" lines
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const DPI = 96;
+const MM_TO_PX = DPI / 25.4;
+
+const A4_WIDTH_PX = Math.floor(A4_WIDTH_MM * MM_TO_PX);  // ~793px
+const A4_HEIGHT_PX = Math.floor(A4_HEIGHT_MM * MM_TO_PX); // ~1122px
 
 const editorTheme = {
-  paragraph: 'mb--0.5 leading-relaxed min-h-[1.5em]',
+  paragraph: 'mb-2 leading-relaxed text-gray-800',
   quote: 'border-l-4 border-blue-600 pl-4 italic my-4 text-gray-600',
   heading: {
     h1: 'text-3xl font-bold my-4 text-gray-900',
@@ -71,7 +77,9 @@ const editorTheme = {
   tableCellHeader: 'border border-gray-300 p-2 min-w-[100px] bg-gray-50 font-bold',
 };
 
-// Custom Image Node (existing implementation)
+// --- NODES (Keep all your existing nodes exactly as they were) ---
+
+// 1. Image Node
 export type SerializedImageNode = Spread<
   {
     src: string;
@@ -160,6 +168,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     );
   }
 }
+
 function ImageComponent({
   src,
   altText,
@@ -303,7 +312,7 @@ export function $isImageNode(node: LexicalNode | null | undefined): node is Imag
   return node instanceof ImageNode;
 }
 
-// Enhanced Table Node with Edit functionality
+// 2. Custom Table Node
 export type SerializedTableNode = Spread<
   {
     rows: number;
@@ -743,7 +752,7 @@ export function $isTableNode(node: LexicalNode | null | undefined): node is Cust
   return node instanceof CustomTableNode;
 }
 
-// Enhanced Chart Node with Edit functionality
+// 3. Chart Node
 export type SerializedChartNode = Spread<
   {
     chartType: 'bar' | 'line' | 'pie' | 'column';
@@ -1355,7 +1364,8 @@ export const INSERT_CHART_COMMAND: LexicalCommand<{
   align?: 'left' | 'center' | 'right';
 }> = createCommand('INSERT_CHART_COMMAND');
 
-// Image Plugin
+// --- PLUGINS ---
+
 function ImagePlugin(): null {
   const [editor] = useLexicalComposerContext();
 
@@ -1376,7 +1386,6 @@ function ImagePlugin(): null {
   return null;
 }
 
-// Custom Table Plugin
 function CustomTablePlugin(): null {
   const [editor] = useLexicalComposerContext();
 
@@ -1397,7 +1406,6 @@ function CustomTablePlugin(): null {
   return null;
 }
 
-// Chart Plugin
 function ChartPlugin(): null {
   const [editor] = useLexicalComposerContext();
 
@@ -1418,53 +1426,32 @@ function ChartPlugin(): null {
   return null;
 }
 
-// Page Counter Plugin
-function PageCounterPlugin() {
-  const [pageCount, setPageCount] = useState(1);
-  const timeoutRef = useRef<NodeJS.Timeout>();
-
-  useEffect(() => {
-    const editorContent = document.querySelector('.editor-content');
-    if (!editorContent) return;
-
-    const calculatePages = () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-      timeoutRef.current = setTimeout(() => {
-        const contentHeight = editorContent.scrollHeight;
-        const pageHeightPx = (LETTER_HEIGHT_MM * 96) / 25.4;
-        const pages = Math.max(1, Math.ceil(contentHeight / pageHeightPx));
-        setPageCount(pages);
-      }, 500);
-    };
-
-    calculatePages();
-    const observer = new ResizeObserver(calculatePages);
-    observer.observe(editorContent);
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      observer.disconnect();
-    };
-  }, []);
-
+// --- UPDATED VISUAL PLUGIN ---
+function PageBackgroundPlugin() {
   return (
-    <div className="fixed bottom-6 right-8 bg-white px-4 py-2 rounded-lg shadow-lg border border-gray-200 text-sm font-medium text-gray-700 pointer-events-none select-none z-10 no-print">
-      <div className="flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="4" y="2" width="16" height="20" rx="2" />
-          <line x1="9" y1="7" x2="15" y2="7" />
-          <line x1="9" y1="11" x2="15" y2="11" />
-          <line x1="9" y1="15" x2="13" y2="15" />
-        </svg>
-        Page {pageCount}
-      </div>
-    </div>
+    <div
+      className="absolute inset-0 pointer-events-none z-0"
+      aria-hidden="true"
+      style={{
+        // Draws a blue DASHED line every 1122px (Page Height)
+        background: `repeating-linear-gradient(
+          to bottom,
+          transparent 0px,
+          transparent ${A4_HEIGHT_PX - 1}px,
+          #3b82f6 ${A4_HEIGHT_PX - 1}px, /* Blue line indicating page break */
+          transparent ${A4_HEIGHT_PX}px
+        )`,
+        backgroundSize: `100% ${A4_HEIGHT_PX}px`
+      }}
+    />
   );
 }
 
+// --- MAIN COMPONENT ---
+
 export interface LexicalDocumentEditorHandle {
   editor: LexicalEditor | null;
+  focus: () => void;
   insertTable: (rows: number, cols: number) => void;
   insertImage: (url: string, width?: number) => void;
   insertChart: (type: 'bar' | 'line' | 'pie' | 'column', data: { title: string; labels: string[]; values: number[] }) => void;
@@ -1508,29 +1495,21 @@ interface Props {
 const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
   ({ showPageGuides = true }, ref) => {
     const [editor, setEditor] = useState<LexicalEditor | null>(null);
-    const hasInitialFocusRef = useRef(false);
 
     const initialConfig = {
       namespace: 'CereforgeDocumentEditor',
       theme: editorTheme,
       onError: (error: Error) => console.error(error),
       nodes: [
-        HeadingNode,
-        QuoteNode,
-        ListNode,
-        ListItemNode,
-        LinkNode,
-        TableNode,
-        TableRowNode,
-        TableCellNode,
-        ImageNode,
-        CustomTableNode,
+        HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode,
+        TableNode, TableRowNode, TableCellNode, ImageNode, CustomTableNode,
         ChartNode,
       ],
     };
 
     useImperativeHandle(ref, () => ({
       editor,
+      focus: () => editor?.focus(),
       insertTable: (rows: number, cols: number) => {
         if (editor) {
           editor.dispatchCommand(INSERT_CUSTOM_TABLE_COMMAND, {
@@ -1930,115 +1909,66 @@ const LexicalDocumentEditor = forwardRef<LexicalDocumentEditorHandle, Props>(
       },
     }), [editor]);
 
+    // Helper to capture editor instance
     const EditorCapture = () => {
       const [localEditor] = useLexicalComposerContext();
-
       useEffect(() => {
         setEditor(localEditor);
-
-        if (!hasInitialFocusRef.current && localEditor) {
-          requestAnimationFrame(() => {
-            try {
-              localEditor.focus();
-              hasInitialFocusRef.current = true;
-            } catch (err) {
-              console.warn('Could not focus editor:', err);
-            }
-          });
-        }
       }, [localEditor]);
-
       return null;
     };
 
     return (
-      <div className="flex-1 overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100 py-8">
-        <style>{`
-          @media screen {
-            .document-page {
-              width: ${LETTER_WIDTH_MM}mm;
-              min-height: ${LETTER_HEIGHT_MM}mm;
-              padding: ${MARGIN_MM};
-              background: white;
-              margin: 0 auto 20px;
-              box-shadow: 
-                0 0 0 1px rgba(0,0,0,0.1),
-                0 4px 6px rgba(0,0,0,0.1);
-              position: relative;
-            }
+      <div className="flex-1 h-full overflow-y-auto bg-gray-100 flex justify-center py-8">
+        <LexicalComposer initialConfig={initialConfig}>
+          {/* THE EDITOR CONTAINER */}
+          {/* We now use a white background for the whole strip to avoid the 'Gray Gap' issue */}
+          <div className="relative bg-white shadow-lg" style={{ width: `${A4_WIDTH_PX}px`, minHeight: `${A4_HEIGHT_PX}px` }}>
 
-            .document-page::after {
-              content: '';
-              position: absolute;
-              bottom: 0;
-              left: 10%;
-              right: 10%;
-              height: 1px;
-              background: repeating-linear-gradient(
-                to right,
-                #d1d5db 0,
-                #d1d5db 10px,
-                transparent 10px,
-                transparent 20px
-              );
-            }
-          }
+            {/* 1. VISUAL PAGE GUIDES (Blue Dashed Lines) */}
+            {showPageGuides && <PageBackgroundPlugin />}
 
-          @media print {
-            body { background: white !important; }
-            .document-page {
-              box-shadow: none !important;
-              margin: 0 !important;
-              page-break-after: always;
-            }
-            .document-page::after { display: none; }
-            .no-print { display: none !important; }
-          }
-
-          .editor-content {
-            overflow: visible;
-            word-wrap: break-word;
-          }
-        `}</style>
-
-        <div className="document-page">
-          <LexicalComposer initialConfig={initialConfig}>
-            <div className="relative">
+            {/* 2. THE EDITOR CONTENT */}
+            <div className="relative z-10">
               <EditorCapture />
               <RichTextPlugin
                 contentEditable={
-                  <ContentEditable
-                    className="editor-content outline-none prose prose-sm max-w-none focus:outline-none"
+                  <ContentEditable 
+                    className="outline-none"
                     style={{
-                      fontSize: '16px',
-                      lineHeight: '1.6',
-                      color: '#1f2937',
+                      width: `${A4_WIDTH_PX}px`,
+                      padding: '40px 48px', // Margins
+                      minHeight: `${A4_HEIGHT_PX}px`,
+                      fontSize: '11pt',
+                      lineHeight: '1.5',
                     }}
                   />
                 }
                 placeholder={
-                  <div className="absolute top-0 left-0 text-gray-400 pointer-events-none text-base" style={{ fontSize: '16px', lineHeight: '1.6' }}>
+                  <div className="absolute top-[40px] left-[48px] text-gray-400 pointer-events-none select-none">
                     Start typing your document...
                   </div>
                 }
                 ErrorBoundary={LexicalErrorBoundary}
               />
+
+              {/* 3. LOAD ALL PLUGINS HERE */}
               <HistoryPlugin />
               <ListPlugin />
               <LinkPlugin />
               <TablePlugin />
+
+              {/* YOUR CUSTOM PLUGINS */}
               <ImagePlugin />
               <CustomTablePlugin />
               <ChartPlugin />
-              {showPageGuides && <PageCounterPlugin />}
             </div>
-          </LexicalComposer>
-        </div>
+          </div>
+        </LexicalComposer>
       </div>
     );
   }
 );
 
 LexicalDocumentEditor.displayName = 'LexicalDocumentEditor';
-
 export default LexicalDocumentEditor;
