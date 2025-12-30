@@ -4,7 +4,7 @@ import { Eye, EyeOff, User, Mail, Lock, Shield, Building, Loader2, CheckCircle, 
 import cereForge from '../../assets/cereForge.png';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
-// ✅ Redux hooks (PRESERVED)
+// ✅ Redux hooks
 import { useAppDispatch, useAppSelector } from '@/store/hook';
 import { useVerifyEmailMutation, useLoginMutation } from '@/store/api/authApi';
 import { selectEmailVerified, selectVerificationResult, clearEmailVerification, selectIsAuthenticated, selectUser } from '@/store/slices/authSlice';
@@ -73,9 +73,7 @@ const LoginPage = () => {
       const result = await verifyEmail({ email }).unwrap();
 
       if (result.data.exists) {
-        // Safe uppercase check
         const roleName = result.data.role ? result.data.role.toUpperCase() : 'USER';
-        
         dispatch(addToast({
           message: `Identity confirmed: ${roleName}`,
           type: 'success'
@@ -142,8 +140,6 @@ const LoginPage = () => {
     dispatch(clearEmailVerification());
   };
 
-  // ✅ DARK MODE CONFIG
-  // Updated colors to match the "Industrial/Forge" Landing Page
   const getRoleConfig = () => {
     if (!verificationResult?.role) {
       return {
@@ -204,28 +200,36 @@ const LoginPage = () => {
   const config = getRoleConfig();
 
   return (
-    // ✅ FIXED LAYOUT (No Body Scroll) - Swapped Blue Gradient for Black/Zinc
+    // ✅ FIXED LAYOUT (No Body Scroll)
     <div className="fixed inset-0 bg-black text-zinc-100 font-sans flex flex-col items-center justify-center overflow-hidden">
       
-      {/* Background Grid Pattern (Matches Landing Page) */}
+      {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
           <div className="w-[800px] h-[800px] border border-white/5 rounded-full animate-[spin_60s_linear_infinite] opacity-20 border-dashed"></div>
       </div>
 
-      {/* ✅ FLEX WRAPPER (Keeps Layout Tight) */}
-      <div className="relative z-10 w-full max-w-sm sm:max-w-md flex flex-col max-h-full p-4 gap-4">
+      {/* ✅ FLEX WRAPPER */}
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md flex flex-col max-h-full p-4 gap-6">
           
-          {/* 1. LOGO */}
+          {/* 1. BRANDING (Restored Exact Skewed Box Design) */}
           <div className="flex-shrink-0 text-center">
             <div className="flex items-center justify-center space-x-3 mb-2">
               <div className="relative">
                 <div className="absolute inset-0 bg-orange-500 blur-xl opacity-20 rounded-full"></div>
-                <img src={cereForge} alt="Cereforge Logo" className="relative w-12 h-12 object-contain drop-shadow-2xl" />
+                {/* Logo Image */}
+                <img src={cereForge} alt="Cereforge Logo" className="relative w-12 h-12 rounded-lg bg-white/10 p-1 object-contain drop-shadow-2xl border border-white/10" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                <span className="text-white">CERE</span><span className="text-zinc-500">FORGE</span>
-              </h1>
+              
+              {/* Branding Text Component */}
+              <div className="flex items-center">
+                 <div className="relative inline-block mr-1">
+                    {/* The Signature Skewed Box */}
+                    <div className="absolute inset-0 bg-white/10 backdrop-blur-md rounded-lg transform -skew-x-12 border border-white/20"></div>
+                    <span className="text-white relative z-10 px-3 py-1 font-bold text-2xl tracking-tight">CERE</span>
+                 </div>
+                 <span className="text-white font-bold text-2xl tracking-tight">FORGE</span>
+              </div>
             </div>
             <p className="text-zinc-500 text-xs sm:text-sm font-medium tracking-wide">Forging Intelligence into Innovation</p>
           </div>
