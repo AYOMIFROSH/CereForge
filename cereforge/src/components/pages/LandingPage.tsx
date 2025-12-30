@@ -3,7 +3,7 @@ import {
   Menu, X, ChevronRight, ExternalLink, 
   Mail, Video, Calendar, Presentation, 
   Wind, Droplets, Camera, Cpu, Zap, 
-  ArrowRight, Shield, Globe, Brain,
+  Shield, Globe, Brain,
   CheckCircle, Sparkles, Bot, Network
 } from 'lucide-react';
 // Make sure this points to your actual logo file
