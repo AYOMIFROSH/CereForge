@@ -4,7 +4,7 @@ import { Eye, EyeOff, User, Mail, Lock, Shield, Building, Loader2, CheckCircle, 
 import cereForge from '../../assets/cereForge.png';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
-// ✅ Redux hooks
+// ✅ Redux hooks (PRESERVED)
 import { useAppDispatch, useAppSelector } from '@/store/hook';
 import { useVerifyEmailMutation, useLoginMutation } from '@/store/api/authApi';
 import { selectEmailVerified, selectVerificationResult, clearEmailVerification, selectIsAuthenticated, selectUser } from '@/store/slices/authSlice';
@@ -54,7 +54,7 @@ const LoginPage = () => {
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus password field when email is verified
+  // Auto-focus password field
   useEffect(() => {
     if (emailVerified && passwordInputRef.current) {
       passwordInputRef.current.focus();
@@ -73,7 +73,9 @@ const LoginPage = () => {
       const result = await verifyEmail({ email }).unwrap();
 
       if (result.data.exists) {
+        // Safe uppercase check
         const roleName = result.data.role ? result.data.role.toUpperCase() : 'USER';
+        
         dispatch(addToast({
           message: `Identity confirmed: ${roleName}`,
           type: 'success'
@@ -140,54 +142,61 @@ const LoginPage = () => {
     dispatch(clearEmailVerification());
   };
 
+  // ✅ DARK MODE CONFIG
+  // Updated colors to match the "Industrial/Forge" Landing Page
   const getRoleConfig = () => {
     if (!verificationResult?.role) {
       return {
-        title: 'Cereforge Portal',
-        subtitle: 'Sign in to your account',
+        title: 'System Access',
+        subtitle: 'Identify yourself to proceed',
         icon: <User className="w-5 h-5" />,
-        color: 'bg-blue-800',
-        hoverColor: 'hover:bg-blue-900',
-        focusColor: 'focus:ring-blue-500 focus:border-blue-500'
+        accentColor: 'text-zinc-400',
+        borderColor: 'border-zinc-700',
+        badge: 'bg-zinc-800 text-zinc-400',
+        buttonColor: 'bg-zinc-700 hover:bg-zinc-600'
       };
     }
 
     switch (verificationResult.role) {
       case 'partner':
         return {
-          title: 'Partners Portal',
+          title: 'Partner Portal',
           subtitle: 'Welcome back, Partner',
           icon: <Building className="w-5 h-5" />,
-          color: 'bg-orange-500',
-          hoverColor: 'hover:bg-orange-600',
-          focusColor: 'focus:ring-orange-500 focus:border-orange-500'
+          accentColor: 'text-orange-500',
+          borderColor: 'border-orange-500/50',
+          badge: 'bg-orange-500/10 text-orange-500',
+          buttonColor: 'bg-orange-600 hover:bg-orange-500'
         };
       case 'admin':
         return {
-          title: 'Admin Portal',
-          subtitle: 'Administrative access',
+          title: 'Admin Command',
+          subtitle: 'Administrative Access',
           icon: <Shield className="w-5 h-5" />,
-          color: 'bg-gray-700',
-          hoverColor: 'hover:bg-gray-800',
-          focusColor: 'focus:ring-gray-600 focus:border-gray-600'
+          accentColor: 'text-red-500',
+          borderColor: 'border-red-500/50',
+          badge: 'bg-red-500/10 text-red-500',
+          buttonColor: 'bg-red-600 hover:bg-red-500'
         };
       case 'core':
         return {
           title: 'Core System',
           subtitle: 'Engineering Access',
           icon: <User className="w-5 h-5" />,
-          color: 'bg-blue-800',
-          hoverColor: 'hover:bg-blue-900',
-          focusColor: 'focus:ring-blue-500 focus:border-blue-500'
+          accentColor: 'text-blue-500',
+          borderColor: 'border-blue-500/50',
+          badge: 'bg-blue-500/10 text-blue-500',
+          buttonColor: 'bg-blue-600 hover:bg-blue-500'
         };
       default:
         return {
-          title: 'Cereforge',
-          subtitle: 'Sign in to your account',
+          title: 'System Access',
+          subtitle: 'Identify yourself',
           icon: <User className="w-5 h-5" />,
-          color: 'bg-blue-800',
-          hoverColor: 'hover:bg-blue-900',
-          focusColor: 'focus:ring-blue-500 focus:border-blue-500'
+          accentColor: 'text-zinc-400',
+          borderColor: 'border-zinc-700',
+          badge: 'bg-zinc-800 text-zinc-400',
+          buttonColor: 'bg-zinc-700 hover:bg-zinc-600'
         };
     }
   };
@@ -195,51 +204,45 @@ const LoginPage = () => {
   const config = getRoleConfig();
 
   return (
-    // ✅ FIX 1: Use 'fixed inset-0' to lock the viewport size. No body scroll ever.
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 flex flex-col items-center justify-center overflow-hidden">
+    // ✅ FIXED LAYOUT (No Body Scroll) - Swapped Blue Gradient for Black/Zinc
+    <div className="fixed inset-0 bg-black text-zinc-100 font-sans flex flex-col items-center justify-center overflow-hidden">
       
-      {/* Texture Background */}
-      <div className="absolute inset-0 bg-black/20 pointer-events-none"></div>
-      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-      }}></div>
+      {/* Background Grid Pattern (Matches Landing Page) */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden select-none">
+          <div className="w-[800px] h-[800px] border border-white/5 rounded-full animate-[spin_60s_linear_infinite] opacity-20 border-dashed"></div>
+      </div>
 
-      {/* ✅ FIX 2: Layout Constraint Wrapper */}
-      {/* This flex container forces the logo and copyright to stay put, and squeezes the card if needed. */}
+      {/* ✅ FLEX WRAPPER (Keeps Layout Tight) */}
       <div className="relative z-10 w-full max-w-sm sm:max-w-md flex flex-col max-h-full p-4 gap-4">
           
-          {/* 1. LOGO (Always Visible, Never Shrinks) */}
+          {/* 1. LOGO */}
           <div className="flex-shrink-0 text-center">
             <div className="flex items-center justify-center space-x-3 mb-2">
               <div className="relative">
-                <div className="absolute inset-0 bg-blue-500 blur-xl opacity-30 rounded-full"></div>
-                <img src={cereForge} alt="Cereforge Logo" className="relative w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm p-2 border border-white/20 shadow-lg" />
+                <div className="absolute inset-0 bg-orange-500 blur-xl opacity-20 rounded-full"></div>
+                <img src={cereForge} alt="Cereforge Logo" className="relative w-12 h-12 object-contain drop-shadow-2xl" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                <span className="relative inline-block mr-1">
-                  <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded transform -skew-x-12 border border-white/20"></div>
-                  <span className="text-blue-100 relative z-10 px-2">CERE</span>
-                </span>
-                <span>FORGE</span>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                <span className="text-white">CERE</span><span className="text-zinc-500">FORGE</span>
               </h1>
             </div>
-            <p className="text-blue-200/80 text-xs sm:text-sm font-medium tracking-wide">Forging Intelligence into Innovation</p>
+            <p className="text-zinc-500 text-xs sm:text-sm font-medium tracking-wide">Forging Intelligence into Innovation</p>
           </div>
 
-          {/* 2. CARD (Flexible Height, Internal Scroll) */}
-          {/* 'min-h-0' and 'shrink' are critical here. They tell the card to shrink below its content size if the screen is small. */}
-          <div className="flex flex-col bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden shrink min-h-0 transition-all duration-300">
+          {/* 2. CARD (Dark Theme, Internal Scroll) */}
+          <div className={`flex flex-col bg-zinc-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border ${config.borderColor} overflow-hidden shrink min-h-0 transition-all duration-300`}>
             
-            {/* Card Header (Fixed) */}
-            <div className="flex-shrink-0 p-4 sm:p-5 text-center border-b border-gray-100">
-               <div className={`inline-flex items-center space-x-2 ${config.color} text-white px-4 py-1.5 rounded-full shadow-md transition-colors duration-300`}>
+            {/* Header */}
+            <div className="flex-shrink-0 p-4 sm:p-5 text-center border-b border-white/5 bg-white/5">
+               <div className={`inline-flex items-center space-x-2 ${config.badge} border ${config.borderColor} px-4 py-1.5 rounded-full shadow-lg transition-all duration-300`}>
                   {config.icon}
                   <span className="font-semibold text-sm">{config.title}</span>
                 </div>
-                <p className="text-gray-500 text-sm mt-2">{config.subtitle}</p>
+                <p className="text-zinc-400 text-sm mt-2">{config.subtitle}</p>
             </div>
 
-            {/* ✅ Card Body (The ONLY thing that scrolls) */}
+            {/* Body (Scrollable) */}
             <div className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hide overscroll-contain">
               <form onSubmit={handleSubmit} className="space-y-5">
                 
@@ -249,7 +252,7 @@ const LoginPage = () => {
                      <button
                         type="button"
                         onClick={handleReset}
-                        className="text-xs font-medium text-gray-500 hover:text-blue-600 flex items-center transition-colors group"
+                        className="text-xs font-medium text-zinc-500 hover:text-white flex items-center transition-colors group"
                       >
                         <ArrowRight className="w-3 h-3 mr-1 rotate-180 group-hover:-translate-x-1 transition-transform" />
                         Use different email
@@ -259,27 +262,27 @@ const LoginPage = () => {
 
                 {/* Email Field */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
-                    Email Address
+                  <label className="block text-xs font-mono text-zinc-500 uppercase tracking-wider mb-1.5 ml-1">
+                    Identity / Email
                   </label>
                   <div className="relative group">
-                    <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-200 ${emailVerified ? 'text-green-500' : 'text-gray-400 group-focus-within:text-blue-600'}`} />
+                    <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-200 ${emailVerified ? 'text-green-500' : 'text-zinc-500 group-focus-within:text-white'}`} />
                     <input
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => email && !emailVerified && handleEmailVerification()}
                       disabled={emailVerified || isVerifying}
-                      className={`w-full pl-10 pr-10 py-3 bg-gray-50 border rounded-xl text-sm font-medium transition-all duration-200 outline-none
+                      className={`w-full pl-10 pr-10 py-3 bg-black/50 border rounded-xl text-sm transition-all duration-200 outline-none
                         ${emailVerified 
-                            ? 'border-green-500 bg-green-50 text-gray-800' 
-                            : `border-gray-200 focus:bg-white ${config.focusColor} focus:ring-4 focus:ring-opacity-20`
+                            ? 'border-green-500/50 text-green-500' 
+                            : `border-white/10 text-white focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50`
                         } 
-                        ${(emailVerified || isVerifying) ? 'cursor-not-allowed opacity-90' : ''}`}
-                      placeholder="name@company.com"
+                        ${(emailVerified || isVerifying) ? 'cursor-not-allowed opacity-70' : ''}`}
+                      placeholder="authorized@access.com"
                     />
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      {isVerifying && <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />}
+                      {isVerifying && <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />}
                       {emailVerified && <CheckCircle className="w-5 h-5 text-green-500 animate-in zoom-in duration-300" />}
                     </div>
                   </div>
@@ -294,13 +297,13 @@ const LoginPage = () => {
                 {/* Role Display */}
                 {emailVerified && verificationResult && (
                   <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
+                    <label className="block text-xs font-mono text-zinc-500 uppercase tracking-wider mb-1.5 ml-1">
                       {verificationResult.role === 'partner' && 'Verified Partner'}
                       {verificationResult.role === 'admin' && 'Admin Privilege'}
                       {verificationResult.role === 'core' && 'Engineer ID'}
                     </label>
                     <div className="relative">
-                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                       <div className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${config.accentColor}`}>
                           {config.icon}
                        </div>
                       <input
@@ -312,10 +315,10 @@ const LoginPage = () => {
                           ''
                         }
                         disabled
-                        className="w-full pl-10 pr-4 py-3 bg-gray-100 border-none rounded-xl text-sm font-bold text-gray-700 cursor-default"
+                        className="w-full pl-10 pr-4 py-3 bg-zinc-800/50 border border-white/5 rounded-xl text-sm font-mono text-zinc-300 cursor-default"
                       />
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-md font-bold uppercase">Verified</span>
+                        <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-white/5 font-bold uppercase">Verified</span>
                       </div>
                     </div>
                   </div>
@@ -323,21 +326,21 @@ const LoginPage = () => {
 
                 {/* Password Field */}
                 <div className={`transition-all duration-300 ${!emailVerified ? 'opacity-50 grayscale' : 'opacity-100'}`}>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
-                    Password
+                  <label className="block text-xs font-mono text-zinc-500 uppercase tracking-wider mb-1.5 ml-1">
+                    Security Key
                   </label>
                   <div className="relative group">
-                    <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors ${emailVerified ? 'text-gray-400 group-focus-within:text-blue-600' : 'text-gray-300'}`} />
+                    <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors ${emailVerified ? 'text-zinc-500 group-focus-within:text-white' : 'text-zinc-600'}`} />
                     <input
                       ref={passwordInputRef}
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={!emailVerified}
-                      className={`w-full pl-10 pr-10 py-3 bg-gray-50 border rounded-xl text-sm font-medium transition-all duration-200 outline-none
+                      className={`w-full pl-10 pr-10 py-3 bg-black/50 border rounded-xl text-sm text-white transition-all duration-200 outline-none
                         ${emailVerified 
-                            ? `border-gray-200 focus:bg-white ${config.focusColor} focus:ring-4 focus:ring-opacity-20` 
-                            : 'border-gray-200 cursor-not-allowed'
+                            ? `border-white/10 focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50` 
+                            : 'border-white/5 cursor-not-allowed'
                         }`}
                       placeholder={emailVerified ? "••••••••" : "Verify email first"}
                     />
@@ -345,7 +348,7 @@ const LoginPage = () => {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 hover:text-white p-1 transition-all"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -365,23 +368,23 @@ const LoginPage = () => {
                   disabled={!emailVerified || !password || isVerifying || isLoggingIn}
                   className={`w-full py-3 px-4 rounded-xl font-bold text-white shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2
                     ${(!emailVerified || !password || isVerifying || isLoggingIn) 
-                        ? 'bg-gray-300 cursor-not-allowed shadow-none' 
-                        : `${config.color} ${config.hoverColor} shadow-blue-900/20`
+                        ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed shadow-none border border-white/5' 
+                        : `${config.buttonColor} shadow-orange-900/20`
                     }`}
                 >
                   {isVerifying ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Checking System...</span>
+                      <span>Verifying Identity...</span>
                     </>
                   ) : isLoggingIn ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Authenticating...</span>
+                      <span>Establishing Session...</span>
                     </>
                   ) : (
                     <>
-                        <span>Sign In Securely</span>
+                        <span>Authenticate Access</span>
                         <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -389,23 +392,23 @@ const LoginPage = () => {
               </form>
             </div>
 
-            {/* Card Footer (Fixed) */}
-            <div className="flex-shrink-0 px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs sm:text-sm">
-                <label className="flex items-center space-x-2 text-gray-500 cursor-pointer hover:text-gray-700">
-                  <input type="checkbox" className={`rounded border-gray-300 text-blue-600 ${config.focusColor}`} />
-                  <span>Remember me</span>
+            {/* Footer */}
+            <div className="flex-shrink-0 px-6 py-4 bg-zinc-950/30 border-t border-white/5 flex items-center justify-between text-xs sm:text-sm">
+                <label className="flex items-center space-x-2 text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors">
+                  <input type="checkbox" className="rounded border-zinc-700 bg-zinc-800 text-orange-600 focus:ring-orange-500" />
+                  <span>Persist Session</span>
                 </label>
                 <div className="flex space-x-4">
-                  <a href="#" className="text-gray-500 hover:text-blue-600 font-medium transition-colors">Forgot password?</a>
-                  <a href="/" className="text-gray-500 hover:text-blue-600 font-medium transition-colors">Home</a>
+                  <a href="#" className="text-zinc-500 hover:text-white transition-colors">Recover Key</a>
+                  <a href="/" className="text-zinc-500 hover:text-white transition-colors">Home</a>
                 </div>
             </div>
 
           </div>
           
-          {/* 3. COPYRIGHT (Always Visible, Never Shrinks) */}
-          <div className="flex-shrink-0 text-center text-blue-200/40 text-xs font-medium">
-             &copy; 2024 Cereforge Systems. Secure Portal.
+          {/* 3. COPYRIGHT */}
+          <div className="flex-shrink-0 text-center text-zinc-600 text-xs font-medium">
+             &copy; 2024 Cereforge Systems. 256-Bit Encrypted.
           </div>
 
       </div>
