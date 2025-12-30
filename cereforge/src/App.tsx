@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { ProtectedRoute } from './components/ProtectedRoutes';
 import { PageLoadingSkeleton } from './components/LoadingSkeleton';
 import { ToastNotifications } from './components/ToastNotification';
+import CereforgeDatabaseDocs from './components/common/Doc';
 // import { AuthDebugHelper } from './components/common/AuthDebugHelper';
 import LandingPage from './components/pages/LandingPage';
 import ForgotPassword from './components/pages/ForgotPassword';
@@ -72,6 +73,8 @@ const App = () => {
           <Route path="/get-started" element={<GetStarted />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/editor" element={<CereforgeEditor />} />
+          {import.meta.env.DEV && <Route path='/database-doc' element= {< CereforgeDatabaseDocs /> } />}
+
 
           {/* ✅ MAIN VIDEO CALL ROUTE - /meet/:roomId (PROTECTED) */}
           <Route

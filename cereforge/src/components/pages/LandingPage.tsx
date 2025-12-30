@@ -1,647 +1,488 @@
 import { useState, useEffect } from 'react';
-import { ChevronRight, ExternalLink, Brain, Zap, Shield, Users, Menu, X } from 'lucide-react';
-import cereforge from '../../assets/cereForge.png';
-import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-
-// Define the Project interface
-interface Project {
-    id: number;
-    name: string;
-    phrase: string;
-    description: string;
-    tech: string[];
-    impact: string;
-    results: string;
-    image: string;
-    liveUrl: string;
-}
+import { 
+  Menu, X, ChevronRight, ExternalLink, 
+  Mail, Video, Calendar, Presentation, 
+  Wind, Droplets, Camera, Cpu, Zap, 
+  ArrowRight, Shield, Globe, Brain,
+  CheckCircle, Sparkles, Bot, Network
+} from 'lucide-react';
+// Make sure this points to your actual logo file
+import cereforge from '../../assets/cereForge.png'; 
 
 const LandingPage = () => {
-    useDocumentTitle(
-        "Cereforge - AI Software & Hardware Solutions",
-        "Cereforge builds complete software solutions, firmware, SaaS, Ai integration and Hardware system web integration. From concept to deployment - Expert hardware integration & neural infrastructure platforms. - get your first complete software solution in 30 days. ",
-        "/"
-    );
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     
-    const [cardsSpread, setCardsSpread] = useState<boolean>(false);
-    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-    const [email, setEmail] = useState<string>('');
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-
-    // Auto-reset cards to stack when scrolling away from projects section
+    // Background scroll effect
     useEffect(() => {
-        let ticking = false;
-
         const handleScroll = () => {
-            if (!ticking) {
-                requestAnimationFrame(() => {
-                    const projectsSection = document.getElementById('projects');
-                    if (projectsSection) {
-                        const rect = projectsSection.getBoundingClientRect();
-                        const isInView = rect.top < window.innerHeight && rect.bottom > 0;
-
-                        // If user scrolled away from projects section and cards are spread
-                        if (!isInView && cardsSpread && !selectedProject) {
-                            setCardsSpread(false);
-                        }
-                    }
-                    ticking = false;
-                });
-                ticking = true;
+            const background = document.getElementById('tech-bg');
+            if (background) {
+                background.style.transform = `translateY(${window.scrollY * 0.2}px)`;
             }
         };
-
-        // Use passive listener for better performance
-        window.addEventListener('scroll', handleScroll, { passive: true });
+        window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [cardsSpread, selectedProject]);
-
-    // Sample projects data
-    const projects: Project[] = [
-        {
-            id: 1,
-            name: "Neural Infrastructure Platform",
-            phrase: "AI-Powered Infrastructure",
-            description: "Advanced neural network system for intelligent infrastructure management combining IoT sensors with machine learning algorithms. This platform revolutionizes how we monitor and maintain critical infrastructure through predictive analytics and real-time optimization.",
-            tech: ["Python", "TensorFlow", "React", "PostgreSQL", "AWS IoT"],
-            impact: "40% reduction in system downtime",
-            results: "Deployed across 15 manufacturing facilities, monitoring 500+ sensors in real-time",
-            image: "/api/placeholder/400/300",
-            liveUrl: "https://neural-platform.cereforge.com"
-        },
-        {
-            id: 2,
-            name: "Robotic Assembly Controller",
-            phrase: "Hardware Integration",
-            description: "Microcontroller firmware for precision robotic arm assembly with real-time sensor fusion and adaptive control systems. Features advanced PID control algorithms and machine learning-based error correction for industrial automation.",
-            tech: ["C++", "Arduino", "Sensor Fusion", "PID Control", "ROS"],
-            impact: "95% assembly accuracy rate",
-            results: "Integrated into 8 production lines, handling 10,000+ assemblies daily",
-            image: "/api/placeholder/400/300",
-            liveUrl: "https://robotic-controller.cereforge.com"
-        },
-        {
-            id: 3,
-            name: "Smart Manufacturing Suite",
-            phrase: "Digital Transformation",
-            description: "Complete manufacturing digitization platform with predictive maintenance, quality control, and production optimization. Includes real-time dashboards, automated reporting, and AI-powered decision support systems.",
-            tech: ["Node.js", "React", "MongoDB", "AWS IoT", "Docker"],
-            impact: "30% increase in efficiency",
-            results: "Transformed 12 manufacturing facilities, saving $2.3M annually",
-            image: "/api/placeholder/400/300",
-            liveUrl: "https://manufacturing-suite.cereforge.com"
-        },
-        {
-            id: 4,
-            name: "AI-Powered Quality Control",
-            phrase: "Computer Vision",
-            description: "Advanced computer vision system for automated quality inspection using deep learning models. Detects defects with higher accuracy than human inspectors while maintaining consistent quality standards.",
-            tech: ["Python", "OpenCV", "TensorFlow", "FastAPI", "Redis"],
-            impact: "99.2% defect detection accuracy",
-            results: "Inspected 50M+ products, prevented 15K defective units from shipping",
-            image: "/api/placeholder/400/300",
-            liveUrl: "https://quality-control.cereforge.com"
-        },
-        {
-            id: 5,
-            name: "Blockchain Supply Chain",
-            phrase: "Distributed Systems",
-            description: "Decentralized supply chain management platform ensuring transparency and traceability from raw materials to end consumers. Implements smart contracts for automated compliance and payments.",
-            tech: ["Solidity", "Web3.js", "React", "Node.js", "IPFS"],
-            impact: "100% supply chain transparency",
-            results: "Tracking 25M+ products across 200+ suppliers globally",
-            image: "/api/placeholder/400/300",
-            liveUrl: "https://supply-chain.cereforge.com"
-        }
-    ];
-
-    const handleStackClick = (): void => {
-        if (!cardsSpread) {
-            setCardsSpread(true);
-        }
-    };
-
-    const handleProjectClick = (project: Project): void => {
-        if (cardsSpread) {
-            setSelectedProject(project);
-        }
-    };
-
-    const handleCloseProject = (): void => {
-        setSelectedProject(null);
-    };
-
-    const handleBackToStack = (): void => {
-        setCardsSpread(false);
-        setSelectedProject(null);
-    };
+    }, []);
 
     return (
-        <div className="min-h-screen bg-gray-50 overflow-x-hidden" style={{ scrollBehavior: 'smooth' }}>
-            {/* Navigation Header */}
-            <nav className="fixed top-4 w-full z-50 px-4">
-                <div className="max-w-7xl mx-auto">
-                    {/* Desktop Navigation */}
-                    <div className="hidden sm:flex justify-center items-center h-16">
-                        <div className="flex items-center space-x-4 sm:space-x-8 rounded-full px-4 sm:px-8 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
-                            <a href="#home" className="text-white hover:text-orange-500 font-medium transition-colors text-sm sm:text-base">Home</a>
-                            <a href="#about" className="text-white hover:text-orange-500 font-medium transition-colors text-sm sm:text-base">About</a>
-                            <a href="#team" className="text-white hover:text-orange-500 font-medium transition-colors text-sm sm:text-base">Cereforge</a>
-                            <a href="#projects" className="text-white hover:text-orange-500 font-medium transition-colors text-sm sm:text-base">Projects</a>
-                            <a
-                                href="/login"
-                                className="bg-blue-800 text-white px-3 sm:px-4 py-2 rounded-full hover:bg-blue-900 transition-colors text-sm sm:text-base"
-                            >
-                                Login
-                            </a>
+        <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-orange-500 selection:text-white overflow-x-hidden">
+            
+            {/* --- 1. FLOATING PILL NAVIGATION --- */}
+            <nav className="fixed top-6 w-full z-50 px-4 pointer-events-none">
+                <div className="max-w-7xl mx-auto flex justify-center pointer-events-auto">
+                    {/* Desktop Pill */}
+                    <div className="hidden md:flex items-center space-x-1 pl-4 pr-2 py-2 rounded-full border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-2xl ring-1 ring-white/5">
+                        <div className="flex items-center mr-6 pl-2 space-x-2">
+                            <img src={cereforge} alt="Cereforge" className="w-6 h-6" />
+                            <span className="text-zinc-100 font-bold text-lg tracking-tight">CEREFORGE</span>
                         </div>
+                        
+                        <div className="flex items-center space-x-1">
+                            <a href="#ai-suite" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">AI Suite</a>
+                            <a href="#hardware" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">Hardware</a>
+                            <a href="#services" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">Services</a>
+                        </div>
+                        
+                        <div className="w-px h-5 bg-white/10 mx-3"></div>
+                        
+                        <a href="/login" className="px-5 py-2 text-sm font-medium text-white hover:text-orange-400 transition-colors">Login</a>
+                        <a href="/get-started" className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-full text-sm font-bold transition-all shadow-[0_0_15px_rgba(234,88,12,0.3)] hover:shadow-[0_0_25px_rgba(234,88,12,0.5)]">
+                            <Sparkles className="w-3 h-3" />
+                            <span>Start Project</span>
+                        </a>
                     </div>
 
-                    {/* Mobile Navigation */}
-                    <div className="sm:hidden">
-                        <div className="flex justify-between items-center h-16 rounded-full px-6 py-2 shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/40">
-                            {/* Logo */}
-                            <div className="flex items-center space-x-2">
-                                <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-8 h-8" />
-                                <div className="relative inline-block">
-                                    {/* Sleek transparent blur background */}
-                                    <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
-                                    <span className="text-blue-900 relative z-10 px-3 py-1 font-bold text-lg">CERE</span>
-                                </div>
-                                <span className="text-white font-bold text-lg">FORGE</span>
-                            </div>
-
-                            {/* Hamburger Menu Button */}
-                            <button
-                                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="text-white hover:text-white-500 transition-colors p-2"
-                                aria-label="Toggle mobile menu"
-                            >
-                                {isMobileMenuOpen ? (
-                                    <X className="w-6 h-6" />
-                                ) : (
-                                    <Menu className="w-6 h-6" />
-                                )}
-                            </button>
+                    {/* Mobile Header */}
+                    <div className="md:hidden w-full flex justify-between items-center px-4 py-3 rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-md">
+                        <div className="flex items-center space-x-2">
+                            <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
+                            <span className="font-bold text-lg">CEREFORGE</span>
                         </div>
-
-                        {/* Mobile Menu Dropdown */}
-                        {isMobileMenuOpen && (
-                            <div className="absolute top-full left-4 right-4 mt-2 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm bg-blue-900/95 overflow-hidden animate-in slide-in-from-top duration-300">
-                                <div className="py-4">
-                                    <a
-                                        href="#home"
-                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        Home
-                                    </a>
-                                    <a
-                                        href="#about"
-                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        About
-                                    </a>
-                                    <a
-                                        href="#team"
-                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        Cereforge
-                                    </a>
-                                    <a
-                                        href="#projects"
-                                        className="block px-6 py-3 text-white hover:text-orange-500 hover:bg-blue-800/50 font-medium transition-colors"
-                                        onClick={() => setIsMobileMenuOpen(false)}
-                                    >
-                                        Projects
-                                    </a>
-                                    <div className="px-6 py-3">
-                                        <a
-                                            href="/login"
-                                            className="block w-full text-center bg-blue-800 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition-colors"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                        >
-                                            Login
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
+                            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        </button>
                     </div>
                 </div>
+
+                {/* Mobile Menu */}
+                {mobileMenuOpen && (
+                    <div className="md:hidden absolute top-full left-4 right-4 mt-2 p-4 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl pointer-events-auto z-50 animate-in slide-in-from-top-4 duration-200">
+                        <div className="flex flex-col space-y-3">
+                            <a href="#ai-suite" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">AI Suite</a>
+                            <a href="#hardware" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">Hardware</a>
+                            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">Services</a>
+                            <a href="/login" className="text-lg font-medium text-zinc-300">Login</a>
+                            <a href="/get-started" className="bg-orange-600 text-center py-3 rounded-xl font-bold text-white">Start Your Project</a>
+                        </div>
+                    </div>
+                )}
             </nav>
 
-            {/* Hero Section */}
-            <section id="home" className="pt-24 pb-8 min-h-screen flex items-center bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/20"></div>
-                <div className="absolute inset-0" style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                }}></div>
-
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div className="grid lg:grid-cols-2 gap-12 items-center">
-                        <div>
-                            <div className="flex items-center space-x-4 mb-6">
-                                <img src={cereforge} alt="Cereforge Logo – AI Software and Hardware Solutions" className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white/10 p-2" />
-                                <div>
-                                    <h1 className="text-3xl sm:text-4xl font-bold relative">
-                                        <span className="relative inline-block">
-                                            {/* Sleek transparent blur background */}
-                                            <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-lg transform -skew-x-12 shadow-lg border border-white/30"></div>
-                                            <span className="text-blue-900 relative z-10 px-2 sm:px-4 py-1 text-2xl sm:text-4xl">CERE</span>
-                                        </span>
-                                        <span className="text-white text-2xl sm:text-4xl">FORGE</span>
-                                    </h1>
-                                    <p className="text-blue-200 text-sm sm:text-lg">Forging Intelligence into Innovation</p>
-                                </div>
-                            </div>
-
-                            <h2 className="text-2xl sm:text-4xl lg:text-6xl font-bold mb-6 leading-tight">
-                                Turn Ideas Into <span className="text-orange-500">Innovation</span>
-                            </h2>
-
-                            <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-                                We build complete software solutions, firmware, SaaS, Ai integration and Hardware system web integration. From concept to deployment -
-                                <span className="text-orange-400 font-semibold"> your first complete software solution in 30 days</span>.
-                            </p>
-
-                            <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                                <button
-                                    onClick={() => window.location.href = '/get-started'}
-                                    className="inset-0 bg-white/20 shadow-lg border border-white/20  backdrop-blur-sm hover:blue-900/40 text-white px-8 py-2 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 flex items-center justify-center space-x-2"
-                                >                                    <span className="text-orange-500">Start Your Project</span>
-                                    <ChevronRight className=" text-orange-400 w-5 h-5" />
-                                </button>
-
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-8 text-center">
-                                <div>
-                                    <div className="text-3xl font-bold text-orange-400">30</div>
-                                    <div className="text-blue-200">Days to Launch</div>
-                                </div>
-                                <div>
-                                    <div className="text-3xl font-bold text-orange-400">100%</div>
-                                    <div className="text-blue-200">Custom Solutions</div>
-                                </div>
-                                <div>
-                                    <div className="text-3xl font-bold text-orange-400">24/7</div>
-                                    <div className="text-blue-200">Support</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="relative">
-                            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-                                <h3 className="text-2xl font-bold mb-6">What We Build</h3>
-                                <div className="space-y-4">
-                                    <div className="flex items-center space-x-3">
-                                        <Brain className="w-6 h-6 text-orange-400" />
-                                        <span>AI-Powered Software Solutions</span>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <Zap className="w-6 h-6 text-orange-400" />
-                                        <span>Hardware Integration Systems</span>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <Shield className="w-6 h-6 text-orange-400" />
-                                        <span>Resilient Infrastructure</span>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <Users className="w-6 h-6 text-orange-400" />
-                                        <span>Complete SaaS Platforms</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            {/* --- 2. HERO SECTION (Logo Center + Tech Background) --- */}
+            <section className="relative pt-40 pb-20 lg:pt-52 lg:pb-32 overflow-hidden flex flex-col items-center justify-center min-h-[85vh]">
+                
+                {/* Dynamic Tech Background */}
+                <div id="tech-bg" className="absolute inset-0 pointer-events-none opacity-40">
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[100px]"></div>
                 </div>
-            </section>
 
-            {/* About Section */}
-            <section id="about" className="py-20 bg-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold text-gray-900 mb-4">Our Edge</h2>
-                        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                            Born from the fusion of Software Engineering and Materials & Metallurgical Engineering.
-                            We bring unique perspectives to digital innovation.
-                        </p>
-                    </div>
-
-                    <div className="grid md:grid-cols-3 gap-8">
-                        <div className="text-center p-8 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors">
-                            <div className="w-16 h-16 bg-blue-800 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Brain className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Intelligence</h3>
-                            <p className="text-gray-600">AI-driven solutions that learn, adapt, and optimize your business processes.</p>
-                        </div>
-
-                        <div className="text-center p-8 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors">
-                            <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Shield className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Resilience</h3>
-                            <p className="text-gray-600">Engineering-grade reliability with materials science precision.</p>
-                        </div>
-
-                        <div className="text-center p-8 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors">
-                            <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <Zap className="w-8 h-8 text-white" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Innovation</h3>
-                            <p className="text-gray-600">African innovation meeting global standards with cutting-edge technology.</p>
-                        </div>
-                    </div>
+                {/* Rotating Schematic Rings (CSS Animation = No Lag) */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+                    <div className="w-[800px] h-[800px] border border-white/5 rounded-full animate-[spin_60s_linear_infinite] opacity-30 border-dashed"></div>
+                    <div className="absolute w-[600px] h-[600px] border border-orange-500/10 rounded-full animate-[spin_40s_linear_infinite_reverse] opacity-40"></div>
                 </div>
-            </section>
 
-            {/* YouTube Video Section */}
-            <section id="team" className="py-20 bg-gray-900 text-white relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-transparent"></div>
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold mb-4">Step Inside Cereforge</h2>
-                        <p className="text-xl text-gray-300">Watch our story. Meet the minds behind the forge.</p>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-8">
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
-                            <div className="aspect-video bg-gray-800 rounded-lg mb-4 relative overflow-hidden group cursor-pointer">
-                                <iframe
-                                    width="100%"
-                                    height="100%"
-                                    src="https://www.youtube.com/embed/I5bS0Fr8ds4?si=S0VYgDkcCoyWAs2A"
-                                    title="Get to Know Cereforge"
-                                    style={{ border: "0" }}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    className="rounded-lg"
-                                ></iframe>
+                {/* Hero Content */}
+                <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
+                    
+                    {/* LOGO CENTERPIECE */}
+                    <div className="relative mb-12 group inline-block">
+                        <div className="absolute inset-0 bg-orange-500/20 blur-[60px] rounded-full group-hover:bg-orange-500/30 transition-all duration-700"></div>
+                        <img 
+                            src={cereforge} 
+                            alt="Cereforge Logo" 
+                            className="relative w-32 h-32 md:w-48 md:h-48 object-contain mx-auto drop-shadow-[0_0_25px_rgba(255,255,255,0.15)] animate-in zoom-in duration-700"
+                        />
+                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                            <div className="flex items-center space-x-2 bg-white/5 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <span className="text-xs font-mono text-zinc-400">AI SYSTEM ONLINE</span>
                             </div>
-                            <h3 className="text-xl font-bold mb-2">Get to Know Cereforge</h3>
-                            <p className="text-gray-300 text-sm">Discover how Cereforge is reshaping intelligent infrastructure.</p>
-                        </div>
-
-                        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
-                            <div className="aspect-video bg-gray-800 rounded-lg mb-4 relative overflow-hidden group cursor-pointer">
-                                <iframe
-                                    width="100%"
-                                    height="100%"
-                                    src="https://www.youtube.com/embed/uWDWHXMtQIg?si=FjQDGqMKyRADdNe3"
-                                    title="Meet the Cereforge Team"
-                                    style={{ border: "0" }}
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    className="rounded-lg"
-                                ></iframe>
-                            </div>
-                            <h3 className="text-xl font-bold mb-2">Meet the Cereforge Team</h3>
-                            <p className="text-gray-300 text-sm">Hear from our founder on the vision behind the forge.</p>
                         </div>
                     </div>
 
-                    <div className="text-center mt-8">
-                        <a
-                            href="https://youtube.com/@cereforge"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-all"
-                        >
-                            <ExternalLink className="w-5 h-5" />
-                            <span>Visit Our YouTube Channel</span>
+                    <h1 className="text-3xl md:text-5xl lg:text-6xl text-white font-bold tracking-tight mb-8 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-100">
+                        The Operating System for <br/>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">African Innovation</span>
+                    </h1>
+
+                    <p className="text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed text-base md:text-xl animate-in slide-in-from-bottom-4 fade-in duration-700 delay-200">
+                        Everything we build is powered by Artificial Intelligence.
+                        From water-resistant drones to neural SaaS platforms.
+                        <br className="hidden md:block"/>
+                        <span className="text-zinc-500 text-sm mt-3 block font-mono">Materials Engineering × Software Architecture</span>
+                    </p>
+
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-in slide-in-from-bottom-4 fade-in duration-700 delay-300">
+                        <a href="/get-started" className="group relative bg-white text-black px-8 py-4 rounded-full font-bold transition-all hover:bg-zinc-200 flex items-center space-x-2 w-full sm:w-auto justify-center hover:scale-105">
+                            <Sparkles className="w-4 h-4 text-orange-600" />
+                            <span>Start Your Project</span>
+                            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </a>
+                        <a href="#ai-suite" className="px-8 py-4 rounded-full font-medium text-zinc-400 hover:text-white border border-transparent hover:border-white/10 transition-all w-full sm:w-auto justify-center flex hover:bg-white/5">
+                            Explore Ecosystem
                         </a>
                     </div>
                 </div>
             </section>
 
-            {/* Project Showcase - Updated with New Layout Logic */}
-            <section id="projects" className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
+            {/* --- 3. AI SAAS ECOSYSTEM (Bento Grid) --- */}
+            <section id="ai-suite" className="py-24 bg-zinc-950 border-y border-white/5 relative">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl font-bold text-gray-900 mb-4">Our Projects</h2>
-                        <p className="text-xl text-gray-600">Innovation unlocked, one project at a time.</p>
-                        {!cardsSpread && (
-                            <p className="text-gray-500 mt-4">Click the stack to explore our projects</p>
-                        )}
-                        {cardsSpread && !selectedProject && (
-                            <button
-                                onClick={handleBackToStack}
-                                className="mt-4 bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105"
-                            >
-                                ← Back to Stack View
-                            </button>
-                        )}
+                    <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between">
+                        <div>
+                            <span className="text-orange-500 font-mono text-sm tracking-widest uppercase flex items-center gap-2">
+                                <Brain className="w-4 h-4" /> AI Powered Suite
+                            </span>
+                            <h2 className="text-3xl md:text-4xl font-bold text-white mt-2">The Digital Forge</h2>
+                            <p className="text-zinc-400 mt-2 max-w-2xl">A unified ecosystem where every tool acts as an intelligent agent.</p>
+                        </div>
+                        <div className="mt-4 md:mt-0">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-900/20 text-blue-400 text-xs font-mono border border-blue-500/20">
+                                <Bot className="w-3 h-3 mr-2" /> Neural Engine v2.0
+                            </span>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col gap-12">
-                        {!selectedProject ? (
-                            // Project Cards Stack/Grid - Only show when no project is selected
-                            <div className="relative transition-all duration-700 ease-in-out">
-                                {!cardsSpread ? (
-                                    // Stack View
-                                    <div className="relative h-96 flex items-center justify-center">
-                                        {projects.map((project, index) => (
-                                            <div
-                                                key={project.id}
-                                                onClick={handleStackClick}
-                                                className="absolute bg-white rounded-xl shadow-lg border-2 border-gray-200 hover:border-blue-300 cursor-pointer transition-all duration-500 ease-out w-80 h-48 p-6 hover:shadow-xl"
-                                                style={{
-                                                    transform: `rotate(${(index - 2) * 5}deg) translate(${index * 10}px, ${index * 5}px)`,
-                                                    zIndex: projects.length - index,
-                                                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                }}
-                                            >
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg transition-transform duration-300 hover:scale-110">
-                                                        {project.name.charAt(0)}
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <h3 className="font-bold text-gray-900 text-lg truncate">{project.name}</h3>
-                                                        <p className="text-sm text-gray-600">{project.phrase}</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-
-                                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-center transition-opacity duration-500">
-                                            <div className="bg-blue-800 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-                                                {projects.length} Projects
-                                            </div>
-                                        </div>
+                    {/* BENTO GRID */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        
+                        {/* 1. INTELLIGENT EDITOR (Hero Card) */}
+                        <div className="md:col-span-2 md:row-span-2 bg-zinc-900 rounded-3xl p-8 border border-white/5 hover:border-orange-500/30 transition-all group relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="relative z-10 h-full flex flex-col">
+                                <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-6">
+                                    <Mail className="w-6 h-6 text-blue-400" />
+                                </div>
+                                <h3 className="text-2xl font-bold mb-3">AI Editor & Outreach</h3>
+                                <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-sm">
+                                    More than text. Send AI-personalized emails directly from the web app. 
+                                    Drag & drop <strong>Live Charts</strong>, <strong>Stickers</strong>, and <strong>GIFs</strong>. 
+                                    The editor predicts your story before you finish typing.
+                                </p>
+                                
+                                {/* Mock UI: Email Composer */}
+                                <div className="mt-auto bg-black/50 rounded-xl border border-white/10 p-4 backdrop-blur-sm transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+                                        <div className="text-xs text-zinc-500">To: <span className="text-zinc-300">partners@global.com</span></div>
+                                        <div className="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded">AI Optimized</div>
                                     </div>
-                                ) : (
-                                    // Grid View
-                                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-700">
-                                        {projects.map((project, index) => (
-                                            <div
-                                                key={project.id}
-                                                onClick={() => handleProjectClick(project)}
-                                                className="bg-white rounded-xl shadow-lg border-2 border-gray-200 hover:border-blue-300 cursor-pointer transition-all duration-300 transform hover:scale-105 hover:shadow-xl p-6"
-                                                style={{
-                                                    animationDelay: `${index * 100}ms`,
-                                                    animation: 'slideInUp 0.6s ease-out forwards'
-                                                }}
-                                            >
-                                                <div className="space-y-4">
-                                                    <div className="w-full h-32 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl transition-transform duration-300 hover:scale-105">
-                                                        {project.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-gray-900 text-lg mb-2">{project.name}</h3>
-                                                        <p className="text-sm text-gray-600 mb-3">{project.phrase}</p>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {project.tech.slice(0, 3).map(tech => (
-                                                                <span key={tech} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs transition-colors duration-200 hover:bg-blue-200">
-                                                                    {tech}
-                                                                </span>
-                                                            ))}
-                                                            {project.tech.length > 3 && (
-                                                                <span className="text-gray-500 text-xs">+{project.tech.length - 3}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            // Project Details View - Takes over the entire section when a project is selected
-                            <div className="bg-white rounded-xl shadow-xl border p-4 sm:p-8 min-h-[500px] animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8 h-full">
-                                    {/* Project Icon - Top Left */}
-                                    <div className="lg:col-span-1 flex justify-center lg:justify-start">
-                                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl animate-in zoom-in duration-300 delay-100">
-                                            {selectedProject.name.charAt(0)}
-                                        </div>
-                                    </div>
-
-                                    {/* Project Details - Right Side */}
-                                    <div className="lg:col-span-3">
-                                        <div className="flex flex-col h-full animate-in slide-in-from-right duration-500 delay-200">
-                                            {/* Header */}
-                                            <div className="mb-4 sm:mb-6 text-center lg:text-left">
-                                                <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">{selectedProject.name}</h3>
-                                                <p className="text-orange-600 font-medium text-base sm:text-lg">{selectedProject.phrase}</p>
-                                            </div>
-
-                                            {/* Description */}
-                                            <p className="text-gray-700 mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base">{selectedProject.description}</p>
-
-                                            {/* Technologies */}
-                                            <div className="mb-4 sm:mb-6">
-                                                <h4 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">Technologies Used:</h4>
-                                                <div className="flex flex-wrap gap-1 sm:gap-2">
-                                                    {selectedProject.tech.map((tech, index) => (
-                                                        <span
-                                                            key={tech}
-                                                            className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 hover:bg-blue-200 hover:scale-105"
-                                                            style={{
-                                                                animationDelay: `${index * 50}ms`,
-                                                                animation: 'slideInUp 0.4s ease-out forwards'
-                                                            }}
-                                                        >
-                                                            {tech}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Impact */}
-                                            <div className="mb-4 sm:mb-6">
-                                                <h4 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Impact:</h4>
-                                                <p className="text-orange-600 font-semibold text-base sm:text-lg">{selectedProject.impact}</p>
-                                            </div>
-
-                                            {/* Results */}
-                                            <div className="mb-6 sm:mb-8">
-                                                <h4 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Results:</h4>
-                                                <p className="text-gray-700 text-sm sm:text-base">{selectedProject.results}</p>
-                                            </div>
-
-                                            {/* Buttons - Responsive Layout */}
-                                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center sm:justify-end mt-auto animate-in slide-in-from-bottom duration-500 delay-300">
-                                                <button
-                                                    onClick={handleCloseProject}
-                                                    className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
-                                                >
-                                                    Close
-                                                </button>
-                                                <button
-                                                    onClick={() => window.open(selectedProject.liveUrl, '_blank')}
-                                                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2 hover:shadow-lg text-sm sm:text-base"
-                                                >
-                                                    <span>Visit Project</span>
-                                                    <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                </button>
+                                    <div className="space-y-2">
+                                        <div className="w-full h-2 bg-zinc-800 rounded animate-pulse"></div>
+                                        <div className="flex gap-2">
+                                            <div className="w-1/2 h-20 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded border border-white/5 flex items-center justify-center text-xs text-zinc-600 font-mono">[Live Chart]</div>
+                                            <div className="w-1/2 space-y-2">
+                                                <div className="w-full h-2 bg-zinc-800 rounded"></div>
+                                                <div className="w-3/4 h-2 bg-zinc-800 rounded"></div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* 2. CEREFORGE MEET (Vertical) */}
+                        <div className="md:col-span-1 md:row-span-2 bg-zinc-900 rounded-3xl p-6 border border-white/5 hover:border-orange-500/30 transition-all flex flex-col group">
+                            <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center mb-4">
+                                <Video className="w-5 h-5 text-green-400" />
+                            </div>
+                            <h3 className="text-lg font-bold mb-2">Cereforge Meet</h3>
+                            <p className="text-sm text-zinc-400 mb-6 flex-grow">
+                                AI-driven compression algorithms designed for <strong>African infrastructure</strong>. 
+                                Crystal clear video even on low-bandwidth networks.
+                            </p>
+                            <div className="bg-black/40 rounded-lg p-3 border border-white/5">
+                                <div className="flex justify-between items-center text-xs text-zinc-500 mb-2">
+                                    <span>Bandwidth</span>
+                                    <span className="text-green-500">Saved 40%</span>
+                                </div>
+                                <div className="w-full bg-zinc-800 h-1 rounded-full overflow-hidden">
+                                    <div className="bg-green-500 w-[60%] h-full"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. STORYLINE (Presentation) */}
+                        <div className="md:col-span-1 md:row-span-1 bg-zinc-900 rounded-3xl p-6 border border-white/5 hover:border-orange-500/30 transition-all">
+                            <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
+                                <Presentation className="w-5 h-5 text-purple-400" />
+                            </div>
+                            <h3 className="text-base font-bold mb-1">AI Storyline</h3>
+                            <p className="text-xs text-zinc-400">
+                                Upload a PDF, get a video presentation. Record yourself alongside AI-generated slides.
+                            </p>
+                        </div>
+
+                        {/* 4. CALENDAR */}
+                        <div className="md:col-span-1 md:row-span-1 bg-zinc-900 rounded-3xl p-6 border border-white/5 hover:border-orange-500/30 transition-all">
+                            <div className="w-10 h-10 bg-yellow-500/10 rounded-xl flex items-center justify-center mb-4">
+                                <Calendar className="w-5 h-5 text-yellow-400" />
+                            </div>
+                            <h3 className="text-base font-bold mb-1">Smart Calendar</h3>
+                            <p className="text-xs text-zinc-400">
+                                Auto-scheduling powered by neural intent detection.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* Footer */}
-            <footer className="bg-blue-900 text-white py-8">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+             {/* --- 4. HARDWARE (Drone) --- */}
+             <section id="hardware" className="py-24 bg-black relative overflow-hidden">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <div>
-                            <h3 className="text-lg font-bold mb-3">Company</h3>
-                            <ul className="space-y-2">
-                                <li><a href="#about" className="text-blue-200 hover:text-orange-400 transition-colors">About Cereforge</a></li>
-                                <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Careers</a></li>
-                                <li><a target="_blank" href="/get-started" className="text-blue-200 hover:text-orange-400 transition-colors">Contact Us</a></li>
-                                <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Privacy Policy</a></li>
-                                <li><a href="#" className="text-blue-200 hover:text-orange-400 transition-colors">Terms of Service</a></li>
+                            <div className="flex items-center space-x-2 mb-6">
+                                <span className="h-px w-12 bg-orange-500"></span>
+                                <span className="text-orange-500 font-mono tracking-widest uppercase text-sm">Hardware Division</span>
+                            </div>
+                            
+                            <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                                Project <span className="text-white">AERO-X</span><br/>
+                                <span className="text-zinc-600">The Eye of Africa</span>
+                            </h2>
+                            <p className="text-lg text-zinc-400 mb-8 leading-relaxed">
+                                We aren't just software. We are building the future of autonomous surveillance. 
+                                A minimalist, AI-piloted drone designed specifically for the African environment.
+                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                        <Droplets className="w-5 h-5 text-blue-500" />
+                                        <h4 className="font-bold text-white">IP67 Waterproof</h4>
+                                    </div>
+                                    <p className="text-xs text-zinc-500">Hydrophobic chassis designed for heavy tropical rain.</p>
+                                </div>
+                                
+                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
+                                    <Wind className="w-5 h-5 text-gray-400" />
+                                    <h4 className="font-bold text-white">High-Wind Stable</h4>
+                                    <p className="text-xs text-zinc-500">Independent high-torque motors for stability in storms.</p>
+                                </div>
+
+                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
+                                    <Camera className="w-5 h-5 text-red-500" />
+                                    <h4 className="font-bold text-white">4x 360° Vision</h4>
+                                    <p className="text-xs text-zinc-500">Four independent cameras. Complete situational awareness.</p>
+                                </div>
+
+                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
+                                    <Cpu className="w-5 h-5 text-purple-500" />
+                                    <h4 className="font-bold text-white">Neural Flight Core</h4>
+                                    <p className="text-xs text-zinc-500">On-board AI for autonomous pathfinding and object tracking.</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 pt-8 border-t border-white/10">
+                                <p className="text-sm font-mono text-orange-500 mb-2">USE CASES:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Football Broadcasting</span>
+                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Agricultural Surveying</span>
+                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Security</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Drone Visual Placeholder */}
+                        <div className="relative h-[500px] w-full bg-zinc-900 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden group">
+                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,68,68,.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] group-hover:animate-[shine_4s_infinite]"></div>
+                            {/* Scanning Animation */}
+                            <div className="absolute top-0 w-full h-1 bg-orange-500/50 shadow-[0_0_20px_rgba(234,88,12,0.5)] animate-[scan_3s_ease-in-out_infinite]"></div>
+                            
+                            <div className="relative z-10 text-center p-8 backdrop-blur-sm bg-black/20 rounded-2xl border border-white/5">
+                                <Network className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
+                                <div className="text-4xl font-bold text-white/20 tracking-widest uppercase mb-2">AERO-X</div>
+                                <div className="inline-flex items-center space-x-2 bg-orange-500/10 text-orange-500 px-3 py-1 rounded text-xs font-mono border border-orange-500/20">
+                                    <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
+                                    <span>PROTOTYPE PHASE</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- 5. SERVICES & PHILOSOPHY --- */}
+            <section id="services" className="py-24 bg-zinc-950 border-t border-white/5">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    
+                    {/* The Edge */}
+                    <div className="text-center mb-20">
+                        <h2 className="text-3xl md:text-4xl font-bold mb-6">Born from the Forge</h2>
+                        <p className="text-xl text-zinc-400 max-w-3xl mx-auto leading-relaxed">
+                            Our unique edge comes from the fusion of <span className="text-white">Software Engineering</span> and <span className="text-white">Materials & Metallurgical Engineering</span>. 
+                            We apply the laws of physical resilience to digital AI infrastructure.
+                        </p>
+                    </div>
+
+                    {/* Service Cards */}
+                    <div className="grid md:grid-cols-3 gap-6 mb-24">
+                        <div className="bg-zinc-900 p-8 rounded-2xl border border-white/5 hover:bg-black transition-colors group">
+                            <Brain className="w-10 h-10 text-blue-500 mb-6 group-hover:scale-110 transition-transform" />
+                            <h3 className="text-xl font-bold text-white mb-3">Neural Integration</h3>
+                            <p className="text-zinc-400 text-sm">We don't just build apps. We build systems that learn. AI integration into legacy hardware.</p>
+                        </div>
+                        <div className="bg-zinc-900 p-8 rounded-2xl border border-white/5 hover:bg-black transition-colors group">
+                            <Shield className="w-10 h-10 text-gray-400 mb-6 group-hover:scale-110 transition-transform" />
+                            <h3 className="text-xl font-bold text-white mb-3">Metallurgical Resilience</h3>
+                            <p className="text-zinc-400 text-sm">Engineering-grade reliability. Systems built to withstand high stress, just like our alloys.</p>
+                        </div>
+                        <div className="bg-zinc-900 p-8 rounded-2xl border border-white/5 hover:bg-black transition-colors group">
+                            <Zap className="w-10 h-10 text-orange-500 mb-6 group-hover:scale-110 transition-transform" />
+                            <h3 className="text-xl font-bold text-white mb-3">Rapid Deployment</h3>
+                            <p className="text-zinc-400 text-sm">African innovation meeting global standards. We forge MVPs in record time.</p>
+                        </div>
+                    </div>
+
+                    {/* PARTNER CTA */}
+                    <div className="relative overflow-hidden bg-gradient-to-r from-zinc-900 to-black border border-white/10 rounded-3xl p-8 md:p-12">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/10 rounded-full blur-[80px]"></div>
+                        
+                        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                            <div>
+                                <h3 className="text-3xl font-bold text-white mb-4">Build With Cereforge</h3>
+                                <p className="text-zinc-400 mb-6 max-w-xl">
+                                    Access our ecosystem. We build complete AI software solutions, SaaS platforms, and hardware integrations for partners. 
+                                    <br/><span className="text-white font-semibold">Get your first complete solution in 30 days.</span>
+                                </p>
+                                <ul className="space-y-2">
+                                    <li className="flex items-center text-zinc-300 text-sm">
+                                        <CheckCircle className="w-4 h-4 text-orange-500 mr-3" />
+                                        Web & Mobile Applications (AI Powered)
+                                    </li>
+                                    <li className="flex items-center text-zinc-300 text-sm">
+                                        <CheckCircle className="w-4 h-4 text-orange-500 mr-3" />
+                                        Hardware System Web Integration
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="flex-shrink-0 text-center">
+                                <a href="/get-started" className="block w-full md:w-auto bg-white text-black text-lg font-bold px-8 py-4 rounded-xl hover:bg-zinc-200 transition-all transform hover:scale-105 shadow-xl mb-2">
+                                    Become a Partner
+                                </a>
+                                <span className="text-xs text-zinc-500">Limited slots for Q3 2024</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- 6. MEDIA SECTION --- */}
+            <section id="vision" className="py-24 bg-black">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center mb-16">
+                        <h2 className="text-3xl font-bold mb-4">Inside the Forge</h2>
+                        <p className="text-zinc-400">Watch our story. Meet the minds behind the machines.</p>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                        {/* Video 1 */}
+                        <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/10 hover:border-orange-500/30 transition-all group">
+                            <div className="aspect-video bg-black rounded-lg mb-4 overflow-hidden relative">
+                                <iframe
+                                    width="100%"
+                                    height="100%"
+                                    src="https://www.youtube.com/embed/I5bS0Fr8ds4?si=S0VYgDkcCoyWAs2A"
+                                    title="Get to Know Cereforge"
+                                    className="opacity-80 group-hover:opacity-100 transition-opacity"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                ></iframe>
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Get to Know Cereforge</h3>
+                            <p className="text-sm text-zinc-500">Reshaping intelligent infrastructure.</p>
+                        </div>
+
+                        {/* Video 2 */}
+                        <div className="bg-zinc-900/50 rounded-2xl p-4 border border-white/10 hover:border-orange-500/30 transition-all group">
+                            <div className="aspect-video bg-black rounded-lg mb-4 overflow-hidden relative">
+                                <iframe
+                                    width="100%"
+                                    height="100%"
+                                    src="https://www.youtube.com/embed/uWDWHXMtQIg?si=FjQDGqMKyRADdNe3"
+                                    title="Meet the Cereforge Team"
+                                    className="opacity-80 group-hover:opacity-100 transition-opacity"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                ></iframe>
+                            </div>
+                            <h3 className="text-lg font-bold text-white">Meet the Team</h3>
+                            <p className="text-sm text-zinc-500">The vision behind the forge.</p>
+                        </div>
+                    </div>
+
+                    <div className="text-center mt-12">
+                        <a href="https://youtube.com/@cereforge" target="_blank" className="inline-flex items-center space-x-2 text-zinc-400 hover:text-orange-500 transition-colors">
+                            <ExternalLink className="w-4 h-4" />
+                            <span>Visit YouTube Channel</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- 7. FOOTER --- */}
+            <footer className="bg-zinc-900 border-t border-white/10 py-12 text-sm">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                        <div className="col-span-2 md:col-span-1">
+                            <div className="flex items-center space-x-2 mb-4">
+                                <img src={cereforge} alt="Logo" className="w-6 h-6 grayscale hover:grayscale-0 transition-all" />
+                                <span className="text-zinc-100 font-bold">CEREFORGE</span>
+                            </div>
+                            <p className="text-zinc-500 max-w-xs text-xs leading-relaxed">
+                                Forging Intelligence into Innovation. <br/>
+                                Born from Materials Engineering & AI.
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <h4 className="font-bold text-white mb-4">Ecosystem</h4>
+                            <ul className="space-y-2 text-zinc-400 text-xs">
+                                <li><a href="#" className="hover:text-orange-500 transition-colors">AI Intelligent Editor</a></li>
+                                <li><a href="#" className="hover:text-orange-500 transition-colors">Cereforge Meet</a></li>
+                                <li><a href="#" className="hover:text-orange-500 transition-colors">AI Storyline</a></li>
+                                <li><a href="#" className="hover:text-orange-500 transition-colors">Aero-X Drone</a></li>
                             </ul>
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-bold mb-3">Blog</h3>
-                            <p className="text-blue-200 mb-3">Explore our insights</p>
-                            <a href="#" className="text-orange-400 hover:text-orange-300 transition-colors">Visit Blog →</a> <br/>
-                            <a target="_blank" href="/calendar" className="text-orange-400 hover:text-orange-300 transition-colors">Cereforge Calendar</a>
-
+                            <h4 className="font-bold text-white mb-4">Company</h4>
+                            <ul className="space-y-2 text-zinc-400 text-xs">
+                                <li><a href="/get-started" className="hover:text-orange-500 transition-colors">Start a Project</a></li>
+                                <li><a href="/login" className="hover:text-orange-500 transition-colors">Partner Login</a></li>
+                                <li><a href="/calendar" target="_blank" className="hover:text-orange-500 transition-colors">Calendar</a></li>
+                                <li><a href="#" className="hover:text-orange-500 transition-colors">About Us</a></li>
+                            </ul>
                         </div>
 
                         <div>
-                            <h3 className="text-lg font-bold mb-3">Follow the forge. Stay inspired.</h3>
-                            <div className="flex flex-wrap gap-4 mb-3">
-                                <a href="https://facebook.com/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">Facebook</a>
-                                <a href="https://instagram.com/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">Instagram</a>
-                                <a href="https://x.com/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">X</a>
-                                <a href="https://linkedin.com/company/cereforge" className="text-blue-200 hover:text-orange-400 transition-colors">LinkedIn</a>
+                            <h4 className="font-bold text-white mb-4">Connect</h4>
+                            <div className="flex space-x-4 mb-4">
+                                <a href="https://x.com/cereforge" className="text-zinc-400 hover:text-white"><Globe className="w-4 h-4" /></a>
+                                <a href="https://linkedin.com/company/cereforge" className="text-zinc-400 hover:text-white"><Shield className="w-4 h-4" /></a>
                             </div>
-                        </div>
-
-                        <div>
-                            <h3 className="text-lg font-bold mb-3">Newsletter</h3>
-                            <p className="text-blue-200 text-sm mb-3">Get updates on innovation, engineering, and AI.</p>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="Enter email"
-                                    className="flex-1 px-4 py-2 rounded-lg sm:rounded-r-none text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-400 min-w-0"
-                                />
-                                <button className="bg-orange-500 hover:bg-orange-600 px-6 py-2 rounded-lg sm:rounded-l-none font-semibold transition-colors whitespace-nowrap">
-                                    Subscribe
-                                </button>
-                            </div>
+                            <p className="text-zinc-600 text-xs">Lagos • Global</p>
                         </div>
                     </div>
 
-                    <div className="border-t border-blue-800 mt-6 pt-4 text-center text-blue-200">
-                        <p>&copy; 2024 Cereforge. All rights reserved. Forging Intelligence into Innovation.</p>
+                    <div className="mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-zinc-600 text-xs">
+                        <p>&copy; 2024 Cereforge Systems. All rights reserved.</p>
+                        <div className="flex space-x-6 mt-4 md:mt-0">
+                            <a href="#" className="hover:text-white">Privacy Policy</a>
+                            <a href="#" className="hover:text-white">Terms of Service</a>
+                        </div>
                     </div>
                 </div>
             </footer>
