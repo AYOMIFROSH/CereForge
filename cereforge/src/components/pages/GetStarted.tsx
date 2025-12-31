@@ -342,7 +342,7 @@ const GetStarted = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+        <div className="min-h-screen bg-zinc-950 overflow-x-hidden">
             {/* Updated Navigation Header with Progress Bar */}
             <nav className="fixed top-4 w-full z-50 px-4">
                 <div className="max-w-7xl mx-auto">

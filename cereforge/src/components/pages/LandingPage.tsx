@@ -1,27 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Menu, X, ChevronRight, ExternalLink,
     Mail, Video, Calendar, Presentation,
     Wind, Droplets, Camera, Cpu, Zap,
     Shield, Globe, Brain,
-    CheckCircle, Sparkles, Bot, Network
+    CheckCircle, Sparkles, Bot, Network,
+    Scan
 } from 'lucide-react';
 // Make sure this points to your actual logo file
 import cereforge from '../../assets/cereForge.png';
 
 const LandingPage = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    
+    // 1. REFACTOR: Use useRef for the background element (Safer React Practice)
+    const bgRef = useRef<HTMLDivElement>(null);
 
-    // Background scroll effect
+    // 2. NEW: State for Drone HUD Telemetry simulation
+    const [telemetry, setTelemetry] = useState({
+        alt: 124,
+        spd: 18,
+        bat: 94,
+        lat: '6.465',
+        lng: '3.406'
+    });
+
+    // Parallax Scroll Effect
     useEffect(() => {
         const handleScroll = () => {
-            const background = document.getElementById('tech-bg');
-            if (background) {
-                background.style.transform = `translateY(${window.scrollY * 0.2}px)`;
+            if (bgRef.current) {
+                // Moving slower (0.15) than scroll creates depth/parallax
+                bgRef.current.style.transform = `translateY(${window.scrollY * 0.15}px)`;
             }
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Telemetry Simulation Effect (The "Alive" feel)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTelemetry(prev => ({
+                alt: prev.alt + (Math.random() > 0.5 ? 1 : -1),
+                spd: Math.max(0, prev.spd + (Math.random() > 0.5 ? 2 : -2)),
+                bat: Math.max(10, prev.bat - (Math.random() > 0.9 ? 1 : 0)), // Slowly drain battery
+                lat: (6.465 + Math.random() * 0.001).toFixed(3),
+                lng: (3.406 + Math.random() * 0.001).toFixed(3)
+            }));
+        }, 800); // Updates every 800ms
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -36,12 +63,12 @@ const LandingPage = () => {
                             <img src={cereforge} alt="Cereforge" className="w-6 h-6" />
                             <div className="flex items-center">
                                 <div className="relative inline-block mr-1">
-                                    {/* The Signature Skewed Box */}
                                     <div className="absolute inset-0 bg-white/10 backdrop-blur-md rounded-lg transform -skew-x-12 border border-white/20"></div>
                                     <span className="text-blue-500 relative z-10 px-3 py-1 font-bold text-2xl tracking-tight">CERE</span>
                                 </div>
                                 <span className="text-white font-bold text-2xl tracking-tight">FORGE</span>
-                            </div>                        </div>
+                            </div>
+                        </div>
 
                         <div className="flex items-center space-x-1">
                             <a href="#ai-suite" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">AI Suite</a>
@@ -59,47 +86,50 @@ const LandingPage = () => {
                     </div>
 
                     {/* Mobile Header */}
-                    <div className="md:hidden w-full flex justify-between items-center px-4 py-3 rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-md">
+                    <div className="md:hidden w-full flex justify-between items-center px-4 py-3 rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-md relative z-50">
                         <div className="flex items-center space-x-2">
                             <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
                             <div className="flex items-center">
                                 <div className="relative inline-block mr-1">
-                                    {/* The Signature Skewed Box */}
                                     <div className="absolute inset-0 bg-white/10 backdrop-blur-md rounded-lg transform -skew-x-12 border border-white/20"></div>
                                     <span className="text-blue-500 relative z-10 px-3 py-1 font-bold text-2xl tracking-tight">CERE</span>
                                 </div>
                                 <span className="text-white font-bold text-2xl tracking-tight">FORGE</span>
-                            </div>                        </div>
-                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
+                            </div>
+                        </div>
+                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white p-2">
                             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
                     </div>
                 </div>
 
-                {/* Mobile Menu */}
+                {/* 3. UPDATED MOBILE MENU: Full Screen Overlay */}
                 {mobileMenuOpen && (
-                    <div className="md:hidden absolute top-full left-4 right-4 mt-2 p-4 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl pointer-events-auto z-50 animate-in slide-in-from-top-4 duration-200">
-                        <div className="flex flex-col space-y-3">
-                            <a href="#ai-suite" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">AI Suite</a>
-                            <a href="#hardware" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">Hardware</a>
-                            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">Services</a>
-                            <a href="/login" className="text-lg font-medium text-zinc-300">Login</a>
-                            <a href="/get-started" className="bg-orange-600 text-center py-3 rounded-xl font-bold text-white">Start Your Project</a>
+                    <div className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl flex flex-col justify-center items-center animate-in fade-in duration-200">
+                        <div className="flex flex-col space-y-8 text-center p-8 w-full max-w-sm">
+                            <a href="#ai-suite" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-bold text-zinc-300 hover:text-white tracking-tight">AI Suite</a>
+                            <a href="#hardware" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-bold text-zinc-300 hover:text-white tracking-tight">Hardware</a>
+                            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-bold text-zinc-300 hover:text-white tracking-tight">Services</a>
+                            <div className="w-20 h-px bg-white/10 mx-auto"></div>
+                            <a href="/login" className="text-xl font-medium text-orange-400">Partner Login</a>
+                            <a href="/get-started" className="bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-xl font-bold shadow-[0_0_20px_rgba(234,88,12,0.4)]">
+                                Start Your Project
+                            </a>
                         </div>
                     </div>
                 )}
             </nav>
 
-            {/* --- 2. HERO SECTION (Logo Center + Tech Background) --- */}
+            {/* --- 2. HERO SECTION --- */}
             <section className="relative pt-40 pb-20 lg:pt-52 lg:pb-32 overflow-hidden flex flex-col items-center justify-center min-h-[85vh]">
 
-                {/* Dynamic Tech Background */}
-                <div id="tech-bg" className="absolute inset-0 pointer-events-none opacity-40">
+                {/* 1. UPDATED PARALLAX BACKGROUND (Using Ref) */}
+                <div ref={bgRef} className="absolute inset-0 pointer-events-none opacity-40 transition-transform duration-75 ease-out will-change-transform">
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:40px_40px]"></div>
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-900/10 rounded-full blur-[100px]"></div>
                 </div>
 
-                {/* Rotating Schematic Rings (CSS Animation = No Lag) */}
+                {/* Rotating Schematic Rings */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
                     <div className="w-[800px] h-[800px] border border-white/5 rounded-full animate-[spin_60s_linear_infinite] opacity-30 border-dashed"></div>
                     <div className="absolute w-[600px] h-[600px] border border-orange-500/10 rounded-full animate-[spin_40s_linear_infinite_reverse] opacity-40"></div>
@@ -107,8 +137,6 @@ const LandingPage = () => {
 
                 {/* Hero Content */}
                 <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
-
-                    {/* LOGO CENTERPIECE */}
                     <div className="relative mb-12 group inline-block">
                         <div className="absolute inset-0 bg-orange-500/20 blur-[60px] rounded-full group-hover:bg-orange-500/30 transition-all duration-700"></div>
                         <img
@@ -169,7 +197,6 @@ const LandingPage = () => {
 
                     {/* BENTO GRID */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
                         {/* 1. INTELLIGENT EDITOR (Hero Card) */}
                         <div className="md:col-span-2 md:row-span-2 bg-zinc-900 rounded-3xl p-8 border border-white/5 hover:border-orange-500/30 transition-all group relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -180,11 +207,9 @@ const LandingPage = () => {
                                 <h3 className="text-2xl font-bold mb-3">AI Editor & Outreach</h3>
                                 <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-sm">
                                     More than text. Send AI-personalized emails directly from the web app.
-                                    Drag & drop <strong>Live Charts</strong>, <strong>Stickers</strong>, and <strong>GIFs</strong>.
                                     The editor predicts your story before you finish typing.
                                 </p>
-
-                                {/* Mock UI: Email Composer */}
+                                {/* Mock UI */}
                                 <div className="mt-auto bg-black/50 rounded-xl border border-white/10 p-4 backdrop-blur-sm transform translate-y-2 group-hover:translate-y-0 transition-transform">
                                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
                                         <div className="text-xs text-zinc-500">To: <span className="text-zinc-300">partners@global.com</span></div>
@@ -212,7 +237,6 @@ const LandingPage = () => {
                             <h3 className="text-lg font-bold mb-2">Cereforge Meet</h3>
                             <p className="text-sm text-zinc-400 mb-6 flex-grow">
                                 AI-driven compression algorithms designed for <strong>African infrastructure</strong>.
-                                Crystal clear video even on low-bandwidth networks.
                             </p>
                             <div className="bg-black/40 rounded-lg p-3 border border-white/5">
                                 <div className="flex justify-between items-center text-xs text-zinc-500 mb-2">
@@ -225,14 +249,14 @@ const LandingPage = () => {
                             </div>
                         </div>
 
-                        {/* 3. STORYLINE (Presentation) */}
+                        {/* 3. STORYLINE */}
                         <div className="md:col-span-1 md:row-span-1 bg-zinc-900 rounded-3xl p-6 border border-white/5 hover:border-orange-500/30 transition-all">
                             <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
                                 <Presentation className="w-5 h-5 text-purple-400" />
                             </div>
                             <h3 className="text-base font-bold mb-1">AI Storyline</h3>
                             <p className="text-xs text-zinc-400">
-                                Upload a PDF, get a video presentation. Record yourself alongside AI-generated slides.
+                                Upload a PDF, get a video presentation.
                             </p>
                         </div>
 
@@ -243,7 +267,7 @@ const LandingPage = () => {
                             </div>
                             <h3 className="text-base font-bold mb-1">Smart Calendar</h3>
                             <p className="text-xs text-zinc-400">
-                                Auto-scheduling powered by neural intent detection.
+                                Auto-scheduling powered by neural intent.
                             </p>
                         </div>
                     </div>
@@ -283,43 +307,52 @@ const LandingPage = () => {
                                     <h4 className="font-bold text-white">High-Wind Stable</h4>
                                     <p className="text-xs text-zinc-500">Independent high-torque motors for stability in storms.</p>
                                 </div>
-
-                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
-                                    <Camera className="w-5 h-5 text-red-500" />
-                                    <h4 className="font-bold text-white">4x 360° Vision</h4>
-                                    <p className="text-xs text-zinc-500">Four independent cameras. Complete situational awareness.</p>
-                                </div>
-
-                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
-                                    <Cpu className="w-5 h-5 text-purple-500" />
-                                    <h4 className="font-bold text-white">Neural Flight Core</h4>
-                                    <p className="text-xs text-zinc-500">On-board AI for autonomous pathfinding and object tracking.</p>
-                                </div>
-                            </div>
-
-                            <div className="mt-8 pt-8 border-t border-white/10">
-                                <p className="text-sm font-mono text-orange-500 mb-2">USE CASES:</p>
-                                <div className="flex flex-wrap gap-2">
-                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Football Broadcasting</span>
-                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Agricultural Surveying</span>
-                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Security</span>
-                                </div>
                             </div>
                         </div>
 
-                        {/* Drone Visual Placeholder */}
+                        {/* 2. UPDATED: Drone Visual HUD */}
                         <div className="relative h-[500px] w-full bg-zinc-900 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden group">
+                            
+                            {/* HUD: Corner Brackets (The "Eye" Feel) */}
+                            <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-orange-500/50 rounded-tl-lg"></div>
+                            <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 border-orange-500/50 rounded-tr-lg"></div>
+                            <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 border-orange-500/50 rounded-bl-lg"></div>
+                            <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 border-orange-500/50 rounded-br-lg"></div>
+
+                            {/* HUD: Background Grid */}
                             <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,68,68,.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] group-hover:animate-[shine_4s_infinite]"></div>
-                            {/* Scanning Animation */}
+                            
+                            {/* HUD: Scanning Animation */}
                             <div className="absolute top-0 w-full h-1 bg-orange-500/50 shadow-[0_0_20px_rgba(234,88,12,0.5)] animate-[scan_3s_ease-in-out_infinite]"></div>
 
+                            {/* HUD: Center Content */}
                             <div className="relative z-10 text-center p-8 backdrop-blur-sm bg-black/20 rounded-2xl border border-white/5">
                                 <Network className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
                                 <div className="text-4xl font-bold text-white/20 tracking-widest uppercase mb-2">AeTRACK-V</div>
                                 <div className="inline-flex items-center space-x-2 bg-orange-500/10 text-orange-500 px-3 py-1 rounded text-xs font-mono border border-orange-500/20">
                                     <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
-                                    <span>PROTOTYPE PHASE</span>
+                                    <span>LIVE FEED DISCONNECTED</span>
                                 </div>
+                            </div>
+
+                            {/* HUD: Telemetry Data (Bottom Left) */}
+                            <div className="absolute bottom-6 left-6 font-mono text-[10px] text-zinc-500 space-y-1 text-left">
+                                <div className="flex gap-4">
+                                    <span className="text-orange-500">ALT:</span> {telemetry.alt}m
+                                </div>
+                                <div className="flex gap-4">
+                                    <span className="text-orange-500">SPD:</span> {telemetry.spd} km/h
+                                </div>
+                                <div className="flex gap-4">
+                                    <span className="text-orange-500">BAT:</span> {telemetry.bat}%
+                                </div>
+                            </div>
+
+                            {/* HUD: Coordinates (Bottom Right) */}
+                            <div className="absolute bottom-6 right-6 font-mono text-[10px] text-zinc-500 text-right">
+                                <div>LAT: {telemetry.lat}</div>
+                                <div>LNG: {telemetry.lng}</div>
+                                <div className="text-orange-500 mt-1 animate-pulse">Scanning...</div>
                             </div>
                         </div>
                     </div>
@@ -329,7 +362,6 @@ const LandingPage = () => {
             {/* --- 5. SERVICES & PHILOSOPHY --- */}
             <section id="services" className="py-24 bg-zinc-950 border-t border-white/5">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
                     {/* The Edge */}
                     <div className="text-center mb-20">
                         <h2 className="text-3xl md:text-4xl font-bold mb-6">Born from the Forge</h2>
