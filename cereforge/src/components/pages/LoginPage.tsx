@@ -13,7 +13,7 @@ import { addToast } from '@/store/slices/uiSlice';
 const LoginPage = () => {
   useDocumentTitle(
     "Cereforge - Login",
-    "Login to your Cereforge account - Unified portal for all users.",
+    "Login to your Cereforge account - Portal For Partners.",
     "/login"
   );
 

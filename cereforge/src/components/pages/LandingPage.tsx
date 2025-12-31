@@ -6,11 +6,17 @@ import {
     Shield, Globe, Brain,
     CheckCircle, Sparkles, Bot, Network,
 } from 'lucide-react';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 // Placeholder for logo - replace with your actual import
 import cereforge from '../../assets/cereForge.png';
 
 const LandingPage = () => {
+    useDocumentTitle(
+        "Cereforge | The Operating System for African Innovation", 
+        "Forging Intelligence into Innovation. We build resilient AI infrastructure and autonomous hardware systems, fusing Materials Engineering with Software Architecture.",
+        "/"
+    );
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const bgRef = useRef<HTMLDivElement>(null);
     const droneRef = useRef<HTMLDivElement>(null);
