@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
     Menu, X, ChevronRight, ExternalLink,
     Mail, Video, Calendar, Presentation,
-    Wind, Droplets, Zap,
+    Wind, Droplets, Zap, Cpu, Camera,
     Shield, Globe, Brain,
     CheckCircle, Sparkles, Bot, Network,
 } from 'lucide-react';
@@ -11,7 +11,7 @@ import cereforge from '../../assets/cereForge.png';
 
 const LandingPage = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    
+
     // 1. REFACTOR: Use useRef for the background element (Safer React Practice)
     const bgRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +85,7 @@ const LandingPage = () => {
                     </div>
 
                     {/* Mobile Header */}
-                    <div className="md:hidden w-full flex justify-between items-center px-4 py-3 rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-md relative z-50">
+                    <div className="md:hidden w-full flex justify-between items-center px-4 py-3 rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-md">
                         <div className="flex items-center space-x-2">
                             <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
                             <div className="flex items-center">
@@ -96,7 +96,7 @@ const LandingPage = () => {
                                 <span className="text-white font-bold text-2xl tracking-tight">FORGE</span>
                             </div>
                         </div>
-                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white p-2">
+                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
                             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
                     </div>
@@ -104,16 +104,13 @@ const LandingPage = () => {
 
                 {/* 3. UPDATED MOBILE MENU: Full Screen Overlay */}
                 {mobileMenuOpen && (
-                    <div className="fixed inset-0 z-40 bg-zinc-950/95 backdrop-blur-xl flex flex-col justify-center items-center animate-in fade-in duration-200">
-                        <div className="flex flex-col space-y-8 text-center p-8 w-full max-w-sm">
-                            <a href="#ai-suite" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-bold text-zinc-300 hover:text-white tracking-tight">AI Suite</a>
-                            <a href="#hardware" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-bold text-zinc-300 hover:text-white tracking-tight">Hardware</a>
-                            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="text-2xl font-bold text-zinc-300 hover:text-white tracking-tight">Services</a>
-                            <div className="w-20 h-px bg-white/10 mx-auto"></div>
-                            <a href="/login" className="text-xl font-medium text-orange-400">Partner Login</a>
-                            <a href="/get-started" className="bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-xl font-bold shadow-[0_0_20px_rgba(234,88,12,0.4)]">
-                                Start Your Project
-                            </a>
+                    <div className="md:hidden absolute top-full left-4 right-4 mt-2 p-4 rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl pointer-events-auto z-50 animate-in slide-in-from-top-4 duration-200">
+                        <div className="flex flex-col space-y-3">
+                            <a href="#ai-suite" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">AI Suite</a>
+                            <a href="#hardware" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">Hardware</a>
+                            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="text-lg font-medium text-zinc-300">Services</a>
+                            <a href="/login" className="text-lg font-medium text-zinc-300">Login</a>
+                            <a href="/get-started" className="bg-orange-600 text-center py-3 rounded-xl font-bold text-white">Start Your Project</a>
                         </div>
                     </div>
                 )}
@@ -206,6 +203,7 @@ const LandingPage = () => {
                                 <h3 className="text-2xl font-bold mb-3">AI Editor & Outreach</h3>
                                 <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-sm">
                                     More than text. Send AI-personalized emails directly from the web app.
+                                    Drag & drop <strong>Live Charts</strong>, <strong>Stickers</strong>, and <strong>GIFs</strong>.
                                     The editor predicts your story before you finish typing.
                                 </p>
                                 {/* Mock UI */}
@@ -236,6 +234,7 @@ const LandingPage = () => {
                             <h3 className="text-lg font-bold mb-2">Cereforge Meet</h3>
                             <p className="text-sm text-zinc-400 mb-6 flex-grow">
                                 AI-driven compression algorithms designed for <strong>African infrastructure</strong>.
+                                Crystal clear video even on low-bandwidth networks.
                             </p>
                             <div className="bg-black/40 rounded-lg p-3 border border-white/5">
                                 <div className="flex justify-between items-center text-xs text-zinc-500 mb-2">
@@ -255,8 +254,7 @@ const LandingPage = () => {
                             </div>
                             <h3 className="text-base font-bold mb-1">AI Storyline</h3>
                             <p className="text-xs text-zinc-400">
-                                Upload a PDF, get a video presentation.
-                            </p>
+                                Upload a PDF, get a video presentation. Record yourself alongside AI-generated slides.                            </p>
                         </div>
 
                         {/* 4. CALENDAR */}
@@ -306,12 +304,32 @@ const LandingPage = () => {
                                     <h4 className="font-bold text-white">High-Wind Stable</h4>
                                     <p className="text-xs text-zinc-500">Independent high-torque motors for stability in storms.</p>
                                 </div>
+                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
+                                    <Camera className="w-5 h-5 text-red-500" />
+                                    <h4 className="font-bold text-white">4x 360° Vision</h4>
+                                    <p className="text-xs text-zinc-500">Four independent cameras. Complete situational awareness.</p>
+                                </div>
+
+                                <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
+                                    <Cpu className="w-5 h-5 text-purple-500" />
+                                    <h4 className="font-bold text-white">Neural Flight Core</h4>
+                                    <p className="text-xs text-zinc-500">On-board AI for autonomous pathfinding and object tracking.</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-8 pt-8 border-t border-white/10">
+                                <p className="text-sm font-mono text-orange-500 mb-2">USE CASES:</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Football Broadcasting</span>
+                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Agricultural Surveying</span>
+                                    <span className="px-3 py-1 rounded-full bg-zinc-800 text-xs text-zinc-300 border border-white/5">Security</span>
+                                </div>
                             </div>
                         </div>
 
                         {/* 2. UPDATED: Drone Visual HUD */}
                         <div className="relative h-[500px] w-full bg-zinc-900 rounded-3xl border border-white/10 flex items-center justify-center overflow-hidden group">
-                            
+
                             {/* HUD: Corner Brackets (The "Eye" Feel) */}
                             <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-orange-500/50 rounded-tl-lg"></div>
                             <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 border-orange-500/50 rounded-tr-lg"></div>
@@ -320,7 +338,7 @@ const LandingPage = () => {
 
                             {/* HUD: Background Grid */}
                             <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,68,68,.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] group-hover:animate-[shine_4s_infinite]"></div>
-                            
+
                             {/* HUD: Scanning Animation */}
                             <div className="absolute top-0 w-full h-1 bg-orange-500/50 shadow-[0_0_20px_rgba(234,88,12,0.5)] animate-[scan_3s_ease-in-out_infinite]"></div>
 
