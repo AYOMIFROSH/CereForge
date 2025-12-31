@@ -2,10 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import {
     Menu, X, ChevronRight, ExternalLink,
     Mail, Video, Calendar, Presentation,
-    Wind, Droplets, Camera, Cpu, Zap,
+    Wind, Droplets, Zap,
     Shield, Globe, Brain,
     CheckCircle, Sparkles, Bot, Network,
-    Scan
 } from 'lucide-react';
 // Make sure this points to your actual logo file
 import cereforge from '../../assets/cereForge.png';
