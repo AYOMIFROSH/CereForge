@@ -412,7 +412,7 @@ const LoginPage = () => {
 
         {/* 3. COPYRIGHT */}
         <div className="flex-shrink-0 text-center text-zinc-600 text-xs font-medium">
-          &copy; 2024 Cereforge Systems. 256-Bit Encrypted.
+          &copy; 2024 Cereforge Systems
         </div>
 
       </div>
