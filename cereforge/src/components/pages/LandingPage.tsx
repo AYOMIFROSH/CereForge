@@ -465,7 +465,7 @@ const LandingPage = () => {
                                 <li><a href="#" className="hover:text-orange-500 transition-colors">AI Intelligent Editor</a></li>
                                 <li><a href="#" className="hover:text-orange-500 transition-colors">Cereforge Meet</a></li>
                                 <li><a href="#" className="hover:text-orange-500 transition-colors">AI Storyline</a></li>
-                                <li><a href="#" className="hover:text-orange-500 transition-colors">Aero-X Drone</a></li>
+                                <li><a href="#" className="hover:text-orange-500 transition-colors">AeTrack-V Drone</a></li>
                             </ul>
                         </div>
 
