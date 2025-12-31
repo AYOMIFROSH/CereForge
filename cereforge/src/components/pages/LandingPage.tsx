@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { 
-  Menu, X, ChevronRight, ExternalLink, 
-  Mail, Video, Calendar, Presentation, 
-  Wind, Droplets, Camera, Cpu, Zap, 
-  Shield, Globe, Brain,
-  CheckCircle, Sparkles, Bot, Network
+import {
+    Menu, X, ChevronRight, ExternalLink,
+    Mail, Video, Calendar, Presentation,
+    Wind, Droplets, Camera, Cpu, Zap,
+    Shield, Globe, Brain,
+    CheckCircle, Sparkles, Bot, Network
 } from 'lucide-react';
 // Make sure this points to your actual logo file
-import cereforge from '../../assets/cereForge.png'; 
+import cereforge from '../../assets/cereForge.png';
 
 const LandingPage = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    
+
     // Background scroll effect
     useEffect(() => {
         const handleScroll = () => {
@@ -26,7 +26,7 @@ const LandingPage = () => {
 
     return (
         <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-orange-500 selection:text-white overflow-x-hidden">
-            
+
             {/* --- 1. FLOATING PILL NAVIGATION --- */}
             <nav className="fixed top-6 w-full z-50 px-4 pointer-events-none">
                 <div className="max-w-7xl mx-auto flex justify-center pointer-events-auto">
@@ -34,17 +34,23 @@ const LandingPage = () => {
                     <div className="hidden md:flex items-center space-x-1 pl-4 pr-2 py-2 rounded-full border border-white/10 bg-zinc-900/80 backdrop-blur-md shadow-2xl ring-1 ring-white/5">
                         <div className="flex items-center mr-6 pl-2 space-x-2">
                             <img src={cereforge} alt="Cereforge" className="w-6 h-6" />
-                            <span className="text-zinc-100 font-bold text-lg tracking-tight">CEREFORGE</span>
-                        </div>
-                        
+                            <div className="flex items-center">
+                                <div className="relative inline-block mr-1">
+                                    {/* The Signature Skewed Box */}
+                                    <div className="absolute inset-0 bg-white/10 backdrop-blur-md rounded-lg transform -skew-x-12 border border-white/20"></div>
+                                    <span className="text-blue-500 relative z-10 px-3 py-1 font-bold text-2xl tracking-tight">CERE</span>
+                                </div>
+                                <span className="text-white font-bold text-2xl tracking-tight">FORGE</span>
+                            </div>                        </div>
+
                         <div className="flex items-center space-x-1">
                             <a href="#ai-suite" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">AI Suite</a>
                             <a href="#hardware" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">Hardware</a>
                             <a href="#services" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white hover:bg-white/5 rounded-full transition-all">Services</a>
                         </div>
-                        
+
                         <div className="w-px h-5 bg-white/10 mx-3"></div>
-                        
+
                         <a href="/login" className="px-5 py-2 text-sm font-medium text-white hover:text-orange-400 transition-colors">Login</a>
                         <a href="/get-started" className="flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-full text-sm font-bold transition-all shadow-[0_0_15px_rgba(234,88,12,0.3)] hover:shadow-[0_0_25px_rgba(234,88,12,0.5)]">
                             <Sparkles className="w-3 h-3" />
@@ -56,8 +62,14 @@ const LandingPage = () => {
                     <div className="md:hidden w-full flex justify-between items-center px-4 py-3 rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-md">
                         <div className="flex items-center space-x-2">
                             <img src={cereforge} alt="Cereforge" className="w-8 h-8" />
-                            <span className="font-bold text-lg">CEREFORGE</span>
-                        </div>
+                            <div className="flex items-center">
+                                <div className="relative inline-block mr-1">
+                                    {/* The Signature Skewed Box */}
+                                    <div className="absolute inset-0 bg-white/10 backdrop-blur-md rounded-lg transform -skew-x-12 border border-white/20"></div>
+                                    <span className="text-blue-500 relative z-10 px-3 py-1 font-bold text-2xl tracking-tight">CERE</span>
+                                </div>
+                                <span className="text-white font-bold text-2xl tracking-tight">FORGE</span>
+                            </div>                        </div>
                         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white">
                             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
@@ -80,7 +92,7 @@ const LandingPage = () => {
 
             {/* --- 2. HERO SECTION (Logo Center + Tech Background) --- */}
             <section className="relative pt-40 pb-20 lg:pt-52 lg:pb-32 overflow-hidden flex flex-col items-center justify-center min-h-[85vh]">
-                
+
                 {/* Dynamic Tech Background */}
                 <div id="tech-bg" className="absolute inset-0 pointer-events-none opacity-40">
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:40px_40px]"></div>
@@ -95,13 +107,13 @@ const LandingPage = () => {
 
                 {/* Hero Content */}
                 <div className="relative z-10 text-center max-w-5xl mx-auto px-4">
-                    
+
                     {/* LOGO CENTERPIECE */}
                     <div className="relative mb-12 group inline-block">
                         <div className="absolute inset-0 bg-orange-500/20 blur-[60px] rounded-full group-hover:bg-orange-500/30 transition-all duration-700"></div>
-                        <img 
-                            src={cereforge} 
-                            alt="Cereforge Logo" 
+                        <img
+                            src={cereforge}
+                            alt="Cereforge Logo"
                             className="relative w-32 h-32 md:w-48 md:h-48 object-contain mx-auto drop-shadow-[0_0_25px_rgba(255,255,255,0.15)] animate-in zoom-in duration-700"
                         />
                         <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
@@ -113,14 +125,14 @@ const LandingPage = () => {
                     </div>
 
                     <h1 className="text-3xl md:text-5xl lg:text-6xl text-white font-bold tracking-tight mb-8 animate-in slide-in-from-bottom-4 fade-in duration-700 delay-100">
-                        The Operating System for <br/>
+                        The Operating System for <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">African Innovation</span>
                     </h1>
 
                     <p className="text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed text-base md:text-xl animate-in slide-in-from-bottom-4 fade-in duration-700 delay-200">
                         Everything we build is powered by Artificial Intelligence.
                         From water-resistant drones to neural SaaS platforms.
-                        <br className="hidden md:block"/>
+                        <br className="hidden md:block" />
                         <span className="text-zinc-500 text-sm mt-3 block font-mono">Materials Engineering × Software Architecture</span>
                     </p>
 
@@ -157,7 +169,7 @@ const LandingPage = () => {
 
                     {/* BENTO GRID */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        
+
                         {/* 1. INTELLIGENT EDITOR (Hero Card) */}
                         <div className="md:col-span-2 md:row-span-2 bg-zinc-900 rounded-3xl p-8 border border-white/5 hover:border-orange-500/30 transition-all group relative overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -167,11 +179,11 @@ const LandingPage = () => {
                                 </div>
                                 <h3 className="text-2xl font-bold mb-3">AI Editor & Outreach</h3>
                                 <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-sm">
-                                    More than text. Send AI-personalized emails directly from the web app. 
-                                    Drag & drop <strong>Live Charts</strong>, <strong>Stickers</strong>, and <strong>GIFs</strong>. 
+                                    More than text. Send AI-personalized emails directly from the web app.
+                                    Drag & drop <strong>Live Charts</strong>, <strong>Stickers</strong>, and <strong>GIFs</strong>.
                                     The editor predicts your story before you finish typing.
                                 </p>
-                                
+
                                 {/* Mock UI: Email Composer */}
                                 <div className="mt-auto bg-black/50 rounded-xl border border-white/10 p-4 backdrop-blur-sm transform translate-y-2 group-hover:translate-y-0 transition-transform">
                                     <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
@@ -199,7 +211,7 @@ const LandingPage = () => {
                             </div>
                             <h3 className="text-lg font-bold mb-2">Cereforge Meet</h3>
                             <p className="text-sm text-zinc-400 mb-6 flex-grow">
-                                AI-driven compression algorithms designed for <strong>African infrastructure</strong>. 
+                                AI-driven compression algorithms designed for <strong>African infrastructure</strong>.
                                 Crystal clear video even on low-bandwidth networks.
                             </p>
                             <div className="bg-black/40 rounded-lg p-3 border border-white/5">
@@ -238,8 +250,8 @@ const LandingPage = () => {
                 </div>
             </section>
 
-             {/* --- 4. HARDWARE (Drone) --- */}
-             <section id="hardware" className="py-24 bg-black relative overflow-hidden">
+            {/* --- 4. HARDWARE (Drone) --- */}
+            <section id="hardware" className="py-24 bg-black relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <div>
@@ -247,13 +259,13 @@ const LandingPage = () => {
                                 <span className="h-px w-12 bg-orange-500"></span>
                                 <span className="text-orange-500 font-mono tracking-widest uppercase text-sm">Hardware Division</span>
                             </div>
-                            
+
                             <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
-                                Project <span className="text-white">AERO-X</span><br/>
+                                Project <span className="text-white">AeTRACK-V</span><br />
                                 <span className="text-zinc-600">The Eye of Africa</span>
                             </h2>
                             <p className="text-lg text-zinc-400 mb-8 leading-relaxed">
-                                We aren't just software. We are building the future of autonomous surveillance. 
+                                We aren't just software. We are building the future of autonomous surveillance.
                                 A minimalist, AI-piloted drone designed specifically for the African environment.
                             </p>
 
@@ -265,7 +277,7 @@ const LandingPage = () => {
                                     </div>
                                     <p className="text-xs text-zinc-500">Hydrophobic chassis designed for heavy tropical rain.</p>
                                 </div>
-                                
+
                                 <div className="bg-zinc-900/50 p-4 rounded-xl border border-white/5 hover:bg-zinc-900 transition-colors">
                                     <Wind className="w-5 h-5 text-gray-400" />
                                     <h4 className="font-bold text-white">High-Wind Stable</h4>
@@ -300,10 +312,10 @@ const LandingPage = () => {
                             <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(68,68,68,.2)_50%,transparent_75%,transparent_100%)] bg-[length:250%_250%] group-hover:animate-[shine_4s_infinite]"></div>
                             {/* Scanning Animation */}
                             <div className="absolute top-0 w-full h-1 bg-orange-500/50 shadow-[0_0_20px_rgba(234,88,12,0.5)] animate-[scan_3s_ease-in-out_infinite]"></div>
-                            
+
                             <div className="relative z-10 text-center p-8 backdrop-blur-sm bg-black/20 rounded-2xl border border-white/5">
                                 <Network className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
-                                <div className="text-4xl font-bold text-white/20 tracking-widest uppercase mb-2">AERO-X</div>
+                                <div className="text-4xl font-bold text-white/20 tracking-widest uppercase mb-2">AeTRACK-V</div>
                                 <div className="inline-flex items-center space-x-2 bg-orange-500/10 text-orange-500 px-3 py-1 rounded text-xs font-mono border border-orange-500/20">
                                     <span className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
                                     <span>PROTOTYPE PHASE</span>
@@ -317,12 +329,12 @@ const LandingPage = () => {
             {/* --- 5. SERVICES & PHILOSOPHY --- */}
             <section id="services" className="py-24 bg-zinc-950 border-t border-white/5">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    
+
                     {/* The Edge */}
                     <div className="text-center mb-20">
                         <h2 className="text-3xl md:text-4xl font-bold mb-6">Born from the Forge</h2>
                         <p className="text-xl text-zinc-400 max-w-3xl mx-auto leading-relaxed">
-                            Our unique edge comes from the fusion of <span className="text-white">Software Engineering</span> and <span className="text-white">Materials & Metallurgical Engineering</span>. 
+                            Our unique edge comes from the fusion of <span className="text-white">Software Engineering</span> and <span className="text-white">Materials & Metallurgical Engineering</span>.
                             We apply the laws of physical resilience to digital AI infrastructure.
                         </p>
                     </div>
@@ -349,13 +361,13 @@ const LandingPage = () => {
                     {/* PARTNER CTA */}
                     <div className="relative overflow-hidden bg-gradient-to-r from-zinc-900 to-black border border-white/10 rounded-3xl p-8 md:p-12">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/10 rounded-full blur-[80px]"></div>
-                        
+
                         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                             <div>
                                 <h3 className="text-3xl font-bold text-white mb-4">Build With Cereforge</h3>
                                 <p className="text-zinc-400 mb-6 max-w-xl">
-                                    Access our ecosystem. We build complete AI software solutions, SaaS platforms, and hardware integrations for partners. 
-                                    <br/><span className="text-white font-semibold">Get your first complete solution in 30 days.</span>
+                                    Access our ecosystem. We build complete AI software solutions, SaaS platforms, and hardware integrations for partners.
+                                    <br /><span className="text-white font-semibold">Get your first complete solution in 30 days.</span>
                                 </p>
                                 <ul className="space-y-2">
                                     <li className="flex items-center text-zinc-300 text-sm">
@@ -442,11 +454,11 @@ const LandingPage = () => {
                                 <span className="text-zinc-100 font-bold">CEREFORGE</span>
                             </div>
                             <p className="text-zinc-500 max-w-xs text-xs leading-relaxed">
-                                Forging Intelligence into Innovation. <br/>
+                                Forging Intelligence into Innovation. <br />
                                 Born from Materials Engineering & AI.
                             </p>
                         </div>
-                        
+
                         <div>
                             <h4 className="font-bold text-white mb-4">Ecosystem</h4>
                             <ul className="space-y-2 text-zinc-400 text-xs">
