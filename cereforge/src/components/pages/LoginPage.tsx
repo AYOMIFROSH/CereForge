@@ -400,10 +400,10 @@ const LoginPage = () => {
           <div className="flex-shrink-0 px-6 py-4 bg-zinc-950/30 border-t border-white/5 flex items-center justify-between text-xs sm:text-sm">
             <label className="flex items-center space-x-2 text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors">
               <input type="checkbox" className="rounded border-zinc-700 bg-zinc-800 text-orange-600 focus:ring-orange-500" />
-              <span>Persist Session</span>
+              <span>Remind Me</span>
             </label>
             <div className="flex space-x-4">
-              <a href="#" className="text-zinc-500 hover:text-white transition-colors">Recover Key</a>
+              <a href="#" className="text-zinc-500 hover:text-white transition-colors">Forgot Password?</a>
               <a href="/" className="text-zinc-500 hover:text-white transition-colors">Home</a>
             </div>
           </div>
