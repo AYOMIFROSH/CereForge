@@ -12,6 +12,7 @@ import logger, { stream } from './utils/logger';
 import authRoutes from './routes/auth.routes';
 import publicRoutes from './routes/public.routes';
 import calendarRoutes from './routes/calendar.routes';
+import adminRoutes from './routes/admin.routes'
 
 // Create Express app
 const app = express();
@@ -177,6 +178,7 @@ app.get(`/api/${API_VERSION}`, (req: Request, res: Response) => {
 app.use(`/api/${API_VERSION}/auth`, authRoutes);
 app.use(`/api/${API_VERSION}/public`, publicRoutes);
 app.use(`/api/${API_VERSION}/calendar`, calendarRoutes); 
+app.use(`/api/${API_VERSION}/admin`, adminRoutes);
 
 // ==========================================
 // 404 HANDLER

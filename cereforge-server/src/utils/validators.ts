@@ -88,20 +88,43 @@ export const getStartedSchema = z.object({
   referenceImagesUrl: z.string().optional(),
   profilePhotoUrl: z.string().optional()
 });
+
+
 /**
- * Partner approval schema
+ * Get pending partners query schema
  */
-export const approvePartnerSchema = z.object({
-  notes: z.string().optional()
+export const getPendingPartnersQuerySchema = z.object({
+  status: z.enum(['pending', 'reviewing', 'approved', 'rejected']).optional(),
+  page: z.coerce.number().min(1).optional().default(1),
+  limit: z.coerce.number().min(1).max(100).optional().default(20),
+  sortBy: z.enum(['created_at', 'updated_at', 'company_name']).optional().default('created_at'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+  search: z.string().optional(), // Search by company name or email
 });
 
 /**
- * Partner rejection schema
+ * Update partner application status schema (unified)
  */
-export const rejectPartnerSchema = z.object({
-  reason: z.string().min(10, 'Rejection reason must be at least 10 characters')
-});
-
+export const updatePartnerApplicationStatusSchema = z.discriminatedUnion('status', [
+  // Approve application
+  z.object({
+    status: z.literal('approved'),
+    notes: z.string().optional(),
+  }),
+  // Reject application
+  z.object({
+    status: z.literal('rejected'),
+    reason: z.string().min(10, 'Rejection reason must be at least 10 characters'),
+  }),
+  // Mark as reviewing
+  z.object({
+    status: z.literal('reviewing'),
+  }),
+  // Mark as pending
+  z.object({
+    status: z.literal('pending'),
+  }),
+]);
 /**
  * Update partner status schema
  */
@@ -280,3 +303,5 @@ export const getPublicHolidaysQuerySchema = z.object({
   year: z.coerce.number().optional(),
   country: z.string().optional()
 });
+
+
