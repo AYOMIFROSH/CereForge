@@ -6,6 +6,7 @@ import { authApi } from './api/authApi';
 import { userApi } from './api/userApi';
 import { getStartedApi } from './api/getStartedApi';
 import { calendarApi } from './api/calendarApi';  // ✅ ADD THIS
+import { partnersApi } from './api/partnersApi';
 
 // Import regular slices
 import authReducer from './slices/authSlice';
@@ -19,6 +20,7 @@ export const store = configureStore({
     [userApi.reducerPath]: userApi.reducer,
     [getStartedApi.reducerPath]: getStartedApi.reducer,
     [calendarApi.reducerPath]: calendarApi.reducer,  // ✅ ADD THIS
+    [partnersApi.reducerPath]: partnersApi.reducer,
     
     // Regular slices (memory-only, no localStorage)
     auth: authReducer,
@@ -33,7 +35,8 @@ export const store = configureStore({
       .concat(authApi.middleware)
       .concat(userApi.middleware)
       .concat(getStartedApi.middleware)
-      .concat(calendarApi.middleware),  // ✅ ADD THIS
+      .concat(calendarApi.middleware)  // ✅ ADD THIS
+      .concat(partnersApi.middleware),
   
   devTools: import.meta.env.DEV // Only in development
 });
