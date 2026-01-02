@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import supabase from '../config/database';
-import { queueTeamNotification, queueClientConfirmation } from '../queues/email.queue';
+import { sendPartnerApplicationNotification, sendClientConfirmationEmail } from '../services/email.service';
 import { logPartnerEvent } from '../services/audit.service';
 import { validateFileUrls } from '../services/storage.service';
 import { asyncHandler, Errors } from '../utils/errors';
@@ -13,7 +13,6 @@ import logger from '../utils/logger';
 export const submitGetStartedForm = asyncHandler(async (req: Request, res: Response) => {
   const formData = req.body;
   const ipAddress = req.ip || 'unknown';
-
 
   logger.info(`Get Started form submission from: ${formData.email}`);
 
@@ -96,23 +95,23 @@ export const submitGetStartedForm = asyncHandler(async (req: Request, res: Respo
     }
   );
 
-  // ✅ Queue team notification with applicationId
-  queueTeamNotification({
-    fullName: formData.fullName,
-    email: formData.email,
-    companyName: formData.companyName,
-    projectTitle: formData.projectTitle,
-    applicationId: pendingPartner.id
-  }).catch(err => logger.error('Failed to queue team notification:', err));
-
-  // ✅ Queue client confirmation with applicationId
-  queueClientConfirmation({
-    email: formData.email,
-    fullName: formData.fullName,
-    companyName: formData.companyName,
-    projectTitle: formData.projectTitle,
-    applicationId: pendingPartner.id
-  }).catch(err => logger.error('Failed to queue client confirmation:', err));
+  // ✅ Send emails directly (no queue) - Fire and forget, don't block response
+  Promise.all([
+    sendPartnerApplicationNotification({
+      fullName: formData.fullName,
+      email: formData.email,
+      companyName: formData.companyName,
+      projectTitle: formData.projectTitle,
+      applicationId: pendingPartner.id
+    }),
+    sendClientConfirmationEmail(
+      formData.email,
+      formData.fullName,
+      formData.companyName,
+      formData.projectTitle,
+      pendingPartner.id
+    )
+  ]).catch(err => logger.error('Email sending failed (non-blocking):', err));
 
   logger.info(`Get Started application created: ${pendingPartner.email}${hasFiles ? ' (with files)' : ''}`);
 

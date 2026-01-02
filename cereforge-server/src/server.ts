@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 import app from './app';
 import logger from './utils/logger';
 import { testDatabaseConnection } from './config/database';
-import { closeEmailQueue } from './queues/email.queue';
 import { startSessionCleanup } from './services/session.cleanup.services'; // ✅ NEW
 
 // Load environment variables
@@ -47,15 +46,6 @@ async function startServer() {
       
       server.close(async () => {
         logger.info('✅ HTTP server closed');
-        
-        // ✅ Step 1: Close email queue
-        try {
-          logger.info('📧 Closing email queue...');
-          await closeEmailQueue();
-          logger.info('✅ Email queue closed');
-        } catch (error) {
-          logger.error('❌ Error closing email queue:', error);
-        }
         
         // ✅ Step 2: Database cleanup happens automatically
         logger.info('✅ Database connections closed');

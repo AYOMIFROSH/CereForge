@@ -9,7 +9,6 @@ import supabase from '../config/database';
 import { Errors } from '../utils/errors';
 import logger from '../utils/logger';
 import dayjs from 'dayjs';
-import { queueEventInvitation, queueEventReminder as queueReminderJob } from '../queues/calendar.queue';
 import { generateRecurringInstances } from '../utils/recurrenece';
 import {
   CalendarEvent,
@@ -128,11 +127,6 @@ export async function createCalendarEvent(
     // Add guests if provided
     if (data.guests && data.guests.length > 0) {
       await addGuestsToEvent(event.id, data.guests, data.sendInvitations || false);
-    }
-
-    // Queue reminder if notification is set
-    if (data.notificationSettings.type !== 'Snooze' && data.notificationSettings.interval) {
-      await queueEventReminder(event.id, userId, data.notificationSettings);
     }
 
     // Audit log
@@ -516,13 +510,6 @@ async function addGuestsToEvent(
       throw Errors.database('Failed to add guests');
     }
 
-    // Queue invitation emails if requested
-    if (sendInvitations) {
-      for (const guest of guests) {
-        await queueEventInvitation(eventId, guest.email, guest.name);
-      }
-    }
-
     logger.info(`Added ${guests.length} guests to event ${eventId}`);
   } catch (error) {
     logger.error('Add guests to event error:', error);
@@ -530,52 +517,6 @@ async function addGuestsToEvent(
   }
 }
 
-/**
- * Queue event reminder based on notification settings
- */
-async function queueEventReminder(
-  eventId: string,
-  userId: string,
-  notificationSettings: any
-): Promise<void> {
-  try {
-    // Calculate reminder time based on settings
-    const { data: event } = await supabase
-      .from('calendar_events')
-      .select('start_time, title')
-      .eq('id', eventId)
-      .single();
-
-    if (!event) return;
-
-    let remindAt: Date;
-    const eventStart = new Date(event.start_time);
-
-    if (notificationSettings.interval && notificationSettings.timeUnit) {
-      const { interval, timeUnit } = notificationSettings;
-
-      switch (timeUnit) {
-        case 'Minute':
-          remindAt = dayjs(eventStart).subtract(interval, 'minute').toDate();
-          break;
-        case 'Hour':
-          remindAt = dayjs(eventStart).subtract(interval, 'hour').toDate();
-          break;
-        case 'Day':
-          remindAt = dayjs(eventStart).subtract(interval, 'day').toDate();
-          break;
-        default:
-          remindAt = dayjs(eventStart).subtract(15, 'minute').toDate();
-      }
-
-      // Queue the reminder job
-      await queueReminderJob(eventId, userId, remindAt, event.title);
-    }
-  } catch (error) {
-    logger.error('Queue event reminder error:', error);
-    // Don't throw - reminder is non-critical
-  }
-}
 
 /**
  * Expand recurring events into instances

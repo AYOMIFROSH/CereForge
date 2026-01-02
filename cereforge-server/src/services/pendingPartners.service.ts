@@ -1,10 +1,10 @@
-// src/services/pendingPartners.service.ts
+// src/services/pendingPartners.service.ts - UPDATED WITHOUT QUEUE
 
 import { getFreshSupabase } from '../config/database';
 import supabase from '../config/database';
 import { Errors } from '../utils/errors';
 import { hashPassword, generateTemporaryPassword } from '../utils/password';
-import { sendPartnerWelcomeEmail, sendApplicationRejectionEmail } from './email.service';
+import { sendPartnerWelcomeEmail, sendApplicationRejectionEmail } from '../services/email.service';
 import { logPartnerEvent } from './audit.service';
 import logger from '../utils/logger';
 
@@ -29,8 +29,6 @@ interface PaginatedResponse<T> {
 
 /**
  * Get all partner applications with pagination and filtering
- * Returns minimal data for list view - fetch full details by ID when needed
- * By default, excludes approved applications to keep the list clean
  */
 export async function getPendingPartners(
   params: GetPendingPartnersParams
@@ -283,7 +281,8 @@ export async function approvePendingPartner(
       sendPartnerWelcomeEmail(
         application.email,
         application.company_name,
-        temporaryPassword
+        temporaryPassword,
+        partner.id
       )
     ]).catch((err) => {
       logger.error('Background operations error:', err);
@@ -348,23 +347,27 @@ export async function rejectPendingPartner(
       throw Errors.database('Failed to reject application');
     }
 
-    // 4. Audit log
-    await logPartnerEvent(
-      'application_rejected',
-      adminUserId,
-      applicationId,
-      ipAddress,
-      {
-        company_name: application.company_name,
-        reason,
-      }
-    );
-
-    sendApplicationRejectionEmail(
+    // 4. Audit log and send email (non-blocking)
+    Promise.all([
+      logPartnerEvent(
+        'application_rejected',
+        adminUserId,
+        applicationId,
+        ipAddress,
+        {
+          company_name: application.company_name,
+          reason,
+        }
+      ),
+      sendApplicationRejectionEmail(
         application.email,
         application.company_name,
-        reason
+        reason,
+        applicationId
       )
+    ]).catch((err) => {
+      logger.error('Background operations error:', err);
+    });
 
     logger.info(`Partner application rejected: ${applicationId}`);
   } catch (error) {
