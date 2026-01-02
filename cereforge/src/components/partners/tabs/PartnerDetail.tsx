@@ -1,7 +1,7 @@
 // src/components/partners/PartnerDetail.tsx
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Mail, Globe, Linkedin, Calendar, DollarSign, Users, FileText, Loader2, Save, Edit2, X, CheckCircle, XCircle, Pause, ExternalLink } from 'lucide-react';
+import { ChevronLeft,  Globe, Linkedin, Calendar, DollarSign, Users, FileText, Loader2, Save, Edit2, X, CheckCircle, XCircle, Pause, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useGetPartnerQuery, useUpdatePartnerMutation, useUpdatePartnerStatusMutation } from '@/store/api/partnersApi';
 import type { PartnerOnboardingStatus, UpdatePartnerInput } from '@/types/partners.types';

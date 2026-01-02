@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { 
   ChevronLeft, Mail, Phone, Globe, Linkedin, Calendar, DollarSign, 
   Users, FileText, Loader2, CheckCircle, XCircle, Clock, ExternalLink, 
-  Search, AlertCircle 
+  Search, AlertCircle, Filter, ChevronRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { 
@@ -377,100 +377,154 @@ const PartnerApplicationDetail = ({ applicationId, onBack }: PartnerApplicationD
   );
 };
 
+
 // ==========================================
 // 2. THE MAIN LIST COMPONENT
 // ==========================================
 
 const PartnerApplicationsList = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-const { data, isLoading, error } = useGetPartnerApplicationsQuery({});
+  const { data, isLoading, error } = useGetPartnerApplicationsQuery({});
 
-  // 1. If an ID is selected, show the Detail view
+  // 1. Detail View
   if (selectedId) {
+    // Note: You would use your actual PartnerApplicationDetail component here
     return (
-      <PartnerApplicationDetail 
-        applicationId={selectedId} 
-        onBack={() => setSelectedId(null)} 
-      />
+      <div className="p-6">
+        <PartnerApplicationDetail 
+          applicationId={selectedId} 
+          onBack={() => setSelectedId(null)} 
+        />
+      </div>
     );
   }
 
-  // 2. Otherwise, show the List view
+  // 2. List View
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-900">Recent Applications</h3>
-        <div className="relative w-64">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-           <input
-             type="text"
-             placeholder="Search applications..."
-             className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-all"
-           />
+    <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="p-5 border-b border-gray-100 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+             <h3 className="text-lg font-bold text-gray-900">Recent Applications</h3>
+             <p className="text-xs text-gray-500 mt-0.5">Review and onboard new potential partners</p>
+          </div>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64 group">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+               <input
+                 type="text"
+                 placeholder="Search by name, company..."
+                 className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 transition-all"
+               />
+            </div>
+            <button className="p-2 text-gray-500 hover:text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors">
+                <Filter className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-        </div>
-      )}
+      {/* Content */}
+      <div className="flex-1 p-5 bg-gray-50/30">
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <Loader2 className="w-8 h-8 animate-spin mb-2" />
+            <span className="text-sm font-medium">Loading applications...</span>
+          </div>
+        )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <p className="text-sm text-red-700">Failed to load applications.</p>
-        </div>
-      )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-sm text-red-700">Failed to load applications.</p>
+          </div>
+        )}
 
-      {!isLoading && !error && (
-        <div className="grid gap-3">
-          {data?.data.items.length === 0 ? (
-             <div className="text-center py-12 text-gray-500">No applications found.</div>
-          ) : (
-            data?.data.items.map((app) => (
-              <motion.div
-                key={app.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.01 }}
-                onClick={() => setSelectedId(app.id)}
-                className="bg-white border border-gray-100 rounded-xl p-4 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer group"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h4 className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                        {app.project_title}
-                      </h4>
-                      <span className={`px-2 py-0.5 text-[10px] uppercase font-bold rounded-full 
-                        ${app.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
-                          app.status === 'approved' ? 'bg-green-100 text-green-700' : 
-                          'bg-gray-100 text-gray-700'}`}>
-                        {app.status}
-                      </span>
+        {!isLoading && !error && (
+          <div className="space-y-3">
+            {data?.data.items.length === 0 ? (
+               <div className="text-center py-20">
+                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-6 h-6 text-gray-400" />
+                 </div>
+                 <h3 className="text-gray-900 font-medium">No applications found</h3>
+                 <p className="text-sm text-gray-500 mt-1">New applications will appear here.</p>
+               </div>
+            ) : (
+              data?.data.items.map((app, index) => (
+                <motion.div
+                  key={app.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => setSelectedId(app.id)}
+                  className="group bg-white rounded-xl border border-gray-200/60 p-4 cursor-pointer hover:shadow-lg hover:shadow-gray-200/50 hover:border-blue-300/50 transition-all duration-300 relative overflow-hidden"
+                >
+                  {/* Status Strip on Hover */}
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    
+                    {/* Identity Section (Cols 1-5) */}
+                    <div className="md:col-span-5 flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-600 font-bold text-sm shadow-inner">
+                            {app.company_name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                            <h4 className="font-bold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                                {app.company_name}
+                            </h4>
+                            <p className="text-xs text-gray-500 truncate">{app.full_name} • {app.email}</p>
+                        </div>
                     </div>
-                    <p className="text-sm text-gray-500 mb-2">{app.company_name} • {app.full_name}</p>
-                    <div className="flex items-center gap-4 text-xs text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span>{new Date(app.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-3 h-3" />
-                        <span>{app.budget_range}</span>
-                      </div>
+
+                    {/* Project Info (Cols 6-9) */}
+                    <div className="md:col-span-4 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate mb-1">
+                            {app.project_title}
+                        </p>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                             <div className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
+                                <DollarSign className="w-3 h-3" />
+                                <span>{app.budget_range}</span>
+                             </div>
+                             <span className="capitalize text-gray-400">{app.project_stage}</span>
+                        </div>
+                    </div>
+
+                    {/* Status & Date (Cols 10-12) */}
+                    <div className="md:col-span-3 flex items-center justify-between md:justify-end gap-6">
+                        <div className="flex flex-col items-end gap-1">
+                            <span className={`
+                                inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide
+                                ${app.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 
+                                  app.status === 'approved' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                                  app.status === 'reviewing' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                  'bg-red-50 text-red-700 border border-red-200'}
+                            `}>
+                                {app.status === 'pending' && <Clock className="w-3 h-3" />}
+                                {app.status === 'approved' && <CheckCircle className="w-3 h-3" />}
+                                {app.status === 'reviewing' && <FileText className="w-3 h-3" />}
+                                {app.status === 'rejected' && <XCircle className="w-3 h-3" />}
+                                {app.status}
+                            </span>
+                            <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date(app.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        
+                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
                     </div>
                   </div>
-                  <div className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 text-blue-600 font-bold text-xs">
-                    {app.company_name.charAt(0)}
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      )}
+                </motion.div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
