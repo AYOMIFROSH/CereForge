@@ -9,9 +9,10 @@ import VideoOverview from '@/components/video/VideoOverview';
 import CereforgeEditor from '@/components/textEditor/RichtextEditor';
 import CalendarPage from '../CalendarPage';
 import ConsultationOverview from '@/components/consultation/ConsultationOverview';
+import PartnerOverview from '@/components/partners/PartnerOverview';
 import Sidebar from '@/components/layouts/Sidebar';
 
-type TabType = 'overview' | 'editor' | 'calendar' | 'video' | 'consultation';
+type TabType = 'overview' | 'editor' | 'calendar' | 'video' | 'consultation' | 'partners';
 
 const CoreOverview = () => (
   <div className="p-6 space-y-6">
@@ -68,6 +69,7 @@ const CoreDashboard = () => {
       case 'calendar': return <CalendarPage />;
       case 'video': return <VideoOverview />;
       case 'consultation': return <ConsultationOverview />;
+      case 'partners': return <PartnerOverview />;
       default: return <CoreOverview />;
     }
   };

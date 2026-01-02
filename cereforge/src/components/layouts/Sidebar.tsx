@@ -6,6 +6,7 @@ import {
   FileEdit, 
   Calendar as CalendarIcon,
   CalendarCheck,
+  Users
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ const Sidebar = ({ activeTab, setActiveTab, handleLogout, isLoading }: SidebarPr
     { id: 'calendar', label: 'Calendar', icon: CalendarIcon },
     { id: 'video', label: 'Video', icon: Video },
     { id: 'consultation', label: 'Consultation', icon: CalendarCheck },
+    { id: 'partners', label: 'Partners', icon: Users },
   ];
 
   return (
