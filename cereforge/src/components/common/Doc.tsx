@@ -166,7 +166,7 @@ const CereforgeDatabaseDocs = () => {
         { name: 'has_internal_team', type: 'bool', pk: false, nullable: true, description: 'Has internal technical team' },
         { name: 'schedule_call', type: 'bool', pk: false, nullable: true, description: 'Requested discovery call' },
         { name: 'onboarding_status', type: 'varchar', pk: false, nullable: true, description: 'Onboarding status: pending | active | completed' },
-        { name: 'approved_by', type: 'uuid', pk: false, nullable: true, fk: 'user_profiles(id)', description: 'Admin who approved the partner' },
+        { name: 'approved_by', type: 'uuid', pk: false, nullable: true, fk: 'user_profiles(id)', description: 'Admin or core user who approved the partner' },
         { name: 'approved_at', type: 'timestamptz', pk: false, nullable: true, description: 'Approval timestamp' },
         { name: 'project_brief_url', type: 'text', pk: false, nullable: true, description: 'Supabase storage URL for project brief' },
         { name: 'reference_images_url', type: 'text', pk: false, nullable: true, description: 'Supabase storage URL for reference images' },
@@ -177,7 +177,7 @@ const CereforgeDatabaseDocs = () => {
       ],
       foreignKeys: [
         { column: 'user_id', references: 'user_profiles(id)', onDelete: 'CASCADE' },
-        { column: 'approved_by', references: 'user_profiles(id)', onDelete: 'SET NULL' },
+        { column: 'approved_by', references: 'user_profiles(id)', onDelete: 'SET NULL' }, // ✅ CHANGED
       ],
       referencedBy: [],
       indexes: [
@@ -211,7 +211,7 @@ const CereforgeDatabaseDocs = () => {
         { name: 'reference_images_url', type: 'text', pk: false, nullable: true, description: 'Reference images (optional)' },
         { name: 'profile_photo_url', type: 'text', pk: false, nullable: true, description: 'Profile photo (optional)' },
         { name: 'status', type: 'varchar', pk: false, nullable: true, default: 'pending', description: 'pending | reviewing | approved | rejected' },
-        { name: 'reviewed_by', type: 'uuid', pk: false, nullable: true, fk: 'user_profiles(id)', description: 'Admin who reviewed' },
+        { name: 'reviewed_by', type: 'uuid', pk: false, nullable: true, fk: 'user_profiles(id)', description: 'Admin or core user who reviewed the application' },
         { name: 'reviewed_at', type: 'timestamptz', pk: false, nullable: true, description: 'Review timestamp' },
         { name: 'rejection_reason', type: 'text', pk: false, nullable: true, description: 'Reason for rejection (if rejected)' },
         { name: 'converted_to_partner_id', type: 'uuid', pk: false, nullable: true, fk: 'partners(id)', description: 'Partner ID after approval' },
@@ -219,7 +219,7 @@ const CereforgeDatabaseDocs = () => {
         { name: 'updated_at', type: 'timestamptz', pk: false, nullable: true, default: 'now()', description: 'Last update timestamp' },
       ],
       foreignKeys: [
-        { column: 'reviewed_by', references: 'user_profiles(id)', onDelete: 'SET NULL' },
+        { column: 'reviewed_by', references: 'user_profiles(id)', onDelete: 'SET NULL' }, // ✅ CHANGED
         { column: 'converted_to_partner_id', references: 'partners(id)', onDelete: 'SET NULL' },
       ],
       referencedBy: [],
@@ -558,11 +558,10 @@ const CereforgeDatabaseDocs = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -667,13 +666,12 @@ const CereforgeDatabaseDocs = () => {
                   className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      table.category === 'Core' ? 'bg-blue-100 text-blue-700' :
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${table.category === 'Core' ? 'bg-blue-100 text-blue-700' :
                       table.category === 'Authentication' ? 'bg-purple-100 text-purple-700' :
-                      table.category === 'Business' ? 'bg-green-100 text-green-700' :
-                      table.category === 'Features' ? 'bg-orange-100 text-orange-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
+                        table.category === 'Business' ? 'bg-green-100 text-green-700' :
+                          table.category === 'Features' ? 'bg-orange-100 text-orange-700' :
+                            'bg-slate-100 text-slate-700'
+                      }`}>
                       {table.category}
                     </div>
                     <div className="text-left">
@@ -798,11 +796,10 @@ const CereforgeDatabaseDocs = () => {
                     <code className="text-lg font-mono text-blue-600 font-semibold">{rel.from}</code>
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      rel.type === 'ONE_TO_ONE' ? 'bg-blue-100 text-blue-700' :
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${rel.type === 'ONE_TO_ONE' ? 'bg-blue-100 text-blue-700' :
                       rel.type === 'ONE_TO_MANY' ? 'bg-purple-100 text-purple-700' :
-                      'bg-orange-100 text-orange-700'
-                    }`}>
+                        'bg-orange-100 text-orange-700'
+                      }`}>
                       {rel.type.replace('_', '_TO_')}
                     </div>
                     <GitBranch className="w-6 h-6 text-slate-400" />

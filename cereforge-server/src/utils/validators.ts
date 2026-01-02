@@ -148,6 +148,46 @@ export function validate<T>(schema: z.ZodSchema<T>) {
   };
 }
 
+
+/**
+ * Get partners query schema
+ */
+export const getPartnersQuerySchema = z.object({
+  status: z.enum(['active', 'suspended', 'paused', 'completed']).optional(),
+  page: z.coerce.number().min(1).optional().default(1),
+  limit: z.coerce.number().min(1).max(100).optional().default(20),
+  sortBy: z.enum(['created_at', 'updated_at', 'partner_name']).optional().default('created_at'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+  search: z.string().optional(),
+});
+
+/**
+ * Update partner schema
+ */
+
+export const updatePartnerSchema = z.object({
+  // Partner information
+  partner_name: z.string().min(2).max(255).optional(),
+  company_website: z.string().url().optional().or(z.literal('')),
+  linkedin_profile: z.string().url().optional().or(z.literal('')),
+  industry: z.string().max(255).optional(),
+  company_size: z.string().max(50).optional(),
+
+  // Project information
+  project_title: z.string().min(5).max(255).optional(),
+  project_description: z.string().min(50).max(5000).optional(),
+  project_stage: z.enum(['idea', 'prototype', 'mvp', 'scaling']).optional(),
+  solution_type: z.enum(['software', 'hardware', 'ai', 'fullstack', 'web']).optional(),
+  ideal_start_date: z.string().datetime().optional().or(z.literal('')),
+  budget_range: z.string().optional(),
+  currency: z.enum(['$', '₦', '£', '€']).optional(),
+  has_internal_team: z.boolean().optional(),
+  schedule_call: z.boolean().optional(),
+
+  // Metadata
+  metadata: z.record(z.any()).optional(),
+});
+
 /**
  * Custom Recurrence Config Schema (nested)
  */

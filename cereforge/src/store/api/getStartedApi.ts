@@ -4,7 +4,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 export interface GetStartedFormData {
   fullName: string;
   email: string;
-  phone: string;
+  phone: number;
   companyName: string;
   companyWebsite: string;
   linkedinProfile: string;

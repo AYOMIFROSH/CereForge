@@ -68,7 +68,7 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
  * ✅ FIXED: Now works for email verification (pre-auth) and login/logout (authenticated)
  */
 export async function logAuthEvent(
-  action: 'login' | 'logout' | 'login_failed' | 'token_refresh' | 'password_reset_request' | 'password_changed',
+  action: 'login' | 'logout' | 'login_failed' | 'token_refresh' | 'password_reset_request' | 'password_changed' ,
   userId: string | undefined,
   ipAddress: string,
   userAgent: string,
@@ -80,7 +80,7 @@ export async function logAuthEvent(
     login_failed: 'medium',
     token_refresh: 'low',
     password_reset_request: 'medium',
-    password_changed: 'high'
+    password_changed: 'high',
   };
 
   await createAuditLog({
@@ -98,7 +98,7 @@ export async function logAuthEvent(
  * Log partner management events
  */
 export async function logPartnerEvent(
-  action: 'application_submitted' | 'application_approved' | 'application_rejected' | 'status_changed',
+  action: 'application_submitted' | 'application_approved' | 'application_rejected' | 'status_changed' | 'partner_status_changed' | 'partner_updated',
   userId: string | undefined,
   partnerId: string,
   ipAddress: string,

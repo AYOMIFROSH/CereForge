@@ -9,7 +9,7 @@ import { useSubmitGetStartedMutation } from '../store/api/getStartedApi';
 export interface GetStartedFormData {
   fullName: string;
   email: string;
-  phone: string;
+  phone: number;
   companyName: string;
   companyWebsite: string;
   linkedinProfile: string;

@@ -6,12 +6,21 @@ import {
   getPartnerApplication,
   updatePartnerApplicationStatus,
 } from '../controllers/pendingPartners.controller';
+import {
+  listPartners,
+  getPartner,
+  updatePartnerHandler,
+  updatePartnerStatusHandler,
+} from '../controllers/partners.controller';
 import { authenticate, requireRole } from '../middleware/auth';
 import { validateBody, validateQuery, validateParams } from '../middleware/validator';
 import { generalLimiter } from '../middleware/rateLimiter';
 import { 
   getPendingPartnersQuerySchema,
-  updatePartnerApplicationStatusSchema 
+  updatePartnerApplicationStatusSchema,
+  getPartnersQuerySchema,
+  updatePartnerSchema,
+  updatePartnerStatusSchema,
 } from '../utils/validators';
 import { UserRole } from '../types/types';
 import { z } from 'zod';
@@ -66,6 +75,65 @@ router.patch(
   validateParams(z.object({ id: z.string().uuid() })),
   validateBody(updatePartnerApplicationStatusSchema),
   updatePartnerApplicationStatus
+);
+
+// =====================================================
+// PARTNERS ROUTES (Admin/Core only)
+// =====================================================
+
+/**
+ * GET /api/v1/admin/partners
+ * List all approved partners with filters
+ */
+router.get(
+  '/partners',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.CORE),
+  generalLimiter,
+  validateQuery(getPartnersQuerySchema),
+  listPartners
+);
+
+/**
+ * GET /api/v1/admin/partners/:id
+ * Get single partner by ID
+ */
+router.get(
+  '/partners/:id',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.CORE),
+  generalLimiter,
+  validateParams(z.object({ id: z.string().uuid() })),
+  getPartner
+);
+
+/**
+ * PUT /api/v1/admin/partners/:id
+ * Update partner information
+ */
+router.put(
+  '/partners/:id',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.CORE),
+  generalLimiter,
+  validateParams(z.object({ id: z.string().uuid() })),
+  validateBody(updatePartnerSchema),
+  updatePartnerHandler
+);
+
+/**
+ * PATCH /api/v1/admin/partners/:id/status
+ * Update partner status (active, suspended, paused, completed)
+ * Body: { "status": "suspended" }
+ */
+router.patch(
+  '/partners/:id/status',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.CORE),
+  generalLimiter,
+  validateParams(z.object({ id: z.string().uuid() })),
+  validateBody(updatePartnerStatusSchema),
+  updatePartnerStatusHandler
 );
 
 export default router;
