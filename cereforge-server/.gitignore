@@ -7,3 +7,5 @@ node_modules
 /scripts/*.ts
 
 /tests/
+
+/backup_20260103_074331/

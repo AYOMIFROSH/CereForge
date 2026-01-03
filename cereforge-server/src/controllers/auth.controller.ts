@@ -4,21 +4,19 @@ import { verifyRefreshToken } from '../utils/jwt';
 import { logAuthEvent } from '../services/audit.service';
 import { asyncHandler } from '../utils/errors';
 import logger from '../utils/logger';
+import { getFreshSupabase } from '../config/database';
 
 /**
  * ✅ FIXED: Cookie Configuration for Development & Production
- * CRITICAL: SameSite='none' requires secure=true, which breaks localhost
- * SOLUTION: Use 'lax' for both dev and prod
  */
-// ✅ FIXED Cookie Configuration
 const getCookieConfig = (maxAge: number) => {
   const isProduction = process.env.NODE_ENV === 'production';
 
   return {
     httpOnly: true,
-    secure: isProduction, // ✅ FALSE in development (HTTP), TRUE in production (HTTPS)
+    secure: isProduction,
     sameSite: 'lax' as const,
-    domain: isProduction ? '.cereforge.com' : undefined, // ✅ No domain in dev (allows localhost:5173)
+    domain: isProduction ? '.cereforge.com' : undefined,
     maxAge,
     path: '/'
   };
@@ -37,7 +35,6 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
 
   const result = await verifyEmail(email);
 
-  // Log verification attempt
   await logAuthEvent(
     result.exists ? 'login' : 'login_failed',
     result.userId,
@@ -61,7 +58,6 @@ export const verifyEmailHandler = asyncHandler(async (req: Request, res: Respons
 /**
  * POST /api/v1/auth/login
  * Step 2 of Smart Login: Complete login with password
- * ✅ FIXED: Cookies now work in development
  */
 export const loginHandler = asyncHandler(async (req: Request, res: Response) => {
   const { email, password, role } = req.body;
@@ -84,9 +80,8 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
     }
   );
 
-  // ✅ Set httpOnly cookies with FIXED configuration
-  res.cookie('authToken', result.token, getCookieConfig(15 * 60 * 1000)); // 15 minutes
-  res.cookie('refreshToken', result.refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000)); // 7 days
+  res.cookie('authToken', result.token, getCookieConfig(15 * 60 * 1000));
+  res.cookie('refreshToken', result.refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
 
   logger.info(`User ${result.user.email} logged in successfully`);
 
@@ -103,15 +98,9 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 /**
  * GET /api/v1/auth/me
  * ⚡ ULTRA-FAST: Validate current session (JWT only, no DB query)
- * ✅ Returns systemType
  */
 export const getMeHandler = asyncHandler(async (req: Request, res: Response) => {
-  // ✅ User already validated by authenticate middleware
   const user = req.user!;
-
-  // ✅ PERFORMANCE: No database query needed
-  // JWT already contains all user info including systemType
-  // Session validity already checked in middleware
 
   res.json({
     success: true,
@@ -133,7 +122,6 @@ export const getMeHandler = asyncHandler(async (req: Request, res: Response) => 
 /**
  * POST /api/v1/auth/logout
  * Logout user and invalidate session
- * ✅ FIXED: Clears cookies properly
  */
 export const logoutHandler = asyncHandler(async (req: Request, res: Response) => {
   const user = req.user!;
@@ -142,7 +130,6 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
 
   await logout(user.sessionId);
 
-  // Log logout
   await logAuthEvent(
     'logout',
     user.userId,
@@ -151,7 +138,6 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
     { systemType: user.systemType }
   );
 
-  // ✅ FIXED: Clear cookies with same config
   const isProduction = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     httpOnly: true,
@@ -173,7 +159,7 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
 
 /**
  * POST /api/v1/auth/refresh
- * ✅ Refresh access token using refresh token
+ * ✅ SECURITY FIX: Validate session is still active before refreshing
  */
 export const refreshTokenHandler = asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies?.refreshToken;
@@ -194,7 +180,6 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
   const payload = verifyRefreshToken(refreshToken);
 
   if (!payload) {
-    // Invalid or expired refresh token - clear cookies
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
@@ -221,7 +206,76 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
   }
 
   try {
-    // ✅ Generate new access token
+    // ✅ SECURITY FIX: Validate session is still active
+    const adminClient = getFreshSupabase();
+    const { data: session, error: sessionError } = await adminClient
+      .from('user_sessions')
+      .select('is_active, expires_at')
+      .eq('id', payload.sessionId)
+      .eq('user_id', payload.userId)
+      .maybeSingle();
+
+    // ❌ Session not found or inactive
+    if (sessionError || !session || !session.is_active) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax' as const,
+        domain: isProduction ? '.cereforge.com' : undefined,
+        path: '/'
+      };
+
+      res.clearCookie('authToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+
+      logger.warn(`Refresh denied: Session ${payload.sessionId} is ${!session ? 'missing' : 'inactive'}`);
+
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'SESSION_TERMINATED',
+          message: 'Session has been terminated. Please login again.'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // ❌ Session expired
+    if (new Date(session.expires_at) < new Date()) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax' as const,
+        domain: isProduction ? '.cereforge.com' : undefined,
+        path: '/'
+      };
+
+      res.clearCookie('authToken', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+
+      // Mark session as inactive
+      await adminClient
+        .from('user_sessions')
+        .update({ is_active: false })
+        .eq('id', payload.sessionId);
+
+      logger.warn(`Refresh denied: Session ${payload.sessionId} expired at ${session.expires_at}`);
+
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'SESSION_EXPIRED',
+          message: 'Session has expired. Please login again.'
+        },
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // ✅ Session valid - generate new access token
     const newAccessToken = await refreshAccessToken(
       payload.userId,
       payload.sessionId,
@@ -229,7 +283,6 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
       payload.systemType
     );
 
-    // Log token refresh
     await logAuthEvent(
       'token_refresh',
       payload.userId,
@@ -241,7 +294,6 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
       }
     );
 
-    // ✅ Set new access token cookie
     res.cookie('authToken', newAccessToken, getCookieConfig(15 * 60 * 1000));
 
     logger.info(`Access token refreshed for user ${payload.userId}`);
@@ -254,7 +306,6 @@ export const refreshTokenHandler = asyncHandler(async (req: Request, res: Respon
   } catch (error) {
     logger.error('Token refresh failed:', error);
 
-    // Clear cookies on error
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
