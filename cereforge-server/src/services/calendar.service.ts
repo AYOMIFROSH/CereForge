@@ -135,6 +135,38 @@ export async function getEventsInRange(
   }
 }
 
+
+/**
+ * Get single event by ID
+ */
+export async function getEventById(
+  eventId: string,
+  userId: string
+): Promise<CalendarEvent> {
+  try {
+    const { data: event, error } = await supabase
+      .from('calendar_events')
+      .select('*, event_guests(*)')
+      .eq('id', eventId)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .is('deleted_at', null)
+      .single();
+
+    if (error || !event) {
+      throw Errors.notFound('Event');
+    }
+
+    return event as CalendarEvent;
+  } catch (error) {
+    if (error instanceof Errors) throw error;
+    logger.error('Get event by ID error:', error);
+    throw Errors.internal('Failed to fetch event');
+  }
+}
+
+
+
 /**
  * ✅ OPTIMIZED: Clear cache for a specific event
  */
